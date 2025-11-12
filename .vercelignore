@@ -1,0 +1,60 @@
+# Vercel 忽略文件
+# 这些文件不会被上传到 Vercel
+
+# Python 虚拟环境
+backend/venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+
+# Node.js
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+backend/cco_test.db
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+logs/
+
+# 测试文件
+**/test_*.py
+**/*_test.py
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 文档和说明（可选，如果不需要）
+# *.md
+# 参考内容/
+
+# 备份文件
+*.bak
+*.backup
+

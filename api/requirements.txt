@@ -1,14 +1,30 @@
+# Vercel Serverless Function 依赖
+# 注意：Vercel 会自动安装这些依赖
+
+# FastAPI 核心依赖
 fastapi>=0.95.0
 uvicorn[standard]>=0.20.0
+
+# 数据库
 sqlalchemy>=2.0.0
+
+# 数据验证
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
+
+# 认证和安全
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
+
+# 工具库
 python-dateutil
 pytz
 python-dotenv
+
+# 数据库迁移
 alembic>=1.8.0
+
+# Vercel Serverless Function 适配器
 mangum>=0.17.0
 
