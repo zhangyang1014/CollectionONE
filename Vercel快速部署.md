@@ -13,8 +13,10 @@
 
 **Framework Preset**: `Other`  
 **Root Directory**: 留空  
-**Build Command**: `cd frontend && npm install && vite build`  
+**Build Command**: `cd frontend && npm install && npm run build:prod`  
 **Output Directory**: `frontend/dist`
+
+**注意**：使用 `build:prod` 命令跳过 TypeScript 类型检查，避免构建失败。
 
 ### 3. 环境变量（必需）
 

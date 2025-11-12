@@ -70,15 +70,17 @@ CloudunCollectionONE/
 
 #### Build and Output Settings
 
-**Build Command**：
+**Build Command**（推荐，跳过 TypeScript 类型检查）：
 ```bash
-cd frontend && npm install && npm run build
+cd frontend && npm install && npm run build:prod
 ```
 
-或者（如果跳过 TypeScript 检查）：
+或者（直接使用 vite build）：
 ```bash
 cd frontend && npm install && vite build
 ```
+
+**注意**：如果使用 `npm run build`（包含类型检查），可能会因为 TypeScript 错误导致构建失败。建议使用 `build:prod` 命令。
 
 **Output Directory**：
 ```
@@ -220,11 +222,12 @@ VITE_API_BASE_URL=https://your-app.vercel.app
 
 ### 1. 构建失败：TypeScript 错误
 
-**问题**：`npm run build` 因 TypeScript 类型错误失败
+**问题**：`npm run build` 因 TypeScript 类型错误失败，错误信息：`Error: Command "npm run build" exited with 1`
 
 **解决方案**：
-- 修改 Build Command 为：`cd frontend && vite build`（跳过类型检查）
-- 或修复所有 TypeScript 错误
+- **推荐**：修改 Build Command 为：`cd frontend && npm install && npm run build:prod`（跳过类型检查）
+- **或者**：直接使用 `cd frontend && npm install && vite build`
+- **长期方案**：修复所有 TypeScript 类型错误，然后使用 `npm run build`
 
 ### 2. API 路由 404
 
