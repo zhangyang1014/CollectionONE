@@ -1,0 +1,286 @@
+<template>
+  <el-container class="main-layout">
+    <el-aside width="250px" class="sidebar">
+      <div class="logo">
+        <h2>CCO系统</h2>
+      </div>
+      <el-menu
+        :default-active="activeMenu"
+        class="sidebar-menu"
+        router
+        background-color="#304156"
+        text-color="#bfcbd9"
+        active-text-color="#409eff"
+      >
+        <el-menu-item index="/dashboard">
+          <el-icon><HomeFilled /></el-icon>
+          <span>{{ $t('menu.dashboard') }}</span>
+        </el-menu-item>
+
+        <el-sub-menu index="dashboard">
+          <template #title>
+            <el-icon><DataAnalysis /></el-icon>
+            <span>数据看板</span>
+          </template>
+          <el-menu-item index="/performance/my-dashboard">单催员业绩看板</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="case">
+          <template #title>
+            <el-icon><Document /></el-icon>
+            <span>{{ $t('menu.caseManagement') }}</span>
+          </template>
+          <el-menu-item index="/cases">{{ $t('menu.caseList') }}</el-menu-item>
+          <el-menu-item index="/auto-assignment">自动化分案</el-menu-item>
+          <el-menu-item index="/tenants/queue-management">{{ $t('menu.queueManagement') }}</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="field">
+          <template #title>
+            <el-icon><Setting /></el-icon>
+            <span>{{ $t('menu.fieldConfig') }}</span>
+          </template>
+          <el-menu-item index="/field-config/standard">{{ $t('menu.standardFields') }}</el-menu-item>
+          <el-menu-item index="/field-config/tenant-fields-view">甲方字段查看</el-menu-item>
+          <el-menu-item index="/field-config/custom">{{ $t('menu.customFields') }}</el-menu-item>
+          <el-menu-item index="/field-config/groups">{{ $t('menu.fieldGroups') }}</el-menu-item>
+          <el-menu-item index="/field-config/linkage">{{ $t('menu.fieldLinkage') }}</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="tenant">
+          <template #title>
+            <el-icon><OfficeBuilding /></el-icon>
+            <span>{{ $t('menu.tenantManagement') }}</span>
+          </template>
+          <el-menu-item index="/tenants">{{ $t('menu.tenantList') }}</el-menu-item>
+          <el-menu-item index="/organization/agencies">{{ $t('menu.agencyManagement') }}</el-menu-item>
+          <el-menu-item index="/organization/teams">{{ $t('menu.teamManagement') }}</el-menu-item>
+          <el-menu-item index="/organization/admin-accounts">{{ $t('menu.adminAccountManagement') }}</el-menu-item>
+          <el-menu-item index="/organization/collectors">{{ $t('menu.collectorManagement') }}</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="channel">
+          <template #title>
+            <el-icon><Connection /></el-icon>
+            <span>渠道配置</span>
+          </template>
+          <el-menu-item index="/channel-config/limits">渠道发送限制配置</el-menu-item>
+          <el-menu-item index="/channel-config/suppliers">甲方渠道管理</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu v-if="isSuperAdmin || isTenantAdmin" index="system">
+          <template #title>
+            <el-icon><Lock /></el-icon>
+            <span>系统管理</span>
+          </template>
+          <el-menu-item v-if="isSuperAdmin" index="/system/permissions">权限管理</el-menu-item>
+          <el-menu-item index="/system/notification-config">通知配置</el-menu-item>
+        </el-sub-menu>
+      </el-menu>
+    </el-aside>
+
+    <el-container>
+      <el-header class="header">
+        <div class="header-left"></div>
+        <div class="header-right">
+          <!-- 全局甲方选择器 -->
+          <div class="tenant-selector">
+            <span class="tenant-label">当前甲方：</span>
+            <el-select 
+              v-model="currentTenantId" 
+              placeholder="请选择甲方" 
+              @change="handleTenantChange"
+              style="width: 200px"
+              clearable
+            >
+              <el-option
+                v-for="tenant in tenants"
+                :key="tenant.id"
+                :label="tenant.tenant_name"
+                :value="tenant.id"
+              />
+            </el-select>
+          </div>
+          
+          <el-dropdown @command="handleCommand">
+            <span class="user-info">
+              <el-icon><User /></el-icon>
+              <span>用户</span>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </el-header>
+
+      <el-main class="main-content">
+        <router-view />
+      </el-main>
+    </el-container>
+  </el-container>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { HomeFilled, Document, Setting, OfficeBuilding, User, Connection, Lock, DataAnalysis } from '@element-plus/icons-vue'
+import { useTenantStore } from '@/stores/tenant'
+import { useUserStore } from '@/stores/user'
+import { getTenants } from '@/api/tenant'
+
+const route = useRoute()
+const activeMenu = computed(() => route.path)
+
+// 全局甲方状态管理
+const tenantStore = useTenantStore()
+const userStore = useUserStore()
+
+// 检查是否为超级管理员
+const isSuperAdmin = computed(() => {
+  const userRole = userStore.userInfo?.role || ''
+  return userRole.toLowerCase() === 'superadmin' || userRole === 'SUPER_ADMIN'
+})
+
+// 检查是否为甲方管理员
+const isTenantAdmin = computed(() => {
+  const userRole = userStore.userInfo?.role || ''
+  return userRole.toLowerCase() === 'tenantadmin' || userRole === 'TENANT_ADMIN'
+})
+
+const tenants = ref<any[]>([])
+const currentTenantId = computed({
+  get: () => tenantStore.currentTenantId,
+  set: (value) => {
+    const tenant = tenants.value.find(t => t.id === value)
+    tenantStore.setCurrentTenant(value, tenant)
+  }
+})
+
+// 加载甲方列表
+const loadTenants = async () => {
+  try {
+    const res = await getTenants()
+    // 如果响应是数组，直接使用；否则使用res.data
+    tenants.value = Array.isArray(res) ? res : (res.data || [])
+    
+    console.log('加载到的甲方列表：', tenants.value)
+    
+    // 从localStorage恢复之前的选择
+    tenantStore.restoreFromStorage()
+  } catch (error) {
+    console.error('加载甲方列表失败：', error)
+    ElMessage.error('加载甲方列表失败')
+  }
+}
+
+// 甲方切换处理
+const handleTenantChange = (value: number | undefined) => {
+  console.log('全局甲方切换：', value)
+}
+
+// 处理下拉菜单命令
+const handleCommand = async (command: string) => {
+  if (command === 'logout') {
+    try {
+      await ElMessageBox.confirm(
+        '确定要退出登录吗？',
+        '退出确认',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+      
+      // 清除用户信息
+      userStore.logout()
+      
+      // 清除甲方选择
+      tenantStore.clearCurrentTenant()
+      
+      ElMessage.success('已退出登录')
+      
+      // 跳转到登录页
+      window.location.href = '/admin/login'
+    } catch (error) {
+      // 用户取消
+    }
+  }
+}
+
+onMounted(() => {
+  loadTenants()
+})
+</script>
+
+<style scoped>
+.main-layout {
+  height: 100vh;
+}
+
+.sidebar {
+  background-color: #304156;
+  color: #fff;
+}
+
+.logo {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1f2d3d;
+}
+
+.logo h2 {
+  color: #fff;
+  margin: 0;
+}
+
+.sidebar-menu {
+  border: none;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  padding: 0 20px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.tenant-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tenant-label {
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.main-content {
+  background-color: #f0f2f5;
+  padding: 20px;
+}
+</style>
+

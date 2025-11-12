@@ -1,0 +1,24 @@
+﻿字段名称,英文名,类型,示例,说明,拓展字段
+贷款编号,loan_id,String,123,系统生成的唯一标识,否
+案件状态,case_status,Enum,未结清 / 逾期 / 结清,当前借款订单状态,否
+产品类别,product_type,String,借款订单,区分借款类型（借款 / 展期等）,否
+放款时间,disbursement_time,Datetime,2025/2/26 01:00:00,实际放款到账时间,否
+应还金额,total_due_amount,Decimal,1460,合同约定应还总额,否
+已还金额,total_paid_amount,Decimal,975,用户已偿还金额,否
+应还未还金额,outstanding_amount,Decimal,485,当前未偿还金额,否
+应收本金,principal_due,Decimal,1000,合同本金部分,否
+应收利息,interest_due,Decimal,180,合同利息部分,否
+服务费,service_fee,Decimal,270,手续费或管理费,否
+应收罚息,penalty_fee,Decimal,10,逾期罚息,否
+代扣账号,account_number,String,98546121,用户绑定还款账号,否
+开户行,bank_name,String,GCash,代扣银行或电子钱包名称,否
+借款App,loan_app,String,MegaPeso,借款来源平台,否
+合同编号,contract_no,String,MP20250226001,与外部合同匹配的编号,是
+放款渠道,disbursement_channel,String,Partner Bank,资金来源渠道,是
+入催时间,collection_entry_time,Datetime,2025/3/1 00:00:00,进入催收系统的时间,是
+当前逾期天数,overdue_days,Integer,3,系统自动计算,是
+下次催收时间,next_collection_time,Datetime,2025/3/5 09:00:00,系统生成或人工设定,是
+催收状态,collection_status,Enum,未联系 / 承诺还款 / 已结清,当前催收进度,是
+催收阶段,collection_stage,Enum,早期 / 中期 / 后期,按逾期天数划分,是
+还款方式,repayment_method,Enum,银行转账 / 钱包 / 门店,当前订单的还款途径,是
+最近还款日期,last_payment_date,Datetime,2025/2/28 14:33:22,上一次部分或全部还款时间,是

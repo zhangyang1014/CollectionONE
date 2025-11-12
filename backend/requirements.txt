@@ -1,0 +1,13 @@
+fastapi>=0.95.0
+uvicorn[standard]>=0.20.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+python-dateutil
+pytz
+python-dotenv
+alembic>=1.8.0
+

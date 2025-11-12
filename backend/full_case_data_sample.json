@@ -1,0 +1,291 @@
+{
+  "btq_sample": {
+    "id": 1,
+    "case_id": "CASE000001",
+    "tenant_id": 1,
+    "created_at": "2025-10-03 15:39:48",
+    "updated_at": "2025-11-06 15:39:48",
+    "case_status": "催收中",
+    "collector_id": "COL643",
+    "collection_priority": "低",
+    "customer_basic_info": {
+      "user_id": "MX25949",
+      "user_name": "Ana Martínez",
+      "id_number": "CURP1129593696",
+      "id_type": "CURP",
+      "birth_date": "1997-03-11",
+      "gender": "女",
+      "age": 23,
+      "mobile_number": "+52 55 1659 4896",
+      "email": "user234@example.com",
+      "whatsapp_number": "+52 55 9995 2045",
+      "state": "Nuevo León",
+      "city": "México",
+      "address": "Calle 78 #406",
+      "postal_code": "41121",
+      "education_level": "大专",
+      "employment_type": "自雇",
+      "company_name": "Company 29",
+      "monthly_income": 27968,
+      "work_years": 5,
+      "credit_score": 563,
+      "total_loans": 5,
+      "overdue_times": 0,
+      "last_login_time": "2025-10-16 15:39:48",
+      "emergency_contact_name": "Carlos Sánchez",
+      "emergency_contact_relation": "母亲",
+      "emergency_contact_phone": "+52 55 1850 2413"
+    },
+    "document_images": {
+      "id_front_image": "https://example.com/images/id_front_2177.jpg",
+      "id_back_image": "https://example.com/images/id_back_1109.jpg",
+      "live_photo": "https://example.com/images/live_8937.jpg",
+      "document_status": "需复核",
+      "document_verification": {
+        "is_fake_id": false,
+        "is_fake_live_photo": false,
+        "is_mismatch": false,
+        "has_other_issue": false,
+        "verified_at": "2025-11-06 15:39:48",
+        "verified_by": "系统自动审核",
+        "remark": ""
+      }
+    },
+    "loan_details": {
+      "loan_id": "BTQ-147653",
+      "loan_type": "单期",
+      "loan_source": "App直接申请",
+      "product_name": "Easy Money",
+      "app_name": "PesoMex",
+      "contract_number": "CON781238998",
+      "contract_sign_date": "2025-07-24",
+      "contract_amount": 4500,
+      "contract_term": "7天",
+      "interest_rate": "38%",
+      "service_fee": 490,
+      "contract_file_url": "https://example.com/contracts/contract_5715.pdf",
+      "disbursement_amount": 4500,
+      "disbursement_date": "2025-09-16",
+      "disbursement_status": "已放款",
+      "transaction_id": "TXN28889473770",
+      "recipient_name": "Luis Cruz",
+      "bank_name": "BBVA Bancomer",
+      "bank_account": "****7508",
+      "total_due_amount": 6209,
+      "outstanding_amount": 6072,
+      "due_date": "2025-10-03",
+      "overdue_days": 12,
+      "overdue_penalty": 1827
+    },
+    "loan_history": [
+      {
+        "loan_id": "BTQ-976949",
+        "loan_date": "2024-11-20",
+        "loan_amount": 2942,
+        "repay_date": "2024-07-25",
+        "repay_amount": 3824,
+        "status": "已结清",
+        "overdue_days": 0
+      },
+      {
+        "loan_id": "BTQ-373230",
+        "loan_date": "2024-11-27",
+        "loan_amount": 3821,
+        "repay_date": "2024-06-06",
+        "repay_amount": 4967,
+        "status": "正常还款",
+        "overdue_days": 26
+      },
+      {
+        "loan_id": "BTQ-839708",
+        "loan_date": "2024-11-01",
+        "loan_amount": 6587,
+        "repay_date": "2024-03-22",
+        "repay_amount": 8563,
+        "status": "逾期已还",
+        "overdue_days": 0
+      }
+    ],
+    "payment_records": [
+      {
+        "payment_id": "PAY49675529",
+        "payment_date": "2025-09-17 15:39:48",
+        "payment_amount": 2282,
+        "payment_method": "借记卡",
+        "transaction_id": "TXN27700211269",
+        "payment_status": "处理中",
+        "payment_channel": "App",
+        "remark": "逾期还款"
+      },
+      {
+        "payment_id": "PAY85472314",
+        "payment_date": "2025-09-26 15:39:48",
+        "payment_amount": 2635,
+        "payment_method": "SPEI",
+        "transaction_id": "TXN91092358731",
+        "payment_status": "失败",
+        "payment_channel": "App",
+        "remark": ""
+      },
+      {
+        "payment_id": "PAY99635496",
+        "payment_date": "2025-10-23 15:39:48",
+        "payment_amount": 1182,
+        "payment_method": "SPEI",
+        "transaction_id": "TXN57913280272",
+        "payment_status": "成功",
+        "payment_channel": "网页",
+        "remark": "正常还款"
+      }
+    ]
+  },
+  "btsk_sample": {
+    "id": 2,
+    "case_id": "CASE000002",
+    "tenant_id": 2,
+    "created_at": "2025-05-11 15:39:48",
+    "updated_at": "2025-11-06 15:39:48",
+    "case_status": "已结清",
+    "collector_id": "COL579",
+    "collection_priority": "中",
+    "customer_basic_info": {
+      "user_id": "MX40175",
+      "user_name": "María González",
+      "id_number": "CURP8223725725",
+      "id_type": "CURP",
+      "birth_date": "1998-08-07",
+      "gender": "女",
+      "age": 29,
+      "mobile_number": "+52 55 5939 8068",
+      "email": "user840@example.com",
+      "whatsapp_number": "+52 55 4938 6151",
+      "state": "Ciudad de México",
+      "city": "Guadalajara",
+      "address": "Calle 19 #139",
+      "postal_code": "94184",
+      "education_level": "高中",
+      "employment_type": "无业",
+      "company_name": "Company 4",
+      "monthly_income": 17972,
+      "work_years": 7,
+      "credit_score": 652,
+      "total_loans": 4,
+      "overdue_times": 0,
+      "last_login_time": "2025-11-05 15:39:48",
+      "emergency_contact_name": "Laura López",
+      "emergency_contact_relation": "朋友",
+      "emergency_contact_phone": "+52 55 9426 7836"
+    },
+    "document_images": {
+      "id_front_image": "https://example.com/images/id_front_3245.jpg",
+      "id_back_image": "https://example.com/images/id_back_8634.jpg",
+      "live_photo": "https://example.com/images/live_5855.jpg",
+      "document_status": "待审核",
+      "document_verification": {
+        "is_fake_id": false,
+        "is_fake_live_photo": false,
+        "is_mismatch": false,
+        "has_other_issue": false,
+        "verified_at": "2025-11-06 15:39:48",
+        "verified_by": "系统自动审核",
+        "remark": ""
+      }
+    },
+    "loan_details": {
+      "loan_id": "BTQ-452072",
+      "loan_type": "多期",
+      "loan_source": "贷超导流",
+      "product_name": "Easy Money",
+      "app_name": "PrestaYa",
+      "contract_number": "CON176631568",
+      "contract_sign_date": "2025-07-19",
+      "contract_amount": 5199,
+      "contract_term": "11个月",
+      "interest_rate": "35%",
+      "service_fee": 131,
+      "contract_file_url": "https://example.com/contracts/contract_6267.pdf",
+      "disbursement_amount": 5199,
+      "disbursement_date": "2025-07-20",
+      "disbursement_status": "已放款",
+      "transaction_id": "TXN56785184895",
+      "recipient_name": "María González",
+      "bank_name": "Banorte",
+      "bank_account": "****7454",
+      "total_due_amount": 7018,
+      "outstanding_amount": 3461,
+      "due_date": "2025-10-27",
+      "overdue_days": 17,
+      "overdue_penalty": 1028
+    },
+    "loan_history": [
+      {
+        "loan_id": "BTQ-445393",
+        "loan_date": "2023-11-24",
+        "loan_amount": 6057,
+        "repay_date": "2024-09-24",
+        "repay_amount": 7874,
+        "status": "正常还款",
+        "overdue_days": 12
+      },
+      {
+        "loan_id": "BTQ-843251",
+        "loan_date": "2023-12-07",
+        "loan_amount": 2798,
+        "repay_date": "2024-12-18",
+        "repay_amount": 3637,
+        "status": "逾期已还",
+        "overdue_days": 0
+      }
+    ],
+    "payment_records": [
+      {
+        "payment_id": "PAY92794278",
+        "payment_date": "2025-10-02 15:39:48",
+        "payment_amount": 1330,
+        "payment_method": "借记卡",
+        "transaction_id": "TXN92078848845",
+        "payment_status": "处理中",
+        "payment_channel": "网页",
+        "remark": "逾期还款"
+      }
+    ],
+    "installment_details": {
+      "total_installments": 3,
+      "current_installment": 2,
+      "installment_amount": 1868,
+      "installments": [
+        {
+          "installment_number": 1,
+          "due_date": "2025-09-07",
+          "due_amount": 1868,
+          "paid_amount": 1868,
+          "outstanding_amount": 0,
+          "status": "已还清",
+          "payment_date": "2025-09-07",
+          "overdue_days": 0
+        },
+        {
+          "installment_number": 2,
+          "due_date": "2025-10-07",
+          "due_amount": 1868,
+          "paid_amount": 0,
+          "outstanding_amount": 1868,
+          "status": "待还款",
+          "payment_date": null,
+          "overdue_days": 30
+        },
+        {
+          "installment_number": 3,
+          "due_date": "2025-11-06",
+          "due_amount": 1868,
+          "paid_amount": 0,
+          "outstanding_amount": 1868,
+          "status": "待还款",
+          "payment_date": null,
+          "overdue_days": 0
+        }
+      ],
+      "payment_qr_code": "https://example.com/qr/payment_9234.png"
+    }
+  }
+}

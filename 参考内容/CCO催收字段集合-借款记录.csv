@@ -1,0 +1,27 @@
+﻿字段名称,英文名,类型,示例,说明,拓展字段
+贷款编号,loan_id,String,100023,系统内唯一的贷款订单编号,否
+用户编号,user_id,String,5983,用户唯一标识,否
+用户姓名,user_name,String,Juan Dela Cruz,借款人姓名,否
+手机号码,mobile_number,String,+63 9123456789,用户注册手机号,否
+App名称,app_name,String,MegaPeso,借款App来源,否
+产品名称,product_name,String,Cash Loan,所属产品类型,否
+贷超商户,merchant_name,String,EasyLoan Partner,放款商户或渠道方名称,是
+所属系统,system_name,String,CollectionSystemV2,当前数据所属业务系统,是
+App下载链接,app_download_url,String,https://play.google.com/...,便于催员发送下载提醒,是
+首复催类型,collection_type,Enum,首催 / 复催,标记案件是否为首次或再次催收,否
+是否复借,reborrow_flag,Boolean,TRUE,用户是否为老客再次借款,是
+自动复借,auto_reloan,Boolean,FALSE,是否系统自动生成复借单,是
+首期期限,first_term_days,Integer,14,首次借款天数或期限,是
+应还款日期,due_date,Date,2025/3/10,应该完成还款的日期,否
+逾期天数,overdue_days,Integer,5,超过应还日期的天数,否
+应还未还金额,outstanding_amount,Decimal,850,当前待还金额,否
+绑定人,binder,String,Agent_001,当前负责该案件的催员或分配人,否
+案件状态,case_status,Enum,进行中 / 已结清 / 逾期,当前催收案件进度,否
+结清方式,settlement_method,Enum,自动扣款 / 手动转账 / 第三方收款,最终还款方式,否
+结清时间,settlement_time,Datetime,2025/3/15 09:33:00,最后一次结清操作时间,否
+最新结果,latest_result,Enum,承诺还款 / 无法联系 / 已结清,催收最近一次结果,否
+最近催收时间,last_collection_time,Datetime,2025/3/14 18:00:00,最近一次催收操作时间,否
+处理人,operator,String,Agent_Ana,执行催收操作的员工,否
+备注,remark,String,电话无人接听,催员填写的备注信息,是
+应还本金,principal_due,Decimal,1000,当前订单本金,是
+应收利息,interest_due,Decimal,150,_,

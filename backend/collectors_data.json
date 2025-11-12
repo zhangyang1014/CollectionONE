@@ -1,0 +1,199 @@
+{
+  "collectors": [
+    {
+      "id": "1",
+      "collectorId": "BTQ001",
+      "collectorName": "Carlos Méndez",
+      "password": "123456",
+      "tenantId": "1",
+      "tenantCode": "BTQ",
+      "tenantName": "BTQ（墨西哥）",
+      "role": "senior_collector",
+      "roleName": "高级催员",
+      "team": "Team A",
+      "email": "carlos.mendez@btq.mx",
+      "phone": "+52 55 1234 5001",
+      "permissions": [
+        "case:view",
+        "case:edit",
+        "case:call",
+        "message:send",
+        "message:whatsapp",
+        "report:view"
+      ],
+      "whatsappConnected": true,
+      "status": "active",
+      "createdAt": "2024-06-01T00:00:00",
+      "lastLoginAt": "2025-11-05T10:30:00"
+    },
+    {
+      "id": "2",
+      "collectorId": "BTQ002",
+      "collectorName": "María González",
+      "password": "123456",
+      "tenantId": "1",
+      "tenantCode": "BTQ",
+      "tenantName": "BTQ（墨西哥）",
+      "role": "collector",
+      "roleName": "催员",
+      "team": "Team A",
+      "email": "maria.gonzalez@btq.mx",
+      "phone": "+52 55 1234 5002",
+      "permissions": [
+        "case:view",
+        "case:call",
+        "message:send"
+      ],
+      "whatsappConnected": false,
+      "status": "active",
+      "createdAt": "2024-07-15T00:00:00",
+      "lastLoginAt": "2025-11-04T16:20:00"
+    },
+    {
+      "id": "3",
+      "collectorId": "BTQ003",
+      "collectorName": "José Ramírez",
+      "password": "123456",
+      "tenantId": "1",
+      "tenantCode": "BTQ",
+      "tenantName": "BTQ（墨西哥）",
+      "role": "collector",
+      "roleName": "催员",
+      "team": "Team B",
+      "email": "jose.ramirez@btq.mx",
+      "phone": "+52 55 1234 5003",
+      "permissions": [
+        "case:view",
+        "case:call",
+        "message:send"
+      ],
+      "whatsappConnected": true,
+      "status": "active",
+      "createdAt": "2024-08-20T00:00:00",
+      "lastLoginAt": "2025-11-05T09:15:00"
+    },
+    {
+      "id": "4",
+      "collectorId": "BTSK001",
+      "collectorName": "Raj Sharma",
+      "password": "123456",
+      "tenantId": "2",
+      "tenantCode": "BTSK",
+      "tenantName": "BTSK（印度）",
+      "role": "team_leader",
+      "roleName": "团队长",
+      "team": "Alpha Team",
+      "email": "raj.sharma@btsk.in",
+      "phone": "+91 22 1234 6001",
+      "permissions": [
+        "case:view",
+        "case:edit",
+        "case:assign",
+        "case:call",
+        "message:send",
+        "message:whatsapp",
+        "report:view",
+        "report:export",
+        "team:manage"
+      ],
+      "whatsappConnected": true,
+      "status": "active",
+      "createdAt": "2024-08-01T00:00:00",
+      "lastLoginAt": "2025-11-05T11:00:00"
+    },
+    {
+      "id": "5",
+      "collectorId": "BTSK002",
+      "collectorName": "Priya Patel",
+      "password": "123456",
+      "tenantId": "2",
+      "tenantCode": "BTSK",
+      "tenantName": "BTSK（印度）",
+      "role": "senior_collector",
+      "roleName": "高级催员",
+      "team": "Alpha Team",
+      "email": "priya.patel@btsk.in",
+      "phone": "+91 22 1234 6002",
+      "permissions": [
+        "case:view",
+        "case:edit",
+        "case:call",
+        "message:send",
+        "message:whatsapp",
+        "report:view"
+      ],
+      "whatsappConnected": true,
+      "status": "active",
+      "createdAt": "2024-09-10T00:00:00",
+      "lastLoginAt": "2025-11-05T08:45:00"
+    },
+    {
+      "id": "6",
+      "collectorId": "BTSK003",
+      "collectorName": "Amit Kumar",
+      "password": "123456",
+      "tenantId": "2",
+      "tenantCode": "BTSK",
+      "tenantName": "BTSK（印度）",
+      "role": "collector",
+      "roleName": "催员",
+      "team": "Beta Team",
+      "email": "amit.kumar@btsk.in",
+      "phone": "+91 22 1234 6003",
+      "permissions": [
+        "case:view",
+        "case:call",
+        "message:send"
+      ],
+      "whatsappConnected": false,
+      "status": "active",
+      "createdAt": "2024-10-05T00:00:00",
+      "lastLoginAt": "2025-11-04T17:30:00"
+    }
+  ],
+  "roles": [
+    {
+      "code": "team_leader",
+      "name": "团队长",
+      "permissions": [
+        "case:view",
+        "case:edit",
+        "case:assign",
+        "case:call",
+        "message:send",
+        "message:whatsapp",
+        "report:view",
+        "report:export",
+        "team:manage"
+      ]
+    },
+    {
+      "code": "senior_collector",
+      "name": "高级催员",
+      "permissions": [
+        "case:view",
+        "case:edit",
+        "case:call",
+        "message:send",
+        "message:whatsapp",
+        "report:view"
+      ]
+    },
+    {
+      "code": "collector",
+      "name": "催员",
+      "permissions": [
+        "case:view",
+        "case:call",
+        "message:send"
+      ]
+    }
+  ],
+  "summary": {
+    "total_collectors": 6,
+    "btq_collectors": 3,
+    "btsk_collectors": 3,
+    "active_collectors": 6
+  }
+}
+

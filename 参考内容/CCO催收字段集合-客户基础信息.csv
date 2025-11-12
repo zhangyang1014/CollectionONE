@@ -1,0 +1,38 @@
+﻿分类,字段名称,英文名,类型,示例,说明,拓展字段
+一、基础身份信息（Identity Information）,用户编号,user_id,String,5983,系统内部唯一用户标识,否
+,用户姓名,user_name,String,Juan Dela Cruz,借款人姓名,否
+,性别,gender,Enum,Male / Female,用户性别,否
+,出生日期,birth_date,Date,1980/5/5,用户生日,否
+,国籍,nationality,String,Philippines,国籍或居住国家,是
+,婚姻状况,marital_status,Enum,Single / Married,婚姻状态,否
+,证件类型,id_type,Enum,National ID / Passport / Driver’s License,身份证件类型,否
+,证件号码,id_number,String,N2319594759,证件号码,否
+,居住地址,address,String,"123 Main St, Quezon City",包含街道、城市、省份、邮编,否
+,居住年限,years_at_address,Integer,5,当前居住地年数,否
+,居住类型,housing_type,Enum,Own / Rent / With Family,居住情况,否
+二、教育（Education）,教育程度,education_level,Enum,University / High School,最高学历,否
+,学校名称,school_name,String,University of the Philippines,毕业学校或当前学校,否
+,专业,major,String,Business Administration,学习或毕业专业,否
+三、职业信息（Employment）,工作状态,employment_status,Enum,Employed / Self-employed / Student / Unemployed,当前职业状态,否
+,公司名称,company_name,String,ABC Transport,所在公司,否
+,职位,job_title,String,Driver,当前职位或职称,否
+,行业类别,industry,String,Transportation,所属行业,否
+,工作年限,years_of_employment,Integer,3,当前岗位工作时长,否
+,工作地址,work_address,String,"15 Pasay Ave, Manila",工作地点,否
+,公司联系电话,company_phone,String,+63 2 9123456,公司电话,否
+,收入类型,income_type,Enum,Monthly / Weekly / Daily,工资发放周期,否
+,发薪日,payday,String,15th / End of Month,发薪时间,否
+,收入,income_range,String,32000 PHP – 64000 PHP,每月或每周收入区间,否
+,收入来源,income_source,Enum,Primary / Secondary,主或副收入来源,否
+,收入证明文件,income_proof_files,FileList,payslip.pdf / bank_statement.jpg,上传的收入凭证文件,是
+,,,,,,
+四、用户行为与信用（User Behavior & Credit）,最近打开时间,last_app_open_time,Datetime,2025/10/23 12:02:21,用户最近一次打开借款App的时间,否
+,最近访问还款页时间,last_repayment_page_visit_time,Datetime,2025/10/26 02:01:51,用户最近访问还款页面的时间,否
+,历史借款总笔数,total_loan_count,Integer,5,统计借款人累计放款次数,否
+,已结清笔数,cleared_loan_count,Integer,3,已全额还清的贷款订单数量,否
+,历史逾期笔数,overdue_loan_count,Integer,2,曾经发生逾期的订单数量,否
+,历史最大逾期天数,max_overdue_days,Integer,15,用户历史上最长一次逾期天数,否
+,平均借款金额,avg_loan_amount,Decimal,1500,用户历次贷款的平均放款金额,否
+,001信用评分,credit_score_001,Enum,A,系统1计算的信用等级,否
+,002信用评分,credit_score_002,Enum,B,系统2计算的信用等级,否
+,003信用评分,credit_score_003,Enum,C,系统3计算的信用等级,否

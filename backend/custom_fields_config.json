@@ -1,0 +1,185 @@
+{
+  "btq_custom_fields": [
+    {
+      "id": 1,
+      "tenant_id": 1,
+      "field_name": "loan_term",
+      "field_name_zh": "贷款期限类型",
+      "field_name_en": "Loan Term Type",
+      "field_type": "text",
+      "is_required": true,
+      "default_value": "单期",
+      "description": "BTQ采用单期贷款模式"
+    },
+    {
+      "id": 2,
+      "tenant_id": 1,
+      "field_name": "disbursement_amount",
+      "field_name_zh": "放款金额",
+      "field_name_en": "Disbursement Amount",
+      "field_type": "number",
+      "is_required": true,
+      "unit": "MXN",
+      "description": "实际放款金额（墨西哥比索）"
+    },
+    {
+      "id": 3,
+      "tenant_id": 1,
+      "field_name": "interest_rate",
+      "field_name_zh": "利率",
+      "field_name_en": "Interest Rate",
+      "field_type": "text",
+      "is_required": true,
+      "description": "贷款年化利率"
+    },
+    {
+      "id": 4,
+      "tenant_id": 1,
+      "field_name": "collection_priority",
+      "field_name_zh": "催收优先级",
+      "field_name_en": "Collection Priority",
+      "field_type": "select",
+      "is_required": true,
+      "options": ["高", "中", "低"],
+      "description": "案件催收优先级"
+    },
+    {
+      "id": 5,
+      "tenant_id": 1,
+      "field_name": "payment_method",
+      "field_name_zh": "支付方式",
+      "field_name_en": "Payment Method",
+      "field_type": "select",
+      "is_required": false,
+      "options": ["SPEI", "OXXO", "银行转账"],
+      "description": "客户偏好的还款方式"
+    },
+    {
+      "id": 6,
+      "tenant_id": 1,
+      "field_name": "risk_level",
+      "field_name_zh": "风险等级",
+      "field_name_en": "Risk Level",
+      "field_type": "select",
+      "is_required": true,
+      "options": ["A", "B", "C", "D"],
+      "description": "客户风险评级（A最优，D最差）"
+    }
+  ],
+  "btsk_custom_fields": [
+    {
+      "id": 7,
+      "tenant_id": 2,
+      "field_name": "loan_term",
+      "field_name_zh": "贷款期限类型",
+      "field_name_en": "Loan Term Type",
+      "field_type": "text",
+      "is_required": true,
+      "default_value": "多期",
+      "description": "BTSK采用多期分期还款模式"
+    },
+    {
+      "id": 8,
+      "tenant_id": 2,
+      "field_name": "total_installments",
+      "field_name_zh": "总期数",
+      "field_name_en": "Total Installments",
+      "field_type": "number",
+      "is_required": true,
+      "description": "贷款总分期数"
+    },
+    {
+      "id": 9,
+      "tenant_id": 2,
+      "field_name": "current_installment",
+      "field_name_zh": "当前期数",
+      "field_name_en": "Current Installment",
+      "field_type": "number",
+      "is_required": true,
+      "description": "当前应还期数"
+    },
+    {
+      "id": 10,
+      "tenant_id": 2,
+      "field_name": "installment_amount",
+      "field_name_zh": "每期金额",
+      "field_name_en": "Installment Amount",
+      "field_type": "number",
+      "is_required": true,
+      "unit": "INR",
+      "description": "每期应还金额（印度卢比）"
+    },
+    {
+      "id": 11,
+      "tenant_id": 2,
+      "field_name": "total_loan_amount",
+      "field_name_zh": "贷款总额",
+      "field_name_en": "Total Loan Amount",
+      "field_type": "number",
+      "is_required": true,
+      "unit": "INR",
+      "description": "贷款总金额（印度卢比）"
+    },
+    {
+      "id": 12,
+      "tenant_id": 2,
+      "field_name": "interest_rate",
+      "field_name_zh": "利率",
+      "field_name_en": "Interest Rate",
+      "field_type": "text",
+      "is_required": true,
+      "description": "贷款年化利率"
+    },
+    {
+      "id": 13,
+      "tenant_id": 2,
+      "field_name": "collection_stage",
+      "field_name_zh": "催收阶段",
+      "field_name_en": "Collection Stage",
+      "field_type": "select",
+      "is_required": true,
+      "options": ["S1", "S2", "S3", "Legal"],
+      "description": "案件当前催收阶段"
+    },
+    {
+      "id": 14,
+      "tenant_id": 2,
+      "field_name": "payment_method",
+      "field_name_zh": "支付方式",
+      "field_name_en": "Payment Method",
+      "field_type": "select",
+      "is_required": false,
+      "options": ["UPI", "Net Banking", "Debit Card", "NACH"],
+      "description": "客户偏好的还款方式"
+    },
+    {
+      "id": 15,
+      "tenant_id": 2,
+      "field_name": "credit_score",
+      "field_name_zh": "信用评分",
+      "field_name_en": "Credit Score",
+      "field_type": "number",
+      "is_required": false,
+      "min_value": 300,
+      "max_value": 850,
+      "description": "客户信用评分（300-850）"
+    },
+    {
+      "id": 16,
+      "tenant_id": 2,
+      "field_name": "employment_type",
+      "field_name_zh": "就业类型",
+      "field_name_en": "Employment Type",
+      "field_type": "select",
+      "is_required": false,
+      "options": ["Salaried", "Self-employed", "Business"],
+      "description": "客户就业类型"
+    }
+  ],
+  "summary": {
+    "btq_fields_count": 6,
+    "btsk_fields_count": 10,
+    "total_custom_fields": 16
+  }
+}
+
