@@ -21,14 +21,21 @@
 3. 选择你的 GitHub 仓库
 4. 点击 "Import"
 
-### 2. 配置项目设置
+### 2. ⚠️ 关键配置：设置正确的构建输出目录
+
+**这是修复 SPA 路由 404 的关键步骤！**
+
+在项目配置页面，找到 **"Build & Development Settings"**：
 
 ```
 Framework Preset: Other
 Root Directory: （留空，使用根目录）
+Build Command: npm install && npm run build --workspace=frontend
+Output Directory: frontend/dist
+Install Command: npm install
 ```
 
-Vercel 会自动检测 `vercel.json` 中的配置。
+**重要**：`Output Directory` 必须设置为 `frontend/dist`，这样 Vercel 才会把 `frontend/dist` 目录作为网站根目录。
 
 ### 3. 配置环境变量
 
@@ -103,6 +110,43 @@ VITE_API_BASE_URL=https://your-backend-api.com/api/v1
 - 🎨 **Render**
 - 🟣 **DigitalOcean App Platform**
 - 🐙 **Heroku**
+
+---
+
+## 🐛 SPA 路由 404 问题排查
+
+### 问题现象
+- 主页可以访问 ✅
+- 访问 `/case/detail?id=123` 时 404 ❌
+- 静态资源路径显示为 `/frontend/assets/...` ❌
+
+### 根本原因
+Vercel 把整个仓库作为根目录，而不是 `frontend/dist` 作为根目录，导致：
+- 静态资源路径变成 `/frontend/assets/` 而不是 `/assets/`
+- SPA 路由无法正确重写到 `index.html`
+
+### ✅ 解决方案
+
+#### 1. 检查 Output Directory 设置
+在 Vercel 项目设置中确认：
+```
+Output Directory: frontend/dist
+```
+
+#### 2. 检查静态资源路径
+访问网站，按 F12 查看源码，确认静态资源路径是：
+```html
+<!-- 正确 -->
+<script src="/assets/index-Dv0VMhP7.js"></script>
+
+<!-- 错误 -->
+<script src="/frontend/assets/index-Dv0VMhP7.js"></script>
+```
+
+如果路径包含 `/frontend/`，说明 Output Directory 设置错误。
+
+#### 3. 重新部署
+修改 Output Directory 后，需要重新部署项目。
 
 ---
 

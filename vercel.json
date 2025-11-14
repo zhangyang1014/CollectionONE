@@ -10,23 +10,41 @@
     },
     {
       "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "frontend/dist"
-      }
+      "use": "@vercel/static-build"
     }
   ],
-  "routes": [
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     },
     {
-      "handle": "filesystem"
-    },
+      "source": "/((?!assets|_next/static|_next/image|favicon\\.ico|robots\\.txt).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
     }
   ]
 }
