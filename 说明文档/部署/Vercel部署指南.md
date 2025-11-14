@@ -246,7 +246,47 @@ VITE_APP_TITLE=CCO 催收系统
 - ✅ 检查变量名称是否正确（Vite 环境变量必须以 `VITE_` 开头）
 - ✅ 检查 Vercel 控制台的环境变量设置
 
-### 5. 导入错误：找不到模块
+### 6. ❌ SPA 路由 404（最常见问题）
+
+**问题**：主页正常，但访问 `/case/detail?id=123` 等路由时 404
+
+**解决方案**：
+
+#### 步骤 1：检查 Output Directory 设置
+在 Vercel 项目设置 → Build & Development Settings 中确认：
+```
+Output Directory: frontend/dist
+```
+如果不是这个值，修改后重新部署。
+
+#### 步骤 2：检查静态资源路径
+访问网站主页，按 F12 → 查看页面源码，找到 script 标签：
+```html
+<!-- 正确路径 -->
+<script src="/assets/index-Dv0VMhP7.js"></script>
+
+<!-- 错误路径（会导致404） -->
+<script src="/frontend/assets/index-Dv0VMhP7.js"></script>
+```
+
+如果路径包含 `/frontend/`，说明 Output Directory 设置错误。
+
+#### 步骤 3：检查 vercel.json 配置
+确保 `vercel.json` 包含正确的 rewrites 规则：
+```json
+{
+  "rewrites": [
+    {
+      "source": "/((?!assets|_next/static|_next/image|favicon\\.ico|robots\\.txt).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+这个规则确保所有非静态资源的请求都被重写到 `index.html`，支持 SPA 路由。
+
+### 7. 导入错误：找不到模块
 
 **问题**：`ModuleNotFoundError: No module named 'app'`
 
