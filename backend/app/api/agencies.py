@@ -5,6 +5,7 @@ from sqlalchemy import func
 from typing import List, Optional
 
 from app.core.database import get_db
+from app.core.response import success_response
 from app.models import CollectionAgency, CollectionTeam, Collector, Case
 from app.models.team_admin_account import TeamAdminAccount
 from app.models.team_group import TeamGroup
@@ -53,7 +54,7 @@ async def list_agencies(
     return result
 
 
-@router.post("", response_model=CollectionAgencySchema)
+@router.post("")
 async def create_agency(
     agency: CollectionAgencyCreate,
     db: Session = Depends(get_db)
@@ -73,7 +74,27 @@ async def create_agency(
     db.commit()
     db.refresh(db_agency)
     
-    return {**db_agency.__dict__, "team_count": 0, "collector_count": 0, "case_count": 0}
+    agency_dict = {
+        "id": db_agency.id,
+        "tenant_id": db_agency.tenant_id,
+        "agency_code": db_agency.agency_code,
+        "agency_name": db_agency.agency_name,
+        "agency_name_en": db_agency.agency_name_en,
+        "contact_person": db_agency.contact_person,
+        "contact_phone": db_agency.contact_phone,
+        "contact_email": db_agency.contact_email,
+        "address": db_agency.address,
+        "timezone": db_agency.timezone,
+        "agency_type": db_agency.agency_type,
+        "is_active": db_agency.is_active,
+        "team_count": 0,
+        "collector_count": 0,
+        "case_count": 0,
+        "created_at": db_agency.created_at.isoformat() if db_agency.created_at else None,
+        "updated_at": db_agency.updated_at.isoformat() if db_agency.updated_at else None
+    }
+    
+    return success_response(data=agency_dict, message="创建成功")
 
 
 @router.get("/{agency_id}", response_model=CollectionAgencySchema)

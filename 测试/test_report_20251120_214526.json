@@ -1,0 +1,36 @@
+{
+  "test_time": "2025-11-20 21:45:26",
+  "base_url": "http://localhost:8000",
+  "results": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "errors": []
+  },
+  "details": [
+    {
+      "test": "SuperAdmin登录",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "TenantAdmin登录",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "Token验证",
+      "status": "PASS",
+      "message": "Success"
+    }
+  ],
+  "created_data": {
+    "tenants": [],
+    "agencies": [],
+    "queues": [],
+    "team_groups": [],
+    "teams": [],
+    "collectors": [],
+    "cases": []
+  }
+}

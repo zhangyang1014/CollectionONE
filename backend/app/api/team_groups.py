@@ -5,6 +5,7 @@ from sqlalchemy import func
 from typing import List, Optional
 
 from app.core.database import get_db
+from app.core.response import success_response
 from app.models import TeamGroup, CollectionTeam, Collector, TeamAdminAccount
 from app.schemas.organization import (
     TeamGroup as TeamGroupSchema,
@@ -81,7 +82,7 @@ async def list_team_groups(
     return result
 
 
-@router.post("", response_model=TeamGroupSchema)
+@router.post("")
 async def create_team_group(
     team_group: TeamGroupCreate,
     db: Session = Depends(get_db)
@@ -146,14 +147,26 @@ async def create_team_group(
     if db_team_group.agency:
         agency_name = db_team_group.agency.agency_name
     
-    return {
-        **db_team_group.__dict__,
+    group_dict = {
+        "id": db_team_group.id,
+        "tenant_id": db_team_group.tenant_id,
+        "agency_id": db_team_group.agency_id,
+        "group_code": db_team_group.group_code,
+        "group_name": db_team_group.group_name,
+        "group_name_en": db_team_group.group_name_en,
+        "description": db_team_group.description,
+        "sort_order": db_team_group.sort_order,
+        "is_active": db_team_group.is_active,
         "agency_name": agency_name,
         "spv_account_name": team_group.spv_account_name,
         "spv_login_id": team_group.spv_login_id,
         "team_count": 0,
-        "collector_count": 0
+        "collector_count": 0,
+        "created_at": db_team_group.created_at.isoformat() if db_team_group.created_at else None,
+        "updated_at": db_team_group.updated_at.isoformat() if db_team_group.updated_at else None
     }
+    
+    return success_response(data=group_dict, message="创建成功")
 
 
 @router.get("/{team_group_id}", response_model=TeamGroupSchema)

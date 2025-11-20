@@ -1,0 +1,13 @@
+# 开发环境配置
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/cco_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+
+logging:
+  level:
+    root: INFO
+    com.cco: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+

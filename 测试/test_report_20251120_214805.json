@@ -1,0 +1,110 @@
+{
+  "test_time": "2025-11-20 21:48:05",
+  "base_url": "http://localhost:8000",
+  "results": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "errors": []
+  },
+  "details": [
+    {
+      "test": "SuperAdmin登录",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "TenantAdmin登录",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "Token验证",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建甲方A",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建催收机构1",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建M1队列",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建M2队列",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建M3队列",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建M4队列",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建LEGAL队列",
+      "status": "PASS",
+      "message": "Success"
+    }
+  ],
+  "created_data": {
+    "tenants": [
+      {
+        "id": 7,
+        "code": "TENANT_A_1404",
+        "name": "甲方A公司"
+      }
+    ],
+    "agencies": [
+      {
+        "id": 7,
+        "code": "AGENCY_001",
+        "name": "催收机构1",
+        "tenant_id": 7
+      }
+    ],
+    "queues": [
+      {
+        "id": 16,
+        "code": "M1",
+        "name": "M1队列（1-30天）"
+      },
+      {
+        "id": 17,
+        "code": "M2",
+        "name": "M2队列（31-60天）"
+      },
+      {
+        "id": 18,
+        "code": "M3",
+        "name": "M3+队列（61-90天）"
+      },
+      {
+        "id": 19,
+        "code": "M4",
+        "name": "M4+队列（91-120天）"
+      },
+      {
+        "id": 20,
+        "code": "LEGAL",
+        "name": "法务队列（120天以上）"
+      }
+    ],
+    "team_groups": [],
+    "teams": [],
+    "collectors": [],
+    "cases": []
+  }
+}

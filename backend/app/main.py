@@ -54,9 +54,9 @@ async def health_check():
 
 # 导入API路由
 from app.api import (
-    field_groups, standard_fields, custom_fields, 
-    tenants, cases, channel, auth, agencies, team_groups, teams, agency_working_hours, 
-    notification_config, public_notification, notification_template, field_display,
+    field_groups, standard_fields, custom_fields,
+    tenants, cases, channel, auth, agencies, team_groups, teams, agency_working_hours,
+    notification_config, public_notification, notification_template, field_display, queue,
     # 数据看板API
     communications, ptp, quality_inspections, performance, analytics, alerts, idle_monitor
 )
@@ -71,6 +71,7 @@ app.include_router(cases.router, prefix=settings.API_V1_STR)
 app.include_router(channel.router, prefix=settings.API_V1_STR)
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(agencies.router, prefix=settings.API_V1_STR)
+app.include_router(queue.router, prefix=settings.API_V1_STR)
 app.include_router(team_groups.router, prefix=settings.API_V1_STR)
 app.include_router(teams.router, prefix=settings.API_V1_STR)
 app.include_router(agency_working_hours.router, prefix=settings.API_V1_STR)

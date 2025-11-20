@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 from app.core.database import get_db
+from app.core.response import success_response
 from app.models.tenant import Tenant
 from app.models.tenant_field_config import TenantFieldConfig
 from app.models.case_queue import CaseQueue
@@ -48,7 +49,7 @@ def get_tenant(tenant_id: int, db: Session = Depends(get_db)):
     return tenant
 
 
-@router.post("", response_model=TenantResponse)
+@router.post("")
 def create_tenant(tenant: TenantCreate, db: Session = Depends(get_db)):
     """创建甲方"""
     # 检查 tenant_code 是否已存在
@@ -60,7 +61,22 @@ def create_tenant(tenant: TenantCreate, db: Session = Depends(get_db)):
     db.add(db_tenant)
     db.commit()
     db.refresh(db_tenant)
-    return db_tenant
+    
+    # 转换为字典并返回统一格式
+    tenant_dict = {
+        "id": db_tenant.id,
+        "tenant_code": db_tenant.tenant_code,
+        "tenant_name": db_tenant.tenant_name,
+        "tenant_name_en": db_tenant.tenant_name_en,
+        "country_code": db_tenant.country_code,
+        "timezone": db_tenant.timezone,
+        "currency_code": db_tenant.currency_code,
+        "is_active": db_tenant.is_active,
+        "created_at": db_tenant.created_at.isoformat() if db_tenant.created_at else None,
+        "updated_at": db_tenant.updated_at.isoformat() if db_tenant.updated_at else None
+    }
+    
+    return success_response(data=tenant_dict, message="创建成功")
 
 
 @router.put("/{tenant_id}", response_model=TenantResponse)

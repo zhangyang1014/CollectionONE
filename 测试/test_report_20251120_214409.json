@@ -1,0 +1,47 @@
+{
+  "test_time": "2025-11-20 21:44:09",
+  "base_url": "http://localhost:8000",
+  "results": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "errors": [
+      {
+        "test": "创建甲方A",
+        "error": "响应缺少 code 字段",
+        "response": "{\"tenant_code\":\"TENANT_A\",\"tenant_name\":\"甲方A公司\",\"tenant_name_en\":\"Tenant A Corp\",\"country_code\":\"PH\",\"timezone\":8,\"currency_code\":\"PHP\",\"is_active\":true,\"id\":4,\"created_at\":\"2025-11-20T14:44:04\",\"updated_at\":\"2025-11-20T14:44:04\"}"
+      }
+    ]
+  },
+  "details": [
+    {
+      "test": "SuperAdmin登录",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "TenantAdmin登录",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "Token验证",
+      "status": "PASS",
+      "message": "Success"
+    },
+    {
+      "test": "创建甲方A",
+      "status": "FAIL",
+      "message": "响应缺少 code 字段"
+    }
+  ],
+  "created_data": {
+    "tenants": [],
+    "agencies": [],
+    "queues": [],
+    "team_groups": [],
+    "teams": [],
+    "collectors": [],
+    "cases": []
+  }
+}
