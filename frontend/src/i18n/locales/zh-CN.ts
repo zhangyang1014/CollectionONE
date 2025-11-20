@@ -34,7 +34,7 @@ export default {
     standardFields: '标准字段管理',
     customFields: '字段映射配置',
     fieldGroups: '字段分组管理',
-    fieldLinkage: '字段联动配置',
+    fieldDisplayConfig: '甲方字段展示配置',
     fieldFilter: '字段筛选配置',
     permission: '权限管理',
     roleManagement: '角色管理',

@@ -7,6 +7,12 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 
 const routes: RouteRecordRaw[] = [
+  // 默认登录页重定向到管理后台登录
+  {
+    path: '/login',
+    redirect: '/admin/login',
+  },
+  
   // 管理后台登录页
   {
     path: '/admin/login',
@@ -40,6 +46,12 @@ const routes: RouteRecordRaw[] = [
         name: 'CollectorPerformance',
         component: () => import('@/views/dashboard/CollectorPerformance.vue'),
         meta: { title: '催员业绩看板', requiresAuth: true },
+      },
+      {
+        path: 'dashboard/idle-monitor',
+        name: 'IdleMonitor',
+        component: () => import('@/views/dashboard/IdleMonitor.vue'),
+        meta: { title: '空闲催员监控', requiresAuth: true },
       },
       {
         path: 'cases',
@@ -84,10 +96,10 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '字段分组管理', requiresAuth: true },
       },
       {
-        path: 'field-config/linkage',
-        name: 'FieldLinkage',
-        component: () => import('@/views/field-config/FieldLinkage.vue'),
-        meta: { title: '字段联动配置', requiresAuth: true },
+        path: 'field-config/display',
+        name: 'FieldDisplayConfig',
+        component: () => import('@/views/field-config/FieldDisplayConfig.vue'),
+        meta: { title: '甲方字段展示配置', requiresAuth: true },
       },
       {
         path: 'tenants',
@@ -118,6 +130,12 @@ const routes: RouteRecordRaw[] = [
         name: 'AgencyWorkingHours',
         component: () => import('@/views/organization/AgencyWorkingHours.vue'),
         meta: { title: '机构作息时间管理', requiresAuth: true },
+      },
+      {
+        path: 'organization/team-groups',
+        name: 'TeamGroupManagement',
+        component: () => import('@/views/organization/TeamGroupManagement.vue'),
+        meta: { title: '小组群管理', requiresAuth: true },
       },
       {
         path: 'organization/teams',
@@ -197,6 +215,12 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  
+  // 404 页面 - 捕获所有未匹配的路由
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/admin/login',
+  },
 ]
 
 const router = createRouter({
@@ -207,6 +231,41 @@ const router = createRouter({
 // 路由守卫 - 权限验证和IM端鉴权
 router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
+  const imUserStore = useImUserStore()
+  
+  // 优先检查IM端路由（避免被管理后台路由守卫拦截）
+  if (to.path.startsWith('/im')) {
+    console.log('[IM路由守卫] 当前路径:', to.path)
+    console.log('[IM路由守卫] isLoggedIn:', imUserStore.isLoggedIn)
+    console.log('[IM路由守卫] requiresAuth:', to.meta.requiresAuth)
+    
+    // 如果需要认证但未登录
+    if (to.meta.requiresAuth && !imUserStore.isLoggedIn) {
+      console.log('[IM路由守卫] 需要认证但未登录，尝试从localStorage恢复')
+      // 尝试从localStorage恢复IM端登录状态
+      const restored = imUserStore.initFromStorage()
+      console.log('[IM路由守卫] localStorage恢复结果:', restored)
+      console.log('[IM路由守卫] 恢复后 isLoggedIn:', imUserStore.isLoggedIn)
+      
+      if (!imUserStore.isLoggedIn) {
+        console.log('[IM路由守卫] 仍未登录，重定向到登录页')
+        next('/im/login')
+        return
+      }
+    }
+    
+    // 如果已登录但访问登录页
+    if (to.path === '/im/login' && imUserStore.isLoggedIn) {
+      console.log('[IM路由守卫] 已登录，从登录页重定向到工作台')
+      next('/im/workspace')
+      return
+    }
+    
+    // IM端路由检查完成，直接放行
+    console.log('[IM路由守卫] 检查通过，放行')
+    next()
+    return
+  }
   
   // 管理后台路由守卫
   if (to.path.startsWith('/admin')) {
@@ -265,23 +324,6 @@ router.beforeEach((to, _from, next) => {
         next('/dashboard')
         return
       }
-    }
-  }
-  
-  // 检查是否是IM端路由
-  if (to.path.startsWith('/im')) {
-    const imUserStore = useImUserStore()
-    
-    // 如果需要认证但未登录
-    if (to.meta.requiresAuth && !imUserStore.isLoggedIn) {
-      next('/im/login')
-      return
-    }
-    
-    // 如果已登录但访问登录页
-    if (to.path === '/im/login' && imUserStore.isLoggedIn) {
-      next('/im/workspace')
-      return
     }
   }
   

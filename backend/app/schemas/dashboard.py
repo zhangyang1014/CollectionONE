@@ -360,3 +360,185 @@ class PTPStatsResponse(BaseModel):
     fulfilled_amount: Decimal
     fulfillment_rate: Decimal
 
+
+# ============ 空闲催员监控 Schemas ============
+
+class TimeSlot(BaseModel):
+    """时间段Schema"""
+    start: str = Field(..., description="开始时间，格式：HH:MM")
+    end: str = Field(..., description="结束时间，格式：HH:MM")
+
+
+class IdleMonitorConfigBase(BaseModel):
+    """空闲监控配置基础Schema"""
+    tenant_id: int
+    config_name: str = Field(..., max_length=100, description="配置名称")
+    work_time_slots: List[TimeSlot] = Field(..., description="上班时间段列表")
+    idle_threshold_minutes: int = Field(..., ge=5, le=120, description="空闲阈值（分钟），范围：5-120")
+    monitored_actions: List[str] = Field(..., min_items=1, description="监控行为列表，至少选择一项")
+    exclude_holidays: bool = Field(True, description="是否排除节假日")
+
+
+class IdleMonitorConfigCreate(IdleMonitorConfigBase):
+    """创建空闲监控配置Schema"""
+    created_by: Optional[str] = None
+
+
+class IdleMonitorConfigUpdate(BaseModel):
+    """更新空闲监控配置Schema"""
+    config_name: Optional[str] = None
+    work_time_slots: Optional[List[TimeSlot]] = None
+    idle_threshold_minutes: Optional[int] = Field(None, ge=5, le=120)
+    monitored_actions: Optional[List[str]] = Field(None, min_items=1)
+    exclude_holidays: Optional[bool] = None
+
+
+class IdleMonitorConfigResponse(IdleMonitorConfigBase):
+    """空闲监控配置响应Schema"""
+    id: int
+    is_active: bool
+    created_by: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class IdlePeriod(BaseModel):
+    """空闲时段Schema"""
+    start: str = Field(..., description="开始时间")
+    end: str = Field(..., description="结束时间")
+    duration: int = Field(..., description="时长（分钟）")
+
+
+class ActionInfo(BaseModel):
+    """行为信息Schema"""
+    type: str = Field(..., description="行为类型")
+    time: str = Field(..., description="行为时间")
+    details: Optional[str] = Field(None, description="行为详情")
+
+
+class ManagedCases(BaseModel):
+    """管理案件信息Schema"""
+    total: int = Field(0, description="总案件数")
+    collected: int = Field(0, description="已还案件数")
+    collection_rate: Decimal = Field(0, description="催回率")
+
+
+class ManagedAmount(BaseModel):
+    """管理金额信息Schema"""
+    total: Decimal = Field(0, description="总金额")
+    collected: Decimal = Field(0, description="已还金额")
+    collection_rate: Decimal = Field(0, description="回款率")
+
+
+class IdleMonitorSummary(BaseModel):
+    """空闲监控总览数据Schema"""
+    total_idle_collectors: int = Field(0, description="空闲催员总数")
+    total_idle_count: int = Field(0, description="空闲总次数")
+    total_idle_minutes: int = Field(0, description="空闲总时长（分钟）")
+    total_idle_hours: Decimal = Field(0, description="空闲总时长（小时）")
+    avg_idle_minutes: Decimal = Field(0, description="平均空闲时长（分钟）")
+    comparison: Optional[Dict[str, Decimal]] = Field(None, description="环比数据")
+
+
+class IdleMonitorDetailItem(BaseModel):
+    """空闲监控详情列表项Schema"""
+    collector_id: int
+    collector_name: str
+    collector_code: str
+    agency_id: int
+    agency_name: str
+    team_id: int
+    team_name: str
+    stat_date: str
+    idle_count: int
+    total_idle_minutes: int
+    longest_idle_minutes: int
+    avg_idle_minutes: Decimal
+    idle_rate: Decimal
+    managed_cases: ManagedCases
+    managed_amount: ManagedAmount
+    idle_periods: List[IdlePeriod]
+
+
+class IdleMonitorDetailsResponse(BaseModel):
+    """空闲监控详情列表响应Schema"""
+    total: int
+    page: int
+    page_size: int
+    items: List[IdleMonitorDetailItem]
+
+
+class CollectorInfo(BaseModel):
+    """催员信息Schema"""
+    id: int
+    name: str
+    code: str
+    agency_name: str
+    team_name: str
+
+
+class IdleSummary(BaseModel):
+    """空闲统计Schema"""
+    idle_count: int
+    total_idle_minutes: int
+    avg_idle_minutes: Decimal
+    longest_idle_minutes: int
+
+
+class CaseSummary(BaseModel):
+    """案件统计Schema"""
+    total_cases: int
+    collected_cases: int
+    collection_rate: Decimal
+    total_amount: Decimal
+    collected_amount: Decimal
+    amount_collection_rate: Decimal
+
+
+class IdleDetail(BaseModel):
+    """空闲详细信息Schema"""
+    start_time: str
+    end_time: str
+    duration_minutes: int
+    before_action: Optional[ActionInfo]
+    after_action: Optional[ActionInfo]
+
+
+class CollectorIdleDetailResponse(BaseModel):
+    """催员空闲详细信息响应Schema"""
+    collector_info: CollectorInfo
+    stat_date: str
+    idle_summary: IdleSummary
+    case_summary: CaseSummary
+    idle_details: List[IdleDetail]
+
+
+class IdleTrendResponse(BaseModel):
+    """空闲趋势响应Schema"""
+    metric: str
+    dates: List[str]
+    values: List[int]
+
+
+class ConfigHistoryItem(BaseModel):
+    """配置历史项Schema"""
+    id: int
+    config_name: str
+    created_by: Optional[str]
+    created_at: datetime
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ConfigHistoryResponse(BaseModel):
+    """配置历史响应Schema"""
+    total: int
+    page: int
+    page_size: int
+    items: List[ConfigHistoryItem]
+

@@ -90,15 +90,15 @@
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="800px">
-      <el-form :model="form" label-width="120px">
-        <el-form-item label="字段名称">
-          <el-input v-model="form.field_name" />
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
+        <el-form-item label="字段名称" prop="field_name" required>
+          <el-input v-model="form.field_name" placeholder="请输入字段名称" />
         </el-form-item>
-        <el-form-item label="字段标识">
-          <el-input v-model="form.field_key" />
+        <el-form-item label="字段标识" prop="field_key" required>
+          <el-input v-model="form.field_key" placeholder="请输入字段标识（英文，如：user_name）" />
         </el-form-item>
-        <el-form-item label="字段类型">
-          <el-select v-model="form.field_type" @change="handleFieldTypeChange">
+        <el-form-item label="字段类型" prop="field_type" required>
+          <el-select v-model="form.field_type" @change="handleFieldTypeChange" placeholder="请选择字段类型" style="width: 100%">
             <el-option label="文本" value="String" />
             <el-option label="整数" value="Integer" />
             <el-option label="小数" value="Decimal" />
@@ -154,7 +154,7 @@
           </div>
         </el-form-item>
 
-        <el-form-item label="所属分组">
+        <el-form-item label="所属分组" prop="field_group_path" required>
           <el-cascader
             v-model="form.field_group_path"
             :options="treeData"
@@ -188,6 +188,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Rank } from '@element-plus/icons-vue'
 import Sortable from 'sortablejs'
 import {
@@ -206,6 +207,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const currentGroupId = ref<number>()
 const tableRef = ref()
+const formRef = ref<FormInstance>()
 let sortableInstance: any = null
 
 const form = ref({
@@ -222,6 +224,26 @@ const form = ref({
     tenant_name: string
     tenant_id: string
   }>
+})
+
+// 表单验证规则
+const rules = ref<FormRules>({
+  field_name: [
+    { required: true, message: '请输入字段名称', trigger: 'blur' },
+    { min: 1, max: 200, message: '字段名称长度在 1 到 200 个字符', trigger: 'blur' }
+  ],
+  field_key: [
+    { required: true, message: '请输入字段标识', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9_]*$/, message: '字段标识必须以小写字母开头，只能包含小写字母、数字和下划线', trigger: 'blur' },
+    { min: 1, max: 100, message: '字段标识长度在 1 到 100 个字符', trigger: 'blur' }
+  ],
+  field_type: [
+    { required: true, message: '请选择字段类型', trigger: 'change' }
+  ],
+  field_group_path: [
+    { required: true, message: '请选择所属分组', trigger: 'change' },
+    { type: 'number', min: 1, message: '请选择有效的分组', trigger: 'change' }
+  ]
 })
 
 const loadGroups = async () => {
@@ -347,6 +369,10 @@ const handleAdd = () => {
     sort_order: 0,
     enum_values: []
   }
+  // 重置表单验证状态
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
   dialogVisible.value = true
 }
 
@@ -357,6 +383,10 @@ const handleEdit = (row: StandardField) => {
     field_group_path: row.field_group_id, // 编辑时将 field_group_id 赋值给 field_group_path
     enum_values: row.enum_values || [] // 确保枚举值正确加载
   }
+  // 重置表单验证状态
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
   dialogVisible.value = true
 }
 
@@ -402,6 +432,33 @@ const handleDelete = async (row: StandardField) => {
 }
 
 const handleSubmit = async () => {
+  if (!formRef.value) return
+  
+  // 验证表单
+  try {
+    await formRef.value.validate()
+  } catch (error) {
+    ElMessage.warning('请填写完整的必填信息')
+    return
+  }
+  
+  // 如果是枚举类型，验证枚举值是否填写完整
+  if (form.value.field_type === 'Enum') {
+    if (!form.value.enum_values || form.value.enum_values.length === 0) {
+      ElMessage.warning('枚举类型字段至少需要添加一个枚举值')
+      return
+    }
+    
+    // 验证每个枚举项是否填写完整
+    for (let i = 0; i < form.value.enum_values.length; i++) {
+      const enumItem = form.value.enum_values[i]
+      if (!enumItem.standard_name || !enumItem.standard_id) {
+        ElMessage.warning(`第 ${i + 1} 个枚举项的标准名称和标准ID不能为空`)
+        return
+      }
+    }
+  }
+  
   try {
     // 准备提交数据：将 field_group_path 转换为 field_group_id
     const submitData = {
@@ -419,8 +476,8 @@ const handleSubmit = async () => {
     }
     dialogVisible.value = false
     loadFields(currentGroupId.value)
-  } catch (error) {
-    ElMessage.error('操作失败')
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.detail || error?.message || '操作失败')
   }
 }
 

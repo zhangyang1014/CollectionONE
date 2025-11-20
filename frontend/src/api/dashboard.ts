@@ -279,3 +279,105 @@ export function getAgencyAlerts(agencyId: number, params?: any) {
   })
 }
 
+// ============ 空闲催员监控API ============
+
+/**
+ * 获取当前空闲监控配置
+ */
+export function getIdleMonitorConfig(params: any) {
+  return request({
+    url: '/api/v1/idle-monitor/config',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 创建或更新空闲监控配置
+ */
+export function saveIdleMonitorConfig(data: any) {
+  return request({
+    url: '/api/v1/idle-monitor/config',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 更新空闲监控配置
+ */
+export function updateIdleMonitorConfig(id: number, data: any) {
+  return request({
+    url: `/api/v1/idle-monitor/config/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 获取配置历史
+ */
+export function getIdleConfigHistory(params: any) {
+  return request({
+    url: '/api/v1/idle-monitor/config/history',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取空闲监控总览数据
+ */
+export function getIdleMonitorSummary(params: any) {
+  return request({
+    url: '/api/v1/idle-monitor/summary',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取空闲催员详情列表
+ */
+export function getIdleMonitorDetails(params: any) {
+  return request({
+    url: '/api/v1/idle-monitor/details',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取催员空闲详细信息
+ */
+export function getCollectorIdleDetail(collectorId: number, params: any) {
+  return request({
+    url: `/api/v1/idle-monitor/collector/${collectorId}/detail`,
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取空闲趋势数据
+ */
+export function getIdleMonitorTrend(params: any) {
+  return request({
+    url: '/api/v1/idle-monitor/trend',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 导出空闲监控数据
+ */
+export function exportIdleMonitorData(params: any) {
+  return request({
+    url: '/api/v1/idle-monitor/export',
+    method: 'get',
+    params,
+    responseType: 'blob'
+  })
+}
+

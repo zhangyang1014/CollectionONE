@@ -47,6 +47,20 @@ def create_standard_field(field: StandardFieldCreate, db: Session = Depends(get_
     if existing:
         raise HTTPException(status_code=400, detail="字段标识已存在")
     
+    # 在创建新字段之前，调整同一分组内排序值>=新字段排序值的字段
+    # 将它们都+1，为新字段让出位置
+    if field.sort_order is not None and field.sort_order > 0:
+        # 查询同一分组内，未删除的，且排序值>=新字段排序值的字段
+        fields_to_update = db.query(StandardField).filter(
+            StandardField.field_group_id == field.field_group_id,
+            StandardField.is_deleted == False,
+            StandardField.sort_order >= field.sort_order
+        ).all()
+        
+        # 将这些字段的排序值都+1
+        for existing_field in fields_to_update:
+            existing_field.sort_order += 1
+    
     db_field = StandardField(**field.model_dump())
     db.add(db_field)
     db.commit()
@@ -80,6 +94,21 @@ def delete_standard_field(field_id: int, db: Session = Depends(get_db)):
     db_field = db.query(StandardField).filter(StandardField.id == field_id).first()
     if not db_field:
         raise HTTPException(status_code=404, detail="标准字段不存在")
+    
+    # 在删除字段之前，调整同一分组内排序值>被删除字段排序值的字段
+    # 将它们都-1，填补删除后的空缺
+    if db_field.sort_order is not None and db_field.sort_order > 0:
+        # 查询同一分组内，未删除的，且排序值>被删除字段排序值的字段
+        fields_to_update = db.query(StandardField).filter(
+            StandardField.field_group_id == db_field.field_group_id,
+            StandardField.is_deleted == False,
+            StandardField.id != field_id,  # 排除当前要删除的字段
+            StandardField.sort_order > db_field.sort_order
+        ).all()
+        
+        # 将这些字段的排序值都-1
+        for existing_field in fields_to_update:
+            existing_field.sort_order -= 1
     
     db_field.is_deleted = True
     db_field.deleted_at = datetime.now()

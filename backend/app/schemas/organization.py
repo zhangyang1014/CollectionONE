@@ -56,10 +56,68 @@ class CollectionAgency(CollectionAgencyBase):
         orm_mode = True
 
 
+# ===== 小组群 Schemas =====
+class TeamGroupBase(BaseModel):
+    """小组群基础Schema"""
+    tenant_id: int = Field(..., description="所属甲方ID")
+    agency_id: int = Field(..., description="所属催收机构ID")
+    group_code: str = Field(..., max_length=100, description="小组群编码")
+    group_name: str = Field(..., max_length=200, description="小组群名称")
+    group_name_en: Optional[str] = Field(None, max_length=200, description="小组群名称（英文）")
+    description: Optional[str] = Field(None, description="小组群描述")
+    sort_order: int = Field(0, description="排序顺序")
+    is_active: bool = Field(True, description="是否启用")
+
+
+class TeamGroupCreate(BaseModel):
+    """创建小组群"""
+    tenant_id: int = Field(..., description="所属甲方ID")
+    agency_id: int = Field(..., description="所属催收机构ID")
+    group_code: str = Field(..., max_length=100, description="小组群编码")
+    group_name: str = Field(..., max_length=200, description="小组群名称")
+    group_name_en: Optional[str] = Field(None, max_length=200, description="小组群名称（英文）")
+    description: Optional[str] = Field(None, description="小组群描述")
+    sort_order: int = Field(0, description="排序顺序")
+    is_active: bool = Field(True, description="是否启用")
+    # SPV管理员账号信息
+    spv_account_name: str = Field(..., max_length=100, description="SPV账号名称")
+    spv_login_id: str = Field(..., max_length=100, description="SPV登录ID")
+    spv_email: str = Field(..., max_length=100, description="SPV邮箱")
+    spv_password: str = Field(..., max_length=50, description="SPV初始密码")
+    spv_mobile: Optional[str] = Field(None, max_length=50, description="SPV手机号码")
+    spv_remark: Optional[str] = Field(None, description="SPV备注")
+
+
+class TeamGroupUpdate(BaseModel):
+    """更新小组群"""
+    group_name: Optional[str] = Field(None, max_length=200)
+    group_name_en: Optional[str] = Field(None, max_length=200)
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class TeamGroup(TeamGroupBase):
+    """小组群响应"""
+    id: int
+    agency_name: Optional[str] = Field(None, description="机构名称")
+    spv_account_name: Optional[str] = Field(None, description="小组群长SPV姓名")
+    spv_login_id: Optional[str] = Field(None, description="SPV登录ID")
+    team_count: int = Field(0, description="小组数量")
+    collector_count: int = Field(0, description="催员数量")
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
 # ===== 催收小组 Schemas =====
 class CollectionTeamBase(BaseModel):
     """催收小组基础Schema"""
     agency_id: int = Field(..., description="所属催收机构ID")
+    team_group_id: int = Field(..., description="所属小组群ID（必选）")
+    queue_id: int = Field(..., description="关联的催收队列ID（必选）")
     team_code: str = Field(..., max_length=100, description="小组编码")
     team_name: str = Field(..., max_length=200, description="小组名称")
     team_name_en: Optional[str] = Field(None, max_length=200, description="小组名称（英文）")
@@ -78,6 +136,8 @@ class CollectionTeamCreate(CollectionTeamBase):
 
 class CollectionTeamUpdate(BaseModel):
     """更新催收小组"""
+    team_group_id: Optional[int] = Field(None, description="所属小组群ID")
+    queue_id: Optional[int] = Field(None, description="关联的催收队列ID")
     team_name: Optional[str] = Field(None, max_length=200)
     team_name_en: Optional[str] = Field(None, max_length=200)
     team_leader_id: Optional[int] = None
@@ -91,7 +151,11 @@ class CollectionTeamUpdate(BaseModel):
 class CollectionTeam(CollectionTeamBase):
     """催收小组响应"""
     id: int
+    tenant_id: int
+    tenant_name: Optional[str] = Field(None, description="甲方名称")
     agency_name: Optional[str] = Field(None, description="机构名称")
+    team_group_name: Optional[str] = Field(None, description="小组群名称")
+    queue_name: Optional[str] = Field(None, description="催收队列名称")
     team_leader_name: Optional[str] = Field(None, description="组长姓名")
     collector_count: int = Field(0, description="催员数量")
     case_count: int = Field(0, description="案件数量")

@@ -1163,18 +1163,23 @@ const mockFullCaseData = computed(() => {
       status: ['已结清', '正常还款', '逾期已还'][Math.floor(Math.random() * 3)],
       overdue_days: Math.floor(Math.random() * 30),
     })),
-    payment_records: Array.from({ length: Math.floor(Math.random() * 4) }, () => ({
-      payment_id: `PAY${Math.floor(Math.random() * 90000000) + 10000000}`,
-      payment_date: dayjs().subtract(Math.floor(Math.random() * 30), 'day').format('YYYY-MM-DD HH:mm:ss'),
-      payment_amount: Math.floor(Math.random() * 3000) + 500,
-      payment_method: currentCase.tenant_id === 1 
-        ? ['SPEI', 'OXXO', '银行转账'][Math.floor(Math.random() * 3)]
-        : ['UPI', 'Net Banking', 'Debit Card'][Math.floor(Math.random() * 3)],
-      transaction_id: `TXN${Math.floor(Math.random() * 90000000000) + 10000000000}`,
-      payment_status: ['成功', '处理中', '失败'][Math.floor(Math.random() * 3)],
-      payment_channel: ['App', '网页', 'ATM'][Math.floor(Math.random() * 3)],
-      remark: ['正常还款', '部分还款', '逾期还款', ''][Math.floor(Math.random() * 4)],
-    })),
+    payment_records: Array.from({ length: Math.floor(Math.random() * 4) }, () => {
+      const paymentDate = dayjs().subtract(Math.floor(Math.random() * 30), 'day')
+      const dueDate = paymentDate.subtract(Math.floor(Math.random() * 24) + 7, 'day')
+      return {
+        payment_id: `PAY${Math.floor(Math.random() * 90000000) + 10000000}`,
+        payment_date: paymentDate.format('YYYY-MM-DD HH:mm:ss'),
+        due_date: dueDate.format('YYYY-MM-DD'),
+        payment_amount: Math.floor(Math.random() * 3000) + 500,
+        payment_method: currentCase.tenant_id === 1 
+          ? ['SPEI', 'OXXO', '银行转账'][Math.floor(Math.random() * 3)]
+          : ['UPI', 'Net Banking', 'Debit Card'][Math.floor(Math.random() * 3)],
+        transaction_id: `TXN${Math.floor(Math.random() * 90000000000) + 10000000000}`,
+        payment_status: ['成功', '处理中', '失败'][Math.floor(Math.random() * 3)],
+        payment_channel: ['App', '网页', 'ATM'][Math.floor(Math.random() * 3)],
+        remark: ['正常还款', '部分还款', '逾期还款', ''][Math.floor(Math.random() * 4)],
+      }
+    }),
     installment_details: isMultiTerm ? {
       total_installments: 6,
       current_installment: 3,

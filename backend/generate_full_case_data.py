@@ -166,9 +166,15 @@ def generate_payment_records():
     
     for i in range(record_count):
         amount = random.randint(500, 5000)
+        # 生成还款日期和到期日
+        payment_date = datetime.now() - timedelta(days=random.randint(1, 60))
+        # 到期日通常在还款日期前7-30天
+        due_date = payment_date - timedelta(days=random.randint(7, 30))
+        
         records.append({
             "payment_id": f"PAY{random.randint(10000000, 99999999)}",
-            "payment_date": (datetime.now() - timedelta(days=random.randint(1, 60))).strftime("%Y-%m-%d %H:%M:%S"),
+            "payment_date": payment_date.strftime("%Y-%m-%d %H:%M:%S"),
+            "due_date": due_date.strftime("%Y-%m-%d"),
             "payment_amount": amount,
             "payment_method": random.choice(["SPEI", "OXXO", "银行转账", "借记卡"]),
             "transaction_id": f"TXN{random.randint(10000000000, 99999999999)}",

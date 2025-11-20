@@ -232,7 +232,7 @@
               <el-descriptions-item label="合同期限">{{ fullData.loan_details?.contract_term || '-' }}</el-descriptions-item>
               <el-descriptions-item label="服务费">{{ formatCurrency(fullData.loan_details?.service_fee) || '-' }}</el-descriptions-item>
               <el-descriptions-item label="合同文件" :span="3">
-                <el-link v-if="fullData.loan_details?.contract_file_url" type="primary" :href="fullData.loan_details?.contract_file_url" target="_blank">
+                <el-link v-if="fullData.loan_details?.contract_file_url" type="primary" underline="hover" :href="fullData.loan_details?.contract_file_url" target="_blank">
                   <el-icon><Document /></el-icon> 查看合同
                 </el-link>
                 <span v-else>-</span>
@@ -323,6 +323,7 @@
         <el-table v-if="fullData.payment_records && fullData.payment_records.length > 0" :data="fullData.payment_records" border size="small" max-height="400">
           <el-table-column prop="payment_id" label="还款编号" width="150" />
           <el-table-column prop="payment_date" label="还款时间" width="170" />
+          <el-table-column prop="due_date" label="到期日" width="120" />
           <el-table-column prop="payment_amount" label="还款金额" width="110" align="right">
             <template #default="{ row }">{{ formatCurrency(row.payment_amount) }}</template>
           </el-table-column>

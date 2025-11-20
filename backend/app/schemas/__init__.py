@@ -13,11 +13,6 @@ from app.schemas.custom_field import (
     CustomFieldUpdate,
     CustomFieldResponse
 )
-from app.schemas.field_dependency import (
-    FieldDependencyCreate,
-    FieldDependencyUpdate,
-    FieldDependencyResponse
-)
 
 __all__ = [
     "FieldGroupCreate",
@@ -29,8 +24,5 @@ __all__ = [
     "CustomFieldCreate",
     "CustomFieldUpdate",
     "CustomFieldResponse",
-    "FieldDependencyCreate",
-    "FieldDependencyUpdate",
-    "FieldDependencyResponse",
 ]
 

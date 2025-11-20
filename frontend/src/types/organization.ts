@@ -54,10 +54,58 @@ export interface CollectionAgencyUpdate {
   is_active?: boolean
 }
 
+// ===== 小组群 =====
+export interface TeamGroup {
+  id: number
+  tenant_id: number
+  agency_id: number
+  group_code: string
+  group_name: string
+  group_name_en?: string
+  description?: string
+  sort_order: number
+  is_active: boolean
+  agency_name?: string
+  spv_account_name?: string
+  spv_login_id?: string
+  team_count: number
+  collector_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TeamGroupCreate {
+  tenant_id: number
+  agency_id: number
+  group_code: string
+  group_name: string
+  group_name_en?: string
+  description?: string
+  sort_order?: number
+  is_active?: boolean
+  // SPV管理员账号信息
+  spv_account_name: string
+  spv_login_id: string
+  spv_email: string
+  spv_password: string
+  spv_mobile?: string
+  spv_remark?: string
+}
+
+export interface TeamGroupUpdate {
+  group_name?: string
+  group_name_en?: string
+  description?: string
+  sort_order?: number
+  is_active?: boolean
+}
+
 // ===== 催收小组 =====
 export interface CollectionTeam {
   id: number
   agency_id: number
+  team_group_id?: number
+  queue_id: number
   team_code: string
   team_name: string
   team_name_en?: string
@@ -68,6 +116,8 @@ export interface CollectionTeam {
   sort_order: number
   is_active: boolean
   agency_name?: string
+  team_group_name?: string
+  queue_name?: string
   team_leader_name?: string
   collector_count: number
   case_count: number
@@ -77,6 +127,8 @@ export interface CollectionTeam {
 
 export interface CollectionTeamCreate {
   agency_id: number
+  team_group_id?: number
+  queue_id: number
   team_code: string
   team_name: string
   team_name_en?: string
@@ -89,6 +141,8 @@ export interface CollectionTeamCreate {
 }
 
 export interface CollectionTeamUpdate {
+  team_group_id?: number
+  queue_id?: number
   team_name?: string
   team_name_en?: string
   team_leader_id?: number

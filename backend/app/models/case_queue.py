@@ -9,7 +9,7 @@ class CaseQueue(Base):
     """案件队列表"""
     __tablename__ = "case_queues"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     tenant_id = Column(BigInteger, ForeignKey("tenants.id"), nullable=False, index=True, comment="所属甲方ID")
     queue_code = Column(String(100), nullable=False, comment="队列编码（如：M1, M2, M3+, LEGAL）")
     queue_name = Column(String(200), nullable=False, comment="队列名称")

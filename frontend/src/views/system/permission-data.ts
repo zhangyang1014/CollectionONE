@@ -667,19 +667,6 @@ const permissionData: PermissionModule = {
       }
     },
     {
-      name: '字段联动配置',
-      description: '配置字段之间的联动关系',
-      permissions: {
-        SUPER_ADMIN: 'yes',
-        TENANT_ADMIN: 'yes',
-        AGENCY_ADMIN: 'no',
-        TEAM_LEADER: 'no',
-        QUALITY_INSPECTOR: 'no',
-        DATA_SOURCE: 'no',
-        COLLECTOR: 'no'
-      }
-    },
-    {
       name: '队列字段配置',
       description: '配置队列字段显示和隐藏',
       permissions: {

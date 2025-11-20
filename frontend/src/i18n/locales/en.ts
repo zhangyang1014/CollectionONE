@@ -34,7 +34,7 @@ export default {
     standardFields: 'Standard Fields',
     customFields: 'Field Mapping Config',
     fieldGroups: 'Field Groups',
-    fieldLinkage: 'Field Linkage',
+    fieldDisplayConfig: 'Field Display Config',
     fieldFilter: 'Field Filter',
     permission: 'Permission Management',
     roleManagement: 'Role Management',

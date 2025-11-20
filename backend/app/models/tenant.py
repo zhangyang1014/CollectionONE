@@ -8,7 +8,7 @@ class Tenant(Base):
     """甲方配置表"""
     __tablename__ = "tenants"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     tenant_code = Column(String(100), unique=True, nullable=False, comment='甲方编码')
     tenant_name = Column(String(200), nullable=False, comment='甲方名称')
     tenant_name_en = Column(String(200), comment='甲方名称（英文）')
@@ -25,6 +25,7 @@ class Tenant(Base):
     cases = relationship("Case", back_populates="tenant")
     filter_configs = relationship("FieldFilterConfig", back_populates="tenant")
     agencies = relationship("CollectionAgency", back_populates="tenant")
+    team_groups = relationship("TeamGroup", back_populates="tenant")
     teams = relationship("CollectionTeam", back_populates="tenant")
     collectors = relationship("Collector", back_populates="tenant")
     queues = relationship("CaseQueue", back_populates="tenant")

@@ -8,7 +8,7 @@ class FieldGroup(Base):
     """字段分组表"""
     __tablename__ = "field_groups"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     group_key = Column(String(100), unique=True, nullable=False, comment='分组标识')
     group_name = Column(String(200), nullable=False, comment='分组名称（中文）')
     group_name_en = Column(String(200), comment='分组名称（英文）')

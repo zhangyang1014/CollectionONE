@@ -52,7 +52,20 @@
         <el-table-column prop="team_name" label="小组名" width="180" />
         <el-table-column prop="tenant_name" label="所属甲方" width="150" />
         <el-table-column prop="agency_name" label="所属机构" width="150" />
-        <el-table-column prop="collector_count" label="催员账号数量" width="120" align="center" />
+        <el-table-column prop="team_group_name" label="所属小组群" width="150" />
+        <el-table-column prop="queue_name" label="催收队列" width="150" />
+        <el-table-column prop="collector_count" label="催员数" width="100" align="center">
+          <template #default="{ row }">
+            <el-button 
+              link 
+              type="primary" 
+              @click="handleViewCollectors(row)"
+              :disabled="!row.collector_count || row.collector_count === 0"
+            >
+              {{ row.collector_count || 0 }}
+            </el-button>
+          </template>
+        </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="180" />
         <el-table-column prop="updated_at" label="最近修改时间" width="180" />
         <el-table-column label="状态" width="100">
@@ -97,12 +110,34 @@
         </el-form-item>
 
         <el-form-item label="所属机构" prop="agency_id">
-          <el-select v-model="form.agency_id" placeholder="选择机构" style="width: 100%">
+          <el-select v-model="form.agency_id" placeholder="选择机构" style="width: 100%" @change="handleAgencySelectChange">
             <el-option
               v-for="agency in agencies"
               :key="agency.id"
               :label="agency.agency_name"
               :value="agency.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="所属小组群" prop="team_group_id">
+          <el-select v-model="form.team_group_id" placeholder="请选择所属小组群（必选）" style="width: 100%">
+            <el-option
+              v-for="group in teamGroups"
+              :key="group.id"
+              :label="group.group_name"
+              :value="group.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="催收队列" prop="queue_id">
+          <el-select v-model="form.queue_id" placeholder="选择催收队列（必选）" style="width: 100%">
+            <el-option
+              v-for="queue in queues"
+              :key="queue.id"
+              :label="queue.queue_name"
+              :value="queue.id"
             />
           </el-select>
         </el-form-item>
@@ -132,10 +167,15 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import { useRouter, useRoute } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 
+const router = useRouter()
+const route = useRoute()
 const tenantStore = useTenantStore()
 const agencies = ref<any[]>([])
+const teamGroups = ref<any[]>([]) // 小组群列表
+const queues = ref<any[]>([]) // 催收队列列表
 const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
 const currentAgencyId = ref<number | undefined>(undefined) // 默认全选
 const currentTeamId = ref<number | undefined>(undefined) // 默认全选
@@ -165,9 +205,11 @@ watch(
     teams.value = []
     allTeams.value = []
     agencies.value = []
+    queues.value = []
     
     if (newTenantId) {
       await loadAgencies()
+      await loadQueues()
       await loadAllTeams() // 默认加载所有小组
       await loadTeams() // 应用筛选
     }
@@ -178,7 +220,15 @@ watch(
 onMounted(async () => {
   if (currentTenantId.value) {
     await loadAgencies()
+    await loadQueues()
     await loadAllTeams() // 默认加载所有小组
+    
+    // 从URL参数中获取agencyId并设置筛选
+    const agencyIdParam = route.query.agencyId
+    if (agencyIdParam) {
+      currentAgencyId.value = Number(agencyIdParam)
+    }
+    
     await loadTeams() // 应用筛选
   }
 })
@@ -195,6 +245,8 @@ const form = ref({
   team_code: '',
   team_name: '',
   agency_id: undefined as number | undefined,
+  team_group_id: undefined as number | undefined,
+  queue_id: undefined as number | undefined,
   leader_id: undefined as number | undefined,
   target_performance: 0,
   remark: '',
@@ -210,6 +262,12 @@ const rules = reactive({
   ],
   agency_id: [
     { required: true, message: '请选择所属机构', trigger: 'change' }
+  ],
+  team_group_id: [
+    { required: true, message: '请选择所属小组群', trigger: 'change' }
+  ],
+  queue_id: [
+    { required: true, message: '请选择催收队列', trigger: 'change' }
   ],
   leader_id: [
     { required: true, message: '请选择小组组长', trigger: 'change' }
@@ -234,6 +292,55 @@ const loadAgencies = async () => {
     console.error('加载机构失败：', error)
     ElMessage.error('加载机构失败')
   }
+}
+
+// 加载小组群列表
+const loadTeamGroups = async (agencyId?: number) => {
+  if (!currentTenantId.value) {
+    teamGroups.value = []
+    return
+  }
+
+  try {
+    let url = `http://localhost:8000/api/v1/team-groups?tenant_id=${currentTenantId.value}`
+    
+    if (agencyId) {
+      url += `&agency_id=${agencyId}`
+    }
+    
+    const response = await fetch(url)
+    const result = await response.json()
+    
+    teamGroups.value = Array.isArray(result) ? result : (result.data || [])
+  } catch (error) {
+    console.error('加载小组群失败：', error)
+    ElMessage.error('加载小组群失败')
+  }
+}
+
+// 加载队列列表
+const loadQueues = async () => {
+  if (!currentTenantId.value) {
+    queues.value = []
+    return
+  }
+
+  try {
+    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/queues`
+    const response = await fetch(url)
+    const result = await response.json()
+    
+    queues.value = Array.isArray(result) ? result : (result.data || [])
+  } catch (error) {
+    console.error('加载队列失败：', error)
+    ElMessage.error('加载队列失败')
+  }
+}
+
+// 机构选择变化时加载对应的小组群
+const handleAgencySelectChange = (agencyId: number) => {
+  form.value.team_group_id = undefined // 清空小组群选择
+  loadTeamGroups(agencyId)
 }
 
 // 加载所有小组（所有机构的）
@@ -320,16 +427,30 @@ const handleAdd = () => {
     team_code: '',
     team_name: '',
     agency_id: undefined,
+    team_group_id: undefined,
+    queue_id: undefined,
     leader_id: undefined,
     target_performance: 0,
     remark: '',
     is_active: true
   }
+  teamGroups.value = [] // 清空小组群列表
   dialogVisible.value = true
 }
 
+// 查看催员
+const handleViewCollectors = (row: any) => {
+  router.push({
+    path: '/organization/collectors',
+    query: {
+      agencyId: row.agency_id,
+      teamId: row.id
+    }
+  })
+}
+
 // 编辑小组
-const handleEdit = (row: any) => {
+const handleEdit = async (row: any) => {
   isEdit.value = true
   dialogTitle.value = '编辑小组'
   form.value = {
@@ -337,11 +458,19 @@ const handleEdit = (row: any) => {
     team_code: row.team_code,
     team_name: row.team_name,
     agency_id: row.agency_id,
+    team_group_id: row.team_group_id,
+    queue_id: row.queue_id,
     leader_id: row.leader_id,
     target_performance: row.target_performance || 0,
     remark: row.remark || '',
     is_active: row.is_active
   }
+  
+  // 加载对应机构的小组群
+  if (row.agency_id) {
+    await loadTeamGroups(row.agency_id)
+  }
+  
   dialogVisible.value = true
 }
 
@@ -356,13 +485,62 @@ const handleSave = async () => {
 
     console.log('保存小组：', form.value)
     
-    // TODO: 调用API保存
-    ElMessage.success('保存成功')
+    // 构造请求数据
+    const requestData = {
+      agency_id: form.value.agency_id,
+      team_group_id: form.value.team_group_id || null,
+      queue_id: form.value.queue_id,
+      team_code: form.value.team_code,
+      team_name: form.value.team_name,
+      team_leader_id: form.value.leader_id || null,
+      description: form.value.remark || null,
+      max_case_count: form.value.target_performance || 0,
+      sort_order: 0,
+      is_active: form.value.is_active
+    }
+    
+    if (isEdit.value && form.value.id) {
+      // 更新小组
+      const url = `http://localhost:8000/api/v1/teams/${form.value.id}`
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || '更新失败')
+      }
+      
+      ElMessage.success('更新成功')
+    } else {
+      // 创建小组
+      const url = `http://localhost:8000/api/v1/teams`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || '创建失败')
+      }
+      
+      ElMessage.success('创建成功')
+    }
+    
     dialogVisible.value = false
     await loadAllTeams() // 重新加载所有小组
     await loadTeams() // 应用筛选
-  } catch (error) {
+  } catch (error: any) {
     console.error('保存失败：', error)
+    ElMessage.error(error.message || '保存失败')
   } finally {
     saving.value = false
   }

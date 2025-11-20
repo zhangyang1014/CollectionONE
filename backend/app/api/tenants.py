@@ -9,6 +9,11 @@ from app.models.case_queue import CaseQueue
 from app.models.collection_agency import CollectionAgency
 from app.models.standard_field import StandardField
 from app.models.custom_field import CustomField
+from app.models.team_admin_account import TeamAdminAccount
+from app.models.team_group import TeamGroup
+from app.models.collection_team import CollectionTeam
+from app.models.collector import Collector
+from sqlalchemy import func
 from app.schemas.tenant import (
     TenantCreate,
     TenantUpdate,
@@ -182,10 +187,47 @@ def get_tenant_queues(tenant_id: int, db: Session = Depends(get_db)):
     return queues
 
 
+# 甲方管理员账号相关接口
+@router.get("/{tenant_id}/admin-accounts")
+def get_tenant_admin_accounts(tenant_id: int, db: Session = Depends(get_db)):
+    """获取甲方的管理员账号列表"""
+    # 验证甲方是否存在
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="甲方不存在")
+    
+    # 查询该甲方的管理员账号（没有agency_id，或者agency_id为null的甲方级别管理员）
+    accounts = db.query(TeamAdminAccount).filter(
+        TeamAdminAccount.tenant_id == tenant_id,
+        TeamAdminAccount.agency_id.is_(None),
+        TeamAdminAccount.is_active.is_(True)
+    ).order_by(TeamAdminAccount.account_code).all()
+    
+    # 转换为字典格式
+    result = []
+    for account in accounts:
+        account_dict = {
+            "id": account.id,
+            "account_code": account.account_code,
+            "account_name": account.account_name,
+            "login_id": account.login_id,
+            "role": account.role,
+            "mobile": account.mobile,
+            "email": account.email,
+            "remark": account.remark,
+            "is_active": account.is_active,
+            "created_at": account.created_at.isoformat() if account.created_at else None,
+            "updated_at": account.updated_at.isoformat() if account.updated_at else None
+        }
+        result.append(account_dict)
+    
+    return result
+
+
 # 甲方机构相关接口
 @router.get("/{tenant_id}/agencies")
 def get_tenant_agencies(tenant_id: int, db: Session = Depends(get_db)):
-    """获取甲方的催收机构列表"""
+    """获取甲方的催收机构列表（包含统计信息）"""
     # 验证甲方是否存在
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
@@ -196,7 +238,37 @@ def get_tenant_agencies(tenant_id: int, db: Session = Depends(get_db)):
         CollectionAgency.is_active.is_(True)
     ).order_by(CollectionAgency.sort_order).all()
     
-    return agencies
+    # 添加统计数据和关联信息
+    result = []
+    for agency in agencies:
+        # 获取机构管理员信息
+        admin_name = None
+        admin_account = db.query(TeamAdminAccount).filter(
+            TeamAdminAccount.agency_id == agency.id,
+            TeamAdminAccount.team_group_id.is_(None),
+            TeamAdminAccount.team_id.is_(None),
+            TeamAdminAccount.is_active.is_(True)
+        ).first()
+        if admin_account:
+            admin_name = admin_account.account_name
+        
+        agency_dict = {
+            **agency.__dict__,
+            "tenant_name": tenant.tenant_name,
+            "admin_name": admin_name,
+            "team_group_count": db.query(func.count(TeamGroup.id)).filter(
+                TeamGroup.agency_id == agency.id
+            ).scalar() or 0,
+            "team_count": db.query(func.count(CollectionTeam.id)).filter(
+                CollectionTeam.agency_id == agency.id
+            ).scalar() or 0,
+            "collector_count": db.query(func.count(Collector.id)).join(
+                CollectionTeam, Collector.team_id == CollectionTeam.id
+            ).filter(CollectionTeam.agency_id == agency.id).scalar() or 0,
+        }
+        result.append(agency_dict)
+    
+    return result
 
 
 # 甲方字段JSON数据接口

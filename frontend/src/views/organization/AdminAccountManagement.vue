@@ -84,6 +84,18 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="collector_count" label="催员数" width="100" align="center">
+          <template #default="{ row }">
+            <el-button 
+              link 
+              type="primary" 
+              @click="handleViewCollectors(row)"
+              :disabled="!row.collector_count || row.collector_count === 0 || !row.team_id"
+            >
+              {{ row.collector_count || 0 }}
+            </el-button>
+          </template>
+        </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="160" />
         <el-table-column prop="updated_at" label="最近修改时间" width="160" />
         <el-table-column label="状态" width="100">
@@ -242,8 +254,10 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 
+const router = useRouter()
 const tenantStore = useTenantStore()
 const agencies = ref<any[]>([])
 const teams = ref<any[]>([])
@@ -473,10 +487,11 @@ const loadAccounts = async () => {
               // API直接返回数组，不是{data: [...]}格式
               const teamAccounts = Array.isArray(accountsResult) ? accountsResult : (accountsResult.data || [])
               
-              // 为每个账号添加机构和小组信息
+              // 为每个账号添加机构、小组信息和催员数量
               teamAccounts.forEach((account: any) => {
                 account.agency_name = agency.agency_name
                 account.team_name = team.team_name
+                account.collector_count = team.collector_count || 0
               })
               
               loadedAccounts.push(...teamAccounts)
@@ -500,11 +515,12 @@ const loadAccounts = async () => {
           // API直接返回数组，不是{data: [...]}格式
           const teamAccounts = Array.isArray(accountsResult) ? accountsResult : (accountsResult.data || [])
           
-          // 为每个账号添加机构和小组信息
+          // 为每个账号添加机构、小组信息和催员数量
           const agency = agencies.value.find(a => a.id === currentAgencyId.value)
           teamAccounts.forEach((account: any) => {
             account.agency_name = agency?.agency_name || ''
             account.team_name = team.team_name
+            account.collector_count = team.collector_count || 0
           })
           
           loadedAccounts.push(...teamAccounts)
@@ -520,12 +536,13 @@ const loadAccounts = async () => {
       // API直接返回数组，不是{data: [...]}格式
       const teamAccounts = Array.isArray(accountsResult) ? accountsResult : (accountsResult.data || [])
       
-      // 为每个账号添加机构和小组信息
+      // 为每个账号添加机构、小组信息和催员数量
       const agency = agencies.value.find(a => a.id === currentAgencyId.value)
       const team = teams.value.find(t => t.id === currentTeamId.value)
       teamAccounts.forEach((account: any) => {
         account.agency_name = agency?.agency_name || ''
         account.team_name = team?.team_name || ''
+        account.collector_count = team?.collector_count || 0
       })
       
       loadedAccounts = teamAccounts
@@ -605,6 +622,22 @@ const handleAdd = () => {
     is_active: true
   }
   dialogVisible.value = true
+}
+
+// 查看催员（跳转到催员管理页面，筛选该管理员所属小组的催员）
+const handleViewCollectors = (row: any) => {
+  if (!row.team_id) {
+    ElMessage.warning('该账号未关联小组')
+    return
+  }
+  
+  router.push({
+    path: '/organization/collectors',
+    query: {
+      agencyId: row.agency_id,
+      teamId: row.team_id
+    }
+  })
 }
 
 // 编辑账号

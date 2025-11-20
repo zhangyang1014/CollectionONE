@@ -8,7 +8,7 @@ class Case(Base):
     """案件主表"""
     __tablename__ = "cases"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     case_code = Column(String(100), unique=True, nullable=False, index=True, comment='案件唯一标识')
     tenant_id = Column(BigInteger, ForeignKey('tenants.id'), nullable=False, index=True, comment='所属甲方ID')
     agency_id = Column(BigInteger, ForeignKey('collection_agencies.id'), index=True, comment='所属催收机构ID')
@@ -51,7 +51,7 @@ class CaseStandardFieldValue(Base):
     """标准字段值表"""
     __tablename__ = "case_standard_field_values"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     case_id = Column(BigInteger, ForeignKey('cases.id'), nullable=False, comment='案件ID')
     field_id = Column(BigInteger, ForeignKey('standard_fields.id'), nullable=False, comment='字段ID')
     field_value = Column(String(2000), comment='字段值（JSON格式存储复杂类型）')
@@ -66,7 +66,7 @@ class CaseCustomFieldValue(Base):
     """自定义字段值表"""
     __tablename__ = "case_custom_field_values"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     case_id = Column(BigInteger, ForeignKey('cases.id'), nullable=False, comment='案件ID')
     field_id = Column(BigInteger, ForeignKey('custom_fields.id'), nullable=False, comment='自定义字段ID')
     field_value = Column(String(2000), comment='字段值（JSON格式存储复杂类型）')

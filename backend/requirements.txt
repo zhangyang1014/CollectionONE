@@ -11,4 +11,6 @@ pytz
 python-dotenv
 alembic>=1.8.0
 mangum>=0.17.0
+pymysql>=1.0.0
+cryptography>=3.4.0
 

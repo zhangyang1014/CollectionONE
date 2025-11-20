@@ -9,7 +9,7 @@ class CollectionAgency(Base):
     """催收机构表"""
     __tablename__ = "collection_agencies"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     tenant_id = Column(BigInteger, ForeignKey("tenants.id"), nullable=False, index=True, comment="所属甲方ID")
     agency_code = Column(String(100), nullable=False, comment="机构编码")
     agency_name = Column(String(200), nullable=False, comment="机构名称")
@@ -28,6 +28,7 @@ class CollectionAgency(Base):
 
     # 关系
     tenant = relationship("Tenant", back_populates="agencies")
+    team_groups = relationship("TeamGroup", back_populates="agency", cascade="all, delete-orphan")
     teams = relationship("CollectionTeam", back_populates="agency", cascade="all, delete-orphan")
     collectors = relationship("Collector", back_populates="agency")
     cases = relationship("Case", back_populates="agency")

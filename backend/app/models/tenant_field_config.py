@@ -14,7 +14,7 @@ class TenantFieldConfig(Base):
     """甲方字段启用配置表"""
     __tablename__ = "tenant_field_configs"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id = Column(BigInteger, ForeignKey('tenants.id'), nullable=False, comment='甲方ID')
     field_id = Column(BigInteger, nullable=False, comment='字段ID（标准字段或自定义字段）')
     field_type = Column(SQLEnum(FieldTypeEnum), nullable=False, comment='字段类型')

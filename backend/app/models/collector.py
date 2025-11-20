@@ -9,7 +9,7 @@ class Collector(Base):
     """催员表"""
     __tablename__ = "collectors"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     tenant_id = Column(BigInteger, ForeignKey("tenants.id"), nullable=False, index=True, comment="所属甲方ID")
     agency_id = Column(BigInteger, ForeignKey("collection_agencies.id"), nullable=False, index=True, comment="所属机构ID")
     team_id = Column(BigInteger, ForeignKey("collection_teams.id"), nullable=False, index=True, comment="所属小组ID")

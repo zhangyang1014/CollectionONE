@@ -54,29 +54,32 @@ async def health_check():
 
 # 导入API路由
 from app.api import (
-    field_groups, standard_fields, custom_fields, field_dependencies, 
-    tenants, cases, channel, auth, agencies, teams, agency_working_hours, 
-    notification_config, public_notification,
+    field_groups, standard_fields, custom_fields, 
+    tenants, cases, channel, auth, agencies, team_groups, teams, agency_working_hours, 
+    notification_config, public_notification, notification_template, field_display,
     # 数据看板API
-    communications, ptp, quality_inspections, performance, analytics, alerts
+    communications, ptp, quality_inspections, performance, analytics, alerts, idle_monitor
 )
-from app.api import im_auth
+from app.api import im_auth, im_face
 
 # 注册API路由
 app.include_router(field_groups.router, prefix=settings.API_V1_STR)
 app.include_router(standard_fields.router, prefix=settings.API_V1_STR)
 app.include_router(custom_fields.router, prefix=settings.API_V1_STR)
-app.include_router(field_dependencies.router, prefix=settings.API_V1_STR)
 app.include_router(tenants.router, prefix=settings.API_V1_STR)
 app.include_router(cases.router, prefix=settings.API_V1_STR)
 app.include_router(channel.router, prefix=settings.API_V1_STR)
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(agencies.router, prefix=settings.API_V1_STR)
+app.include_router(team_groups.router, prefix=settings.API_V1_STR)
 app.include_router(teams.router, prefix=settings.API_V1_STR)
 app.include_router(agency_working_hours.router, prefix=settings.API_V1_STR)
 app.include_router(notification_config.router, prefix=settings.API_V1_STR)
 app.include_router(public_notification.router, prefix=settings.API_V1_STR)
+app.include_router(notification_template.router, prefix=settings.API_V1_STR)
+app.include_router(field_display.router, prefix=settings.API_V1_STR)
 app.include_router(im_auth.router, prefix=settings.API_V1_STR)  # IM端认证路由
+app.include_router(im_face.router, prefix=settings.API_V1_STR)  # IM端人脸识别路由
 
 # 数据看板API路由（这些路由已经在router定义中包含了/api/v1前缀）
 app.include_router(communications.router)
@@ -85,4 +88,5 @@ app.include_router(quality_inspections.router)
 app.include_router(performance.router)
 app.include_router(analytics.router)
 app.include_router(alerts.router)
+app.include_router(idle_monitor.router, prefix=f"{settings.API_V1_STR}/idle-monitor", tags=["空闲催员监控"])
 

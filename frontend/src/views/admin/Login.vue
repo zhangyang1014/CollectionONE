@@ -84,11 +84,11 @@
       <!-- 底部链接 -->
       <div class="login-footer">
         <div class="footer-links">
-          <el-link type="primary" :underline="false" @click="handleForgotPassword">
+          <el-link type="primary" underline="never" @click="handleForgotPassword">
             忘记密码
           </el-link>
           <el-divider direction="vertical" />
-          <el-link type="primary" :underline="false" @click="goToImLogin">
+          <el-link type="primary" underline="never" @click="goToImLogin">
             切换到IM端登录
           </el-link>
         </div>

@@ -55,17 +55,6 @@ export interface CustomField {
   updated_at: string
 }
 
-// 字段联动
-export interface FieldDependency {
-  id: number
-  source_field_id: number
-  target_field_id: number
-  dependency_type: string
-  dependency_rule: any
-  created_at: string
-  updated_at: string
-}
-
 // 甲方
 export interface Tenant {
   id: number

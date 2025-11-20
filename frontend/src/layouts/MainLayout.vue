@@ -23,6 +23,7 @@
             <span>数据看板</span>
           </template>
           <el-menu-item index="/performance/my-dashboard">单催员业绩看板</el-menu-item>
+          <el-menu-item index="/dashboard/idle-monitor">空闲催员监控</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="case">
@@ -44,7 +45,7 @@
           <el-menu-item index="/field-config/tenant-fields-view">甲方字段查看</el-menu-item>
           <el-menu-item index="/field-config/custom">{{ $t('menu.customFields') }}</el-menu-item>
           <el-menu-item index="/field-config/groups">{{ $t('menu.fieldGroups') }}</el-menu-item>
-          <el-menu-item index="/field-config/linkage">{{ $t('menu.fieldLinkage') }}</el-menu-item>
+          <el-menu-item index="/field-config/display">{{ $t('menu.fieldDisplayConfig') }}</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="tenant">
@@ -54,6 +55,7 @@
           </template>
           <el-menu-item index="/tenants">{{ $t('menu.tenantList') }}</el-menu-item>
           <el-menu-item index="/organization/agencies">{{ $t('menu.agencyManagement') }}</el-menu-item>
+          <el-menu-item index="/organization/team-groups">小组群管理</el-menu-item>
           <el-menu-item index="/organization/teams">{{ $t('menu.teamManagement') }}</el-menu-item>
           <el-menu-item index="/organization/admin-accounts">{{ $t('menu.adminAccountManagement') }}</el-menu-item>
           <el-menu-item index="/organization/collectors">{{ $t('menu.collectorManagement') }}</el-menu-item>

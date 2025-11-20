@@ -97,11 +97,18 @@ export interface PublicNotification {
   tenant_id?: number | null
   agency_id?: number | null
   title: string
-  h5_content: string
-  h5_content_type: 'url' | 'html'
+  content: string
+  h5_content?: string | null
   carousel_interval_seconds: number
   is_forced_read: boolean
   is_enabled: boolean
+  
+  // 非强制阅读时的配置
+  repeat_interval_minutes?: number | null
+  max_remind_count?: number | null
+  notify_time_start?: string | null
+  notify_time_end?: string | null
+  
   effective_start_time?: string | null
   effective_end_time?: string | null
   notify_roles?: string[]
@@ -115,11 +122,18 @@ export interface PublicNotificationCreate {
   tenant_id?: number | null
   agency_id?: number | null
   title: string
-  h5_content: string
-  h5_content_type?: 'url' | 'html'
+  content: string
+  h5_content?: string | null
   carousel_interval_seconds?: number
   is_forced_read?: boolean
   is_enabled?: boolean
+  
+  // 非强制阅读时的配置
+  repeat_interval_minutes?: number | null
+  max_remind_count?: number | null
+  notify_time_start?: string | null
+  notify_time_end?: string | null
+  
   effective_start_time?: string | null
   effective_end_time?: string | null
   notify_roles?: string[]
@@ -128,15 +142,116 @@ export interface PublicNotificationCreate {
 
 export interface PublicNotificationUpdate {
   title?: string
-  h5_content?: string
-  h5_content_type?: 'url' | 'html'
+  content?: string
+  h5_content?: string | null
   carousel_interval_seconds?: number
   is_forced_read?: boolean
   is_enabled?: boolean
+  
+  // 非强制阅读时的配置
+  repeat_interval_minutes?: number | null
+  max_remind_count?: number | null
+  notify_time_start?: string | null
+  notify_time_end?: string | null
+  
   effective_start_time?: string | null
   effective_end_time?: string | null
   notify_roles?: string[]
   sort_order?: number
+}
+
+// ===== 通知模板类型定义 =====
+export interface NotificationTemplate {
+  id: number
+  tenant_id?: string | null
+  template_id: string
+  template_name: string
+  template_type: string
+  description?: string | null
+  content_template: string
+  jump_url_template?: string | null
+  
+  // 发送对象配置
+  target_type: 'agency' | 'team' | 'collector'
+  target_agencies?: string[] | null
+  target_teams?: string[] | null
+  target_collectors?: string[] | null
+  
+  // 阅读机制配置
+  is_forced_read: boolean
+  repeat_interval_minutes?: number | null
+  max_remind_count?: number | null
+  notify_time_start?: string | null
+  notify_time_end?: string | null
+  
+  // 优先级和展示
+  priority: number  // 1=最高 2=中等 3=最低
+  display_duration_seconds: number
+  
+  // 启用状态
+  is_enabled: boolean
+  
+  // 可用变量
+  available_variables?: string[] | null
+  
+  // 统计信息
+  total_sent: number
+  total_read: number
+  
+  created_at: string
+  updated_at: string
+  created_by?: number | null
+}
+
+export interface NotificationTemplateCreate {
+  tenant_id?: string | null
+  template_id: string
+  template_name: string
+  template_type: string
+  description?: string | null
+  content_template: string
+  jump_url_template?: string | null
+  target_type?: 'agency' | 'team' | 'collector'
+  target_agencies?: string[] | null
+  target_teams?: string[] | null
+  target_collectors?: string[] | null
+  is_forced_read?: boolean
+  repeat_interval_minutes?: number | null
+  max_remind_count?: number | null
+  notify_time_start?: string | null
+  notify_time_end?: string | null
+  priority?: number
+  display_duration_seconds?: number
+  is_enabled?: boolean
+  available_variables?: string[] | null
+}
+
+export interface NotificationTemplateUpdate {
+  template_name?: string
+  template_type?: string
+  description?: string | null
+  content_template?: string
+  jump_url_template?: string | null
+  target_type?: 'agency' | 'team' | 'collector'
+  target_agencies?: string[] | null
+  target_teams?: string[] | null
+  target_collectors?: string[] | null
+  is_forced_read?: boolean
+  repeat_interval_minutes?: number | null
+  max_remind_count?: number | null
+  notify_time_start?: string | null
+  notify_time_end?: string | null
+  priority?: number
+  display_duration_seconds?: number
+  is_enabled?: boolean
+  available_variables?: string[] | null
+}
+
+export interface TemplateType {
+  value: string
+  label: string
+  description: string
+  variables: Record<string, string>
 }
 
 

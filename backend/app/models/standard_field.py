@@ -8,7 +8,7 @@ class StandardField(Base):
     """标准字段定义表"""
     __tablename__ = "standard_fields"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     field_key = Column(String(100), unique=True, nullable=False, comment='字段唯一标识')
     field_name = Column(String(200), nullable=False, comment='字段名称（中文）')
     field_name_en = Column(String(200), comment='字段名称（英文）')
@@ -29,14 +29,4 @@ class StandardField(Base):
 
     # 关系
     field_group = relationship("FieldGroup", back_populates="standard_fields")
-    source_dependencies = relationship(
-        "FieldDependency",
-        foreign_keys="FieldDependency.source_field_id",
-        back_populates="source_field"
-    )
-    target_dependencies = relationship(
-        "FieldDependency",
-        foreign_keys="FieldDependency.target_field_id",
-        back_populates="target_field"
-    )
 

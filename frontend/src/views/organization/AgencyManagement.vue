@@ -26,8 +26,42 @@
         </el-table-column>
         <el-table-column prop="tenant_name" label="所属甲方" width="150" />
         <el-table-column prop="admin_name" label="机构管理员" width="120" />
-        <el-table-column prop="team_count" label="小组数量" width="100" align="center" />
-        <el-table-column prop="collector_count" label="催员账号数量" width="120" align="center" />
+        <el-table-column prop="team_group_count" label="小组群数量" width="100" align="center">
+          <template #default="{ row }">
+            <el-button 
+              link 
+              type="primary" 
+              @click="handleViewTeamGroups(row)"
+              :disabled="!row.team_group_count || row.team_group_count === 0"
+            >
+              {{ row.team_group_count || 0 }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="team_count" label="小组数量" width="100" align="center">
+          <template #default="{ row }">
+            <el-button 
+              link 
+              type="primary" 
+              @click="handleViewTeams(row)"
+              :disabled="!row.team_count || row.team_count === 0"
+            >
+              {{ row.team_count || 0 }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="collector_count" label="催员数" width="100" align="center">
+          <template #default="{ row }">
+            <el-button 
+              link 
+              type="primary" 
+              @click="handleViewCollectors(row)"
+              :disabled="!row.collector_count || row.collector_count === 0"
+            >
+              {{ row.collector_count || 0 }}
+            </el-button>
+          </template>
+        </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="180" />
         <el-table-column prop="updated_at" label="最近修改时间" width="180" />
         <el-table-column label="状态" width="100">
@@ -110,28 +144,44 @@
         <el-divider content-position="left">机构管理员账号</el-divider>
 
         <el-form-item label="管理员账号名" prop="admin_name">
-          <el-input v-model="form.admin_name" placeholder="请输入管理员账号名" maxlength="50" />
+          <el-input 
+            v-model="form.admin_name" 
+            placeholder="请输入管理员账号名" 
+            maxlength="50"
+          />
         </el-form-item>
 
         <el-form-item label="管理员登录ID" prop="admin_login_id">
-          <el-input v-model="form.admin_login_id" placeholder="请输入登录ID" maxlength="50" />
+          <el-input 
+            v-model="form.admin_login_id" 
+            placeholder="请输入登录ID" 
+            maxlength="50"
+            :disabled="isEdit"
+          />
+          <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            登录ID不可修改
+          </div>
         </el-form-item>
 
         <el-form-item label="管理员邮箱" prop="admin_email">
-          <el-input v-model="form.admin_email" placeholder="请输入邮箱地址" maxlength="100" />
+          <el-input 
+            v-model="form.admin_email" 
+            placeholder="请输入邮箱地址" 
+            maxlength="100"
+          />
         </el-form-item>
 
-        <el-form-item label="管理员密码" prop="admin_password" v-if="!isEdit">
+        <el-form-item label="管理员密码" prop="admin_password">
           <el-input 
             v-model="form.admin_password" 
             type="password" 
-            placeholder="请输入初始密码" 
+            :placeholder="isEdit ? '如需修改密码请输入新密码，否则留空' : '请输入初始密码'" 
             maxlength="50"
             show-password
           />
         </el-form-item>
 
-        <el-form-item label="确认密码" prop="admin_password_confirm" v-if="!isEdit">
+        <el-form-item label="确认密码" prop="admin_password_confirm" v-if="!isEdit || form.admin_password">
           <el-input 
             v-model="form.admin_password_confirm" 
             type="password" 
@@ -141,7 +191,7 @@
           />
         </el-form-item>
 
-        <el-form-item label="是否启用">
+        <el-form-item label="是否启用" v-if="isEdit">
           <el-switch v-model="form.is_active" />
         </el-form-item>
       </el-form>
@@ -278,9 +328,11 @@ const handleAdd = () => {
 }
 
 // 编辑机构
-const handleEdit = (row: any) => {
+const handleEdit = async (row: any) => {
   isEdit.value = true
   dialogTitle.value = '编辑机构'
+  
+  // 先设置基础信息
   form.value = {
     id: row.id,
     agency_code: row.agency_code,
@@ -288,19 +340,66 @@ const handleEdit = (row: any) => {
     agency_type: row.agency_type || 'real',
     timezone: row.timezone !== null && row.timezone !== undefined ? Number(row.timezone) : undefined,
     remark: row.remark || '',
-    admin_name: row.admin_name || '',
-    admin_login_id: row.admin_login_id || '',
-    admin_email: row.admin_email || '',
+    admin_name: '',
+    admin_login_id: '',
+    admin_email: '',
     admin_password: '',
     admin_password_confirm: '',
     is_active: row.is_active
   }
+  
+  // 获取该机构的管理员账号信息并回显
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/agencies/${row.id}/admin-accounts`)
+    const accounts = await response.json()
+    
+    // 如果存在管理员账号，回显第一个账号的信息
+    if (accounts && accounts.length > 0) {
+      const adminAccount = accounts[0]
+      form.value.admin_name = adminAccount.account_name || ''
+      form.value.admin_login_id = adminAccount.login_id || ''
+      form.value.admin_email = adminAccount.email || ''
+    }
+  } catch (error) {
+    console.error('获取管理员账号信息失败：', error)
+  }
+  
   dialogVisible.value = true
 }
 
 // 作息时间管理
 const handleWorkingHours = (row: any) => {
   router.push(`/organization/agencies/${row.id}/working-hours`)
+}
+
+// 查看小组群
+const handleViewTeamGroups = (row: any) => {
+  router.push({
+    path: '/organization/team-groups',
+    query: {
+      agencyId: row.id
+    }
+  })
+}
+
+// 查看小组
+const handleViewTeams = (row: any) => {
+  router.push({
+    path: '/organization/teams',
+    query: {
+      agencyId: row.id
+    }
+  })
+}
+
+// 查看催员
+const handleViewCollectors = (row: any) => {
+  router.push({
+    path: '/organization/collectors',
+    query: {
+      agencyId: row.id
+    }
+  })
 }
 
 // 保存机构

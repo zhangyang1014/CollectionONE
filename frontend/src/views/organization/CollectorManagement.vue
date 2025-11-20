@@ -5,6 +5,26 @@
         <div class="card-header">
           <span>催员管理</span>
           <el-space>
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索催员登录id或催员名"
+              style="width: 240px"
+              clearable
+              @input="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-select 
+              v-model="statusFilter" 
+              placeholder="全部状态" 
+              style="width: 130px"
+            >
+              <el-option label="全部" :value="undefined" />
+              <el-option label="启用" :value="true" />
+              <el-option label="禁用" :value="false" />
+            </el-select>
             <el-select 
               v-model="currentAgencyId" 
               placeholder="全部机构" 
@@ -56,22 +76,30 @@
         </div>
       </template>
 
-      <el-table :data="collectors" border style="width: 100%">
+      <!-- 催员统计信息 -->
+      <div class="collector-stats">
+        <el-text type="info">
+          当前筛选条件下，共有 <el-text type="primary" style="font-weight: 600;">{{ filteredCollectors.length }}</el-text> 位催员
+        </el-text>
+      </div>
+
+      <el-table :data="filteredCollectors" border style="width: 100%">
         <el-table-column prop="collector_code" label="催员登录id" width="120" />
         <el-table-column prop="collector_name" label="催员名" width="120" />
+        <el-table-column prop="last_login_at" label="最近登录时间" width="140">
+          <template #default="{ row }">
+            <div v-if="row.last_login_at" class="login-time-cell">
+              <div class="date-line">{{ formatDate(row.last_login_at) }}</div>
+              <div class="time-line">{{ formatTime(row.last_login_at) }}</div>
+            </div>
+            <span v-else>--</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="tenant_name" label="所属甲方" width="130" />
         <el-table-column prop="agency_name" label="所属机构" width="130" />
         <el-table-column prop="team_name" label="所属小组" width="130" />
-        <el-table-column prop="role" label="角色" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.role === 'leader' ? 'warning' : ''">
-              {{ row.role === 'leader' ? '组长' : '催员' }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="160" />
         <el-table-column prop="updated_at" label="最近修改时间" width="160" />
-        <el-table-column prop="last_login_at" label="最近登录时间" width="160" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.is_active ? 'success' : 'info'">
@@ -271,9 +299,13 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
+import { useRoute } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 // import { getCollectorLoginFaceRecords } from '@/api/organization' // TODO: 后续替换Mock数据时使用
+
+const route = useRoute()
 
 const tenantStore = useTenantStore()
 const userStore = useUserStore()
@@ -284,6 +316,8 @@ const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
 const currentAgencyId = ref<number | undefined>(undefined) // 默认全选
 const currentTeamId = ref<number | undefined>(undefined) // 默认全选
 const collectors = ref<any[]>([])
+const searchKeyword = ref('') // 搜索关键词
+const statusFilter = ref<boolean | undefined>(true) // 状态筛选：true=启用, false=禁用, undefined=全部
 const dialogVisible = ref(false)
 const passwordDialogVisible = ref(false)
 const faceRecordsDialogVisible = ref(false)
@@ -342,6 +376,30 @@ const showTeamSelector = computed(() => {
   return true
 })
 
+// 过滤后的催员列表（根据搜索关键词和状态筛选）
+const filteredCollectors = computed(() => {
+  let result = collectors.value
+  
+  // 状态筛选
+  if (statusFilter.value !== undefined) {
+    result = result.filter((collector) => collector.is_active === statusFilter.value)
+  }
+  
+  // 关键词搜索
+  if (searchKeyword.value && searchKeyword.value.trim() !== '') {
+    const keyword = searchKeyword.value.toLowerCase().trim()
+    result = result.filter((collector) => {
+      // 搜索催员登录id和催员名
+      const collectorCode = (collector.collector_code || '').toLowerCase()
+      const collectorName = (collector.collector_name || '').toLowerCase()
+      
+      return collectorCode.includes(keyword) || collectorName.includes(keyword)
+    })
+  }
+  
+  return result
+})
+
 // 监听全局甲方变化
 watch(
   () => tenantStore.currentTenantId,
@@ -349,6 +407,8 @@ watch(
     currentTenantId.value = newTenantId
     currentAgencyId.value = undefined // 重置为全选
     currentTeamId.value = undefined // 重置为全选
+    searchKeyword.value = '' // 清空搜索关键词
+    statusFilter.value = true // 重置为启用状态
     collectors.value = []
     agencies.value = []
     teams.value = []
@@ -365,15 +425,26 @@ onMounted(async () => {
   if (currentTenantId.value) {
     await loadAgencies()
     
-    // 根据用户角色设置默认的机构ID和小组ID
-    if (userAgencyId.value && showAgencySelector.value === false) {
+    // 检查URL参数中是否有筛选条件
+    const urlAgencyId = route.query.agencyId ? Number(route.query.agencyId) : undefined
+    const urlTeamId = route.query.teamId ? Number(route.query.teamId) : undefined
+    
+    // 优先使用URL参数，否则根据用户角色设置默认值
+    if (urlAgencyId) {
+      currentAgencyId.value = urlAgencyId
+      await loadTeams()
+      
+      if (urlTeamId) {
+        currentTeamId.value = urlTeamId
+      }
+    } else if (userAgencyId.value && showAgencySelector.value === false) {
       // 机构管理员：自动设置为自己的机构
       currentAgencyId.value = userAgencyId.value
       await loadTeams()
     }
     
-    if (userTeamId.value && showTeamSelector.value === false) {
-      // 小组管理员：自动设置为自己的小组
+    if (userTeamId.value && showTeamSelector.value === false && !urlTeamId) {
+      // 小组管理员：自动设置为自己的小组（如果URL没有指定）
       currentTeamId.value = userTeamId.value
     }
     
@@ -443,6 +514,7 @@ const passwordRules = reactive({
 const handleAgencyChange = async () => {
   currentTeamId.value = undefined
   collectors.value = []
+  searchKeyword.value = '' // 清空搜索关键词
   
   if (currentAgencyId.value) {
     // 选择了机构，加载该机构的小组
@@ -539,6 +611,13 @@ const loadFormTeams = async (agencyId: number) => {
   }
 }
 
+// 搜索处理（计算属性会自动响应搜索关键词变化）
+const handleSearch = () => {
+  // 搜索功能由 filteredCollectors 计算属性自动处理
+  // 这里可以添加额外的搜索逻辑，如日志记录
+  console.log('搜索关键词：', searchKeyword.value)
+}
+
 // 加载催员列表（支持全选）
 const loadCollectors = async () => {
   if (!currentTenantId.value) {
@@ -548,6 +627,11 @@ const loadCollectors = async () => {
 
   try {
     let allCollectors: any[] = []
+    
+    // 获取当前甲方名称
+    const tenantName = tenantStore.currentTenant?.tenant_name || 
+                       tenantStore.currentTenant?.name || 
+                       tenantStore.currentTenant?.tenantName || ''
     
     if (!currentAgencyId.value && !currentTeamId.value) {
       // 全选：加载所有机构的催员
@@ -571,8 +655,9 @@ const loadCollectors = async () => {
               // API直接返回数组，不是{data: [...]}格式
               const teamCollectors = Array.isArray(collectorsResult) ? collectorsResult : (collectorsResult.data || [])
               
-              // 为每个催员添加机构和小组信息
+              // 为每个催员添加甲方、机构和小组信息
               teamCollectors.forEach((collector: any) => {
+                collector.tenant_name = tenantName
                 collector.agency_name = agency.agency_name
                 collector.team_name = team.team_name
               })
@@ -598,9 +683,10 @@ const loadCollectors = async () => {
           // API直接返回数组，不是{data: [...]}格式
           const teamCollectors = Array.isArray(collectorsResult) ? collectorsResult : (collectorsResult.data || [])
           
-          // 为每个催员添加机构和小组信息
+          // 为每个催员添加甲方、机构和小组信息
           const agency = agencies.value.find(a => a.id === currentAgencyId.value)
           teamCollectors.forEach((collector: any) => {
+            collector.tenant_name = tenantName
             collector.agency_name = agency?.agency_name || ''
             collector.team_name = team.team_name
           })
@@ -618,10 +704,11 @@ const loadCollectors = async () => {
       // API直接返回数组，不是{data: [...]}格式
       const teamCollectors = Array.isArray(collectorsResult) ? collectorsResult : (collectorsResult.data || [])
       
-      // 为每个催员添加机构和小组信息
+      // 为每个催员添加甲方、机构和小组信息
       const agency = agencies.value.find(a => a.id === currentAgencyId.value)
       const team = teams.value.find(t => t.id === currentTeamId.value)
       teamCollectors.forEach((collector: any) => {
+        collector.tenant_name = tenantName
         collector.agency_name = agency?.agency_name || ''
         collector.team_name = team?.team_name || ''
       })
@@ -830,6 +917,28 @@ const handleViewLoginFaces = async (row: any) => {
   }
 }
 
+// 格式化日期（年-月-日）
+const formatDate = (dateTime: string) => {
+  if (!dateTime) return '--'
+  const date = new Date(dateTime)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+// 格式化时间（时:分:秒）
+const formatTime = (dateTime: string) => {
+  if (!dateTime) return '--'
+  const date = new Date(dateTime)
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
 // 格式化日期时间
 const formatDateTime = (dateTime: string) => {
   if (!dateTime) return '--'
@@ -878,6 +987,32 @@ const handleToggleStatus = async (row: any) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 催员统计信息 */
+.collector-stats {
+  padding: 12px 16px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+/* 登录时间单元格样式 */
+.login-time-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+
+.login-time-cell .date-line {
+  font-weight: 500;
+  color: #303133;
+}
+
+.login-time-cell .time-line {
+  font-size: 12px;
+  color: #909399;
 }
 
 /* 登录人脸记录样式 */

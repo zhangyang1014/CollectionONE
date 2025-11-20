@@ -9,9 +9,11 @@ class CollectionTeam(Base):
     """催收小组表"""
     __tablename__ = "collection_teams"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     tenant_id = Column(BigInteger, ForeignKey("tenants.id"), nullable=False, index=True, comment="所属甲方ID")
     agency_id = Column(BigInteger, ForeignKey("collection_agencies.id"), nullable=False, index=True, comment="所属催收机构ID")
+    team_group_id = Column(BigInteger, ForeignKey("team_groups.id"), index=True, comment="所属小组群ID")
+    queue_id = Column(BigInteger, ForeignKey("case_queues.id"), nullable=False, index=True, comment="关联的催收队列ID（必选）")
     team_code = Column(String(100), nullable=False, comment="小组编码")
     team_name = Column(String(200), nullable=False, comment="小组名称")
     team_name_en = Column(String(200), comment="小组名称（英文）")
@@ -27,6 +29,8 @@ class CollectionTeam(Base):
     # 关系
     tenant = relationship("Tenant", back_populates="teams")
     agency = relationship("CollectionAgency", back_populates="teams")
+    team_group = relationship("TeamGroup", back_populates="teams", foreign_keys=[team_group_id])
+    queue = relationship("CaseQueue", foreign_keys=[queue_id])
     collectors = relationship("Collector", back_populates="team", foreign_keys="Collector.team_id")
     team_leader = relationship("Collector", foreign_keys=[team_leader_id], post_update=True)
     cases = relationship("Case", back_populates="team")

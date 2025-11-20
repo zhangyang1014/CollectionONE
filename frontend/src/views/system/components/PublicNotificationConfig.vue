@@ -37,14 +37,6 @@
 
       <el-table-column prop="title" label="通知标题" min-width="200" />
 
-      <el-table-column prop="h5_content_type" label="内容类型" width="120" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.h5_content_type === 'url' ? 'success' : 'info'">
-            {{ row.h5_content_type === 'url' ? 'URL' : 'HTML' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-
       <el-table-column prop="carousel_interval_seconds" label="轮播间隔（秒）" width="150" align="center" />
 
       <el-table-column prop="is_forced_read" label="强制阅读" width="120" align="center">
@@ -89,42 +81,42 @@
         :rules="rules"
         label-width="150px"
       >
+        <!-- 是否启用 - 放在最上面 -->
+        <el-form-item label="是否启用">
+          <el-switch v-model="form.is_enabled" />
+          <span style="margin-left: 10px; color: #909399;">
+            关闭后，该通知将不会显示给用户
+          </span>
+        </el-form-item>
+
+        <el-divider />
+
         <el-form-item label="通知标题" prop="title">
           <el-input v-model="form.title" placeholder="请输入通知标题" />
         </el-form-item>
 
-        <el-form-item label="内容类型" prop="h5_content_type">
-          <el-radio-group v-model="form.h5_content_type">
-            <el-radio label="url">URL</el-radio>
-            <el-radio label="html">HTML</el-radio>
-          </el-radio-group>
-        </el-form-item>
-
-        <el-form-item 
-          label="H5内容" 
-          prop="h5_content"
-          v-if="form.h5_content_type === 'url'"
-        >
+        <el-form-item label="通知正文" prop="content">
           <el-input
-            v-model="form.h5_content"
-            placeholder="请输入H5页面URL"
+            v-model="form.content"
+            placeholder="请输入通知正文内容"
             type="textarea"
-            :rows="3"
+            :rows="6"
           />
         </el-form-item>
 
-        <el-form-item 
-          label="H5内容" 
-          prop="h5_content"
-          v-else
-        >
+        <el-form-item label="H5链接地址">
           <el-input
             v-model="form.h5_content"
-            placeholder="请输入HTML内容"
+            placeholder="请输入H5链接地址（可选）"
             type="textarea"
-            :rows="10"
+            :rows="2"
           />
+          <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+            可选项，填写后用户点击通知可跳转到指定链接
+          </div>
         </el-form-item>
+
+        <el-divider />
 
         <el-form-item label="轮播间隔（秒）" prop="carousel_interval_seconds">
           <el-input-number
@@ -133,18 +125,69 @@
             :max="3600"
             style="width: 200px;"
           />
+          <span style="margin-left: 10px; color: #909399;">
+            多条通知时的轮播切换间隔
+          </span>
         </el-form-item>
 
         <el-form-item label="强制阅读">
           <el-switch v-model="form.is_forced_read" />
           <span style="margin-left: 10px; color: #909399;">
-            开启后，用户必须点击"阅读"才能关闭通知
+            开启后，用户必须点击"已阅读"才能关闭通知
           </span>
         </el-form-item>
 
-        <el-form-item label="启用状态">
-          <el-switch v-model="form.is_enabled" />
-        </el-form-item>
+        <!-- 非强制阅读时的配置 -->
+        <template v-if="!form.is_forced_read">
+          <el-form-item label="重复提醒间隔">
+            <el-input-number
+              v-model="form.repeat_interval_minutes"
+              :min="1"
+              :max="1440"
+              placeholder="分钟"
+              style="width: 200px;"
+            />
+            <span style="margin-left: 10px; color: #909399;">
+              单位：分钟，用户关闭后多久再次提醒
+            </span>
+          </el-form-item>
+
+          <el-form-item label="最大提醒次数">
+            <el-input-number
+              v-model="form.max_remind_count"
+              :min="1"
+              :max="100"
+              placeholder="次数"
+              style="width: 200px;"
+            />
+            <span style="margin-left: 10px; color: #909399;">
+              最多提醒多少次后不再显示
+            </span>
+          </el-form-item>
+
+          <el-form-item label="通知时间范围">
+            <el-time-picker
+              v-model="notifyTimeStart"
+              placeholder="开始时间"
+              format="HH:mm"
+              value-format="HH:mm"
+              style="width: 150px;"
+            />
+            <span style="margin: 0 10px;">至</span>
+            <el-time-picker
+              v-model="notifyTimeEnd"
+              placeholder="结束时间"
+              format="HH:mm"
+              value-format="HH:mm"
+              style="width: 150px;"
+            />
+            <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+              仅在指定时间段内显示通知，不填则全天显示
+            </div>
+          </el-form-item>
+        </template>
+
+        <el-divider />
 
         <el-form-item label="生效时间范围">
           <el-date-picker
@@ -158,6 +201,9 @@
           />
           <div style="margin-top: 5px;">
             <el-button text size="small" @click="clearEffectiveTime">清空</el-button>
+            <span style="margin-left: 10px; color: #909399; font-size: 12px;">
+              不填则长期有效
+            </span>
           </div>
         </el-form-item>
 
@@ -165,8 +211,6 @@
           <el-checkbox-group v-model="form.notify_roles">
             <el-checkbox label="collector">催员</el-checkbox>
             <el-checkbox label="team_leader">小组长</el-checkbox>
-            <el-checkbox label="agency_admin">机构管理员</el-checkbox>
-            <el-checkbox label="tenant_admin">甲方管理员</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
       </el-form>
@@ -204,11 +248,15 @@ const editingId = ref<number | null>(null)
 
 const form = ref<PublicNotificationCreate>({
   title: '',
-  h5_content: '',
-  h5_content_type: 'url',
+  content: '',
+  h5_content: null,
   carousel_interval_seconds: 30,
   is_forced_read: false,
   is_enabled: true,
+  repeat_interval_minutes: null,
+  max_remind_count: null,
+  notify_time_start: null,
+  notify_time_end: null,
   effective_start_time: null,
   effective_end_time: null,
   notify_roles: ['collector'],
@@ -233,12 +281,27 @@ const effectiveTimeRange = computed({
   }
 })
 
+// 通知时间范围的计算属性
+const notifyTimeStart = computed({
+  get: () => form.value.notify_time_start,
+  set: (value: string | null) => {
+    form.value.notify_time_start = value
+  }
+})
+
+const notifyTimeEnd = computed({
+  get: () => form.value.notify_time_end,
+  set: (value: string | null) => {
+    form.value.notify_time_end = value
+  }
+})
+
 const rules: FormRules = {
   title: [
     { required: true, message: '请输入通知标题', trigger: 'blur' }
   ],
-  h5_content: [
-    { required: true, message: '请输入H5内容', trigger: 'blur' }
+  content: [
+    { required: true, message: '请输入通知正文', trigger: 'blur' }
   ]
 }
 
@@ -263,11 +326,15 @@ const handleAdd = () => {
   dialogTitle.value = '添加公共通知'
   form.value = {
     title: '',
-    h5_content: '',
-    h5_content_type: 'url',
+    content: '',
+    h5_content: null,
     carousel_interval_seconds: 30,
     is_forced_read: false,
     is_enabled: true,
+    repeat_interval_minutes: null,
+    max_remind_count: null,
+    notify_time_start: null,
+    notify_time_end: null,
     effective_start_time: null,
     effective_end_time: null,
     notify_roles: ['collector'],
@@ -282,11 +349,15 @@ const handleEdit = (row: PublicNotification) => {
   dialogTitle.value = '编辑公共通知'
   form.value = {
     title: row.title,
-    h5_content: row.h5_content,
-    h5_content_type: row.h5_content_type,
+    content: row.content || '',
+    h5_content: row.h5_content || null,
     carousel_interval_seconds: row.carousel_interval_seconds,
     is_forced_read: row.is_forced_read,
     is_enabled: row.is_enabled,
+    repeat_interval_minutes: row.repeat_interval_minutes || null,
+    max_remind_count: row.max_remind_count || null,
+    notify_time_start: row.notify_time_start || null,
+    notify_time_end: row.notify_time_end || null,
     effective_start_time: row.effective_start_time || null,
     effective_end_time: row.effective_end_time || null,
     notify_roles: row.notify_roles || [],

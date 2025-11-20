@@ -45,7 +45,7 @@
 
         <el-table-column prop="strategy_name" label="策略名称" min-width="200">
           <template #default="{ row }">
-            <el-link type="primary" @click.stop="handleViewDetail(row)">
+            <el-link type="primary" underline="hover" @click.stop="handleViewDetail(row)">
               {{ row.strategy_name }}
             </el-link>
           </template>

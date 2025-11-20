@@ -29,10 +29,17 @@ export const useImUserStore = defineStore('imUser', () => {
     const storedUser = localStorage.getItem('im_user')
     
     if (storedToken && storedUser) {
-      token.value = storedToken
-      user.value = JSON.parse(storedUser)
-      isLoggedIn.value = true
+      try {
+        token.value = storedToken
+        user.value = JSON.parse(storedUser)
+        isLoggedIn.value = true
+        return true
+      } catch (e) {
+        console.error('恢复IM用户状态失败:', e)
+        return false
+      }
     }
+    return false
   }
 
   // 登录

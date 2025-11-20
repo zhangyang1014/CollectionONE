@@ -6,6 +6,9 @@ import type {
   CollectionAgency,
   CollectionAgencyCreate,
   CollectionAgencyUpdate,
+  TeamGroup,
+  TeamGroupCreate,
+  TeamGroupUpdate,
   CollectionTeam,
   CollectionTeamCreate,
   CollectionTeamUpdate,
@@ -93,6 +96,88 @@ export function deleteAgency(id: number) {
   return request({
     url: `/api/v1/agencies/${id}`,
     method: 'delete'
+  })
+}
+
+// ===== 小组群 API =====
+
+/**
+ * 获取小组群列表
+ */
+export function getTeamGroups(params: {
+  tenant_id?: number
+  agency_id?: number
+  is_active?: boolean
+  skip?: number
+  limit?: number
+}) {
+  return request<TeamGroup[]>({
+    url: '/api/v1/team-groups',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取指定机构的小组群列表
+ */
+export function getAgencyTeamGroups(agencyId: number) {
+  return request<TeamGroup[]>({
+    url: '/api/v1/team-groups',
+    method: 'get',
+    params: { agency_id: agencyId }
+  })
+}
+
+/**
+ * 获取小组群详情
+ */
+export function getTeamGroup(id: number) {
+  return request<TeamGroup>({
+    url: `/api/v1/team-groups/${id}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 创建小组群
+ */
+export function createTeamGroup(data: TeamGroupCreate) {
+  return request<TeamGroup>({
+    url: '/api/v1/team-groups',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 更新小组群
+ */
+export function updateTeamGroup(id: number, data: TeamGroupUpdate) {
+  return request<TeamGroup>({
+    url: `/api/v1/team-groups/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 删除小组群
+ */
+export function deleteTeamGroup(id: number) {
+  return request({
+    url: `/api/v1/team-groups/${id}`,
+    method: 'delete'
+  })
+}
+
+/**
+ * 获取小组群下的小组列表
+ */
+export function getTeamGroupTeams(teamGroupId: number) {
+  return request<CollectionTeam[]>({
+    url: `/api/v1/team-groups/${teamGroupId}/teams`,
+    method: 'get'
   })
 }
 
