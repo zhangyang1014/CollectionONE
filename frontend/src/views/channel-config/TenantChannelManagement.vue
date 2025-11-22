@@ -58,6 +58,9 @@
               @refresh="loadSuppliers"
             />
           </el-tab-pane>
+          <el-tab-pane label="Infinity外呼配置" name="infinity">
+            <infinity-call-config-content />
+          </el-tab-pane>
         </el-tabs>
       </div>
     </el-card>
@@ -70,6 +73,7 @@ import { ElMessage } from 'element-plus'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 import SupplierList from './components/SupplierList.vue'
+import InfinityCallConfigContent from './InfinityCallConfigContent.vue'
 import { getTenants } from '@/api/tenant'
 import type { ChannelType } from '@/types/channel'
 

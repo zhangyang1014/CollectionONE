@@ -30,6 +30,12 @@ from app.models.custom_dimension_stat import CustomDimensionStat
 # 空闲催员监控模型
 from app.models.idle_monitor_config import IdleMonitorConfig
 from app.models.collector_idle_record import CollectorIdleRecord, CollectorIdleStats
+# Infinity外呼系统模型
+from app.models.infinity_call_config import InfinityCallConfig
+from app.models.infinity_extension_pool import InfinityExtensionPool, ExtensionStatusEnum
+# 还款渠道和还款码模型
+from app.models.payment_channel import PaymentChannel
+from app.models.payment_code import PaymentCode
 
 __all__ = [
     "FieldGroup",
@@ -69,5 +75,12 @@ __all__ = [
     "IdleMonitorConfig",
     "CollectorIdleRecord",
     "CollectorIdleStats",
+    # Infinity外呼系统模型
+    "InfinityCallConfig",
+    "InfinityExtensionPool",
+    "ExtensionStatusEnum",
+    # 还款渠道和还款码模型
+    "PaymentChannel",
+    "PaymentCode",
 ]
 

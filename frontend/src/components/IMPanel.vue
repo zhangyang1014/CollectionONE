@@ -58,7 +58,19 @@
             <span v-if="contact.hasUnread" class="unread-dot"></span>
           </div>
           <div class="contact-info">
-            <div class="contact-relation">{{ contact.relation }}</div>
+            <div class="contact-relation-row">
+              <span class="contact-relation">{{ contact.relation }}</span>
+              <span v-if="contact.relation !== '本人' && contact.relation_level > 0" class="contact-stars">
+                <el-icon 
+                  v-for="star in contact.relation_level" 
+                  :key="star" 
+                  class="star-icon"
+                  :size="12"
+                >
+                  <StarFilled />
+                </el-icon>
+              </span>
+            </div>
             <div class="contact-details">
               <span class="contact-name">{{ contact.name }}</span>
               <span class="contact-phone">{{ contact.phone_last4 }}</span>
@@ -580,6 +592,20 @@
               </span>
             </div>
 
+            <!-- 关联度（仅非本人时显示） -->
+            <el-form-item v-if="!isMainContact" label="关联度" class="relation-level-item">
+              <div class="relation-level-row">
+                <el-rate 
+                  v-model="caseNoteForm.relation_level" 
+                  :max="5"
+                  show-text
+                  :texts="['很低', '较低', '中等', '较高', '很高']"
+                  :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
+                />
+                <span class="relation-level-hint">标记该联系人与客户本人的关系紧密程度</span>
+              </div>
+            </el-form-item>
+
             <!-- 沟通状态 -->
             <el-form-item label="沟通状态" required>
               <el-radio-group v-model="caseNoteForm.communication_status" class="status-radio-group">
@@ -1049,10 +1075,12 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { makeCall } from '@/api/infinity'
+import { useUserStore } from '@/stores/user'
 import { 
   User, Plus, Document, Picture, Orange, Promotion, ChatDotRound, 
   Microphone, Select, CircleCheck, Clock, Connection, ChatLineRound, Message, Phone,
-  Search, InfoFilled, OfficeBuilding as OfficeBuildingIcon, Refresh, VideoPlay, CircleCloseFilled
+  Search, InfoFilled, OfficeBuilding as OfficeBuildingIcon, Refresh, VideoPlay, CircleCloseFilled, StarFilled
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
@@ -1070,7 +1098,8 @@ const contacts = ref([
     phone: props.caseData?.mobile_number || '',
     phone_last4: (props.caseData?.mobile_number || '').slice(-4),
     relation: '本人',
-    channels: ['whatsapp', 'sms', 'call']
+    channels: ['whatsapp', 'sms', 'call'],
+    relation_level: 0 // 关联度
   },
   // Mock联系人数据 - BTSK案件
   {
@@ -1079,7 +1108,8 @@ const contacts = ref([
     phone: '+91 98 7654 3210',
     phone_last4: '3210',
     relation: '配偶',
-    channels: ['whatsapp', 'call']
+    channels: ['whatsapp', 'call'],
+    relation_level: 0 // 关联度
   },
   {
     id: 3,
@@ -1087,7 +1117,8 @@ const contacts = ref([
     phone: '+91 99 8765 4321',
     phone_last4: '4321',
     relation: '朋友',
-    channels: ['whatsapp', 'sms']
+    channels: ['whatsapp', 'sms'],
+    relation_level: 0 // 关联度
   },
   // Mock联系人数据 - BTQ案件（用于模拟不同案件）
   {
@@ -1096,7 +1127,8 @@ const contacts = ref([
     phone: '+52 55 1234 5678',
     phone_last4: '5678',
     relation: '本人',
-    channels: ['whatsapp', 'sms', 'call']
+    channels: ['whatsapp', 'sms', 'call'],
+    relation_level: 0 // 关联度
   },
   {
     id: 5,
@@ -1104,7 +1136,8 @@ const contacts = ref([
     phone: '+52 55 2345 6789',
     phone_last4: '6789',
     relation: '配偶',
-    channels: ['whatsapp', 'sms']
+    channels: ['whatsapp', 'sms'],
+    relation_level: 0 // 关联度
   },
   {
     id: 6,
@@ -1112,7 +1145,8 @@ const contacts = ref([
     phone: '+52 55 3456 7890',
     phone_last4: '7890',
     relation: '朋友',
-    channels: ['whatsapp', 'call']
+    channels: ['whatsapp', 'call'],
+    relation_level: 0 // 关联度
   }
 ])
 
@@ -1916,6 +1950,7 @@ const caseNoteForm = ref({
   contact_method: '',
   contact_name: '',
   relation: '',
+  relation_level: 0, // 关联度（1-5星）
   communication_status: '',
   communication_result: '',
   remark: '',
@@ -2117,6 +2152,7 @@ const selectContact = (contact: any) => {
   updateContactMethod()
   updateContactInfo()
   // 重置其他字段
+  caseNoteForm.value.relation_level = 0
   caseNoteForm.value.communication_status = ''
   caseNoteForm.value.communication_result = ''
   caseNoteForm.value.remark = ''
@@ -2372,6 +2408,7 @@ const submitCaseNote = () => {
     contact_method: caseNoteForm.value.contact_method,
     contact_name: caseNoteForm.value.contact_name,
     relation: caseNoteForm.value.relation,
+    relation_level: caseNoteForm.value.relation_level, // 关联度
     communication_status: caseNoteForm.value.communication_status,
     communication_result: caseNoteForm.value.communication_result,
     remark: caseNoteForm.value.remark,
@@ -2383,6 +2420,14 @@ const submitCaseNote = () => {
   
   // 这里可以调用API保存催记
   // await saveCaseNote(noteData)
+  
+  // 如果标记了关联度且非本人，更新联系人的关联度（取最新的）
+  if (selectedContact.value && selectedContact.value.relation !== '本人' && caseNoteForm.value.relation_level > 0) {
+    const contactIndex = contacts.value.findIndex(c => c.id === selectedContact.value?.id)
+    if (contactIndex !== -1) {
+      contacts.value[contactIndex].relation_level = caseNoteForm.value.relation_level
+    }
+  }
   
   ElMessage.success('催记提交成功')
   
@@ -2400,6 +2445,7 @@ const submitCaseNote = () => {
   })
   
   // 重置表单（除了自动填充的字段）
+  caseNoteForm.value.relation_level = 0
   caseNoteForm.value.communication_status = ''
   caseNoteForm.value.communication_result = ''
   caseNoteForm.value.remark = ''
@@ -2410,45 +2456,61 @@ const submitCaseNote = () => {
 // ========== 外呼相关方法 ==========
 
 // 立即呼叫1次
-const handleCallOnce = () => {
+const handleCallOnce = async () => {
   if (!selectedContact.value) {
     ElMessage.warning('请选择联系人')
     return
   }
   
-  const newRecord = {
-    id: callRecords.value.length + 1,
-    type: 'single', // 单次
-    status: 'calling', // 呼叫中
-    caller_name: '本人',
-    caller_id: 'self',
-    call_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-    duration: null,
-    next_plan: null
-  }
-  
-  callRecords.value.unshift(newRecord)
-  ElMessage.success('已发起呼叫')
-  
-  // 模拟呼叫过程
-  setTimeout(() => {
-    const record = callRecords.value.find(r => r.id === newRecord.id)
-    if (record) {
-      // 随机状态：通话中、结束：不存在、结束：未响应
-      const statuses = ['in_call', 'ended_not_exist', 'ended_no_response']
-      record.status = statuses[Math.floor(Math.random() * statuses.length)]
-      
-      if (record.status === 'in_call') {
-        // 如果是通话中，设置通话时长
-        setTimeout(() => {
-          if (record) {
-            record.duration = Math.floor(Math.random() * 300) + 30 // 30-330秒
-            record.status = 'ended_success'
-          }
-        }, 2000)
-      }
+  // 调用真实的Infinity API发起外呼
+  try {
+    const userStore = useUserStore()
+    const collectorId = userStore.userInfo?.id
+    
+    if (!collectorId) {
+      ElMessage.error('无法获取当前催员信息')
+      return
     }
-  }, 1500)
+    
+    const loadingMsg = ElMessage.loading('正在发起外呼...')
+    
+    const response = await makeCall({
+      case_id: props.caseId,
+      collector_id: collectorId,
+      contact_number: selectedContact.value.phone,
+      custom_params: {
+        contact_person_id: selectedContact.value.id,
+        contact_type: selectedContact.value.type
+      }
+    })
+    
+    loadingMsg.close()
+    
+    if (response.success) {
+      ElMessage.success(response.message)
+      
+      // 添加到通话记录列表
+      const newRecord = {
+        id: response.call_id || callRecords.value.length + 1,
+        type: 'single',
+        status: 'calling',
+        caller_name: '本人',
+        caller_id: 'self',
+        call_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        duration: null,
+        next_plan: null,
+        call_uuid: response.call_uuid,
+        extension_number: response.extension_number
+      }
+      
+      callRecords.value.unshift(newRecord)
+    } else {
+      ElMessage.error(response.message || '发起外呼失败')
+    }
+  } catch (error: any) {
+    console.error('外呼失败:', error)
+    ElMessage.error(error.response?.data?.detail || '发起外呼失败，请检查配置')
+  }
 }
 
 // 立即呼叫5次直到接通
@@ -2819,11 +2881,28 @@ defineExpose({
   min-width: 0;
 }
 
+.contact-relation-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
 .contact-relation {
   font-size: 15px;
   font-weight: 600;
   color: #303133;
-  margin-bottom: 4px;
+}
+
+.contact-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.contact-stars .star-icon {
+  color: #FF9900;
+  flex-shrink: 0;
 }
 
 .contact-details {
@@ -3458,6 +3537,40 @@ defineExpose({
 
 .note-form {
   padding: 12px;
+}
+
+/* 关联度样式 */
+.relation-level-item {
+  margin-bottom: 18px;
+}
+
+.relation-level-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.relation-level-row :deep(.el-rate) {
+  height: auto;
+  flex-shrink: 0;
+}
+
+.relation-level-row :deep(.el-rate__icon) {
+  font-size: 22px;
+  margin-right: 4px;
+}
+
+.relation-level-row :deep(.el-rate__text) {
+  margin-left: 6px;
+  font-size: 14px;
+}
+
+.relation-level-hint {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+  flex-shrink: 1;
 }
 
 .status-radio-group,

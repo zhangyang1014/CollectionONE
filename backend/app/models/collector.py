@@ -18,6 +18,8 @@ class Collector(Base):
     login_id = Column(String(100), unique=True, nullable=False, comment="登录ID")
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
     mobile = Column(String(50), comment="手机号码")
+    callback_number = Column(String(50), comment="回呼号码（催员手机/座机，用于接收外呼）", index=True)
+    infinity_extension_number = Column(String(50), comment="当前占用的分机号（仅通话中有值）")
     email = Column(String(100), comment="邮箱")
     employee_no = Column(String(50), comment="工号")
     collector_level = Column(String(50), comment="催员等级（初级/中级/高级/资深）")

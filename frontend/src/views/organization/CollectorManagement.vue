@@ -194,6 +194,23 @@
           <el-input v-model="form.email" placeholder="请输入邮箱" maxlength="100" />
         </el-form-item>
 
+        <el-form-item label="回呼号码">
+          <el-input 
+            v-model="form.callback_number" 
+            placeholder="请输入回呼号码（用于外呼时接听电话）" 
+            maxlength="50"
+          >
+            <template #append>
+              <el-tooltip 
+                content="催员接听外呼电话的号码（手机/座机），启用外呼功能时必填" 
+                placement="top"
+              >
+                <el-icon><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </template>
+          </el-input>
+        </el-form-item>
+
         <el-form-item label="备注">
           <el-input 
             v-model="form.remark" 
@@ -299,7 +316,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, QuestionFilled } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
@@ -461,6 +478,7 @@ const form = ref({
   team_id: undefined as number | undefined,
   role: 'collector',
   mobile: '',
+  callback_number: '',
   email: '',
   remark: '',
   is_active: true
@@ -762,6 +780,7 @@ const handleAdd = () => {
     team_id: undefined,
     role: 'collector',
     mobile: '',
+    callback_number: '',
     email: '',
     remark: '',
     is_active: true
@@ -784,6 +803,7 @@ const handleEdit = async (row: any) => {
     team_id: row.team_id,
     role: row.role,
     mobile: row.mobile || '',
+    callback_number: row.callback_number || '',
     email: row.email || '',
     remark: row.remark || '',
     is_active: row.is_active

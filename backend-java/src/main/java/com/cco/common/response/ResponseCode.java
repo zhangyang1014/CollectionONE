@@ -1,13 +1,8 @@
 package com.cco.common.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
 /**
  * 响应状态码枚举
  */
-@Getter
-@AllArgsConstructor
 public enum ResponseCode {
     
     /**
@@ -62,6 +57,19 @@ public enum ResponseCode {
     
     private final Integer code;
     private final String message;
+    
+    ResponseCode(Integer code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+    
+    public Integer getCode() {
+        return code;
+    }
+    
+    public String getMessage() {
+        return message;
+    }
     
 }
 

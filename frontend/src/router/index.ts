@@ -169,9 +169,15 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'system/permissions',
+        name: 'PermissionConfiguration',
+        component: () => import('@/views/system/PermissionConfiguration.vue'),
+        meta: { title: '权限配置', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'AgencyAdmin', 'TeamLeader', 'super_admin', 'tenant_admin'] },
+      },
+      {
+        path: 'system/permission-management',
         name: 'PermissionManagement',
         component: () => import('@/views/system/PermissionManagement.vue'),
-        meta: { title: '权限管理', requiresAuth: true, roles: ['SuperAdmin', 'super_admin'] },
+        meta: { title: '权限查看', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'AgencyAdmin', 'TeamLeader', 'super_admin', 'tenant_admin'] },
       },
       {
         path: 'system/notification-config',

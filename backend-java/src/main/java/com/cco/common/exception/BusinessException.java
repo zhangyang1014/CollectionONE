@@ -1,12 +1,10 @@
 package com.cco.common.exception;
 
 import com.cco.common.response.ResponseCode;
-import lombok.Getter;
 
 /**
  * 业务异常类
  */
-@Getter
 public class BusinessException extends RuntimeException {
     
     private final Integer code;
@@ -34,6 +32,15 @@ public class BusinessException extends RuntimeException {
         super(message);
         this.code = responseCode.getCode();
         this.message = message;
+    }
+    
+    public Integer getCode() {
+        return code;
+    }
+    
+    @Override
+    public String getMessage() {
+        return message;
     }
     
 }

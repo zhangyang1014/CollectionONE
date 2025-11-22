@@ -2,7 +2,7 @@
  * 渠道相关类型定义
  */
 
-export type ChannelType = 'sms' | 'rcs' | 'whatsapp' | 'call'
+export type ChannelType = 'sms' | 'rcs' | 'whatsapp' | 'call' | 'infinity'
 
 export interface ChannelSupplier {
   id?: number

@@ -114,6 +114,6 @@ class AvailableFieldOption(BaseModel):
     field_group_name: Optional[str] = Field(None, description="字段分组名称")
     is_extended: bool = Field(default=False, description="是否为扩展字段")
     is_required: bool = Field(default=False, description="是否必填")
-    enum_options: Optional[List[Dict[str, Any]]] = Field(None, description="枚举选项（如果是枚举类型）")
+    enum_options: Optional[List[str]] = Field(None, description="枚举选项（如果是枚举类型）")
     description: Optional[str] = Field(None, description="字段描述")
 

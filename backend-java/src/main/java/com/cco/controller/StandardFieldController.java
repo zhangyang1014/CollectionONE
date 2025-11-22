@@ -4,7 +4,8 @@ import com.cco.common.constant.Constants;
 import com.cco.common.response.ResponseData;
 import com.cco.model.entity.StandardField;
 import com.cco.service.IStandardFieldService;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,10 +15,11 @@ import java.util.List;
  * 标准字段Controller
  * 对应Python: app/api/standard_fields.py
  */
-@Slf4j
 @RestController
 @RequestMapping(Constants.API_V1_PREFIX + "/fields/standard")
 public class StandardFieldController {
+    
+    private static final Logger log = LoggerFactory.getLogger(StandardFieldController.class);
 
     @Autowired
     private IStandardFieldService standardFieldService;

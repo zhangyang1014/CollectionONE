@@ -22,7 +22,13 @@
         <el-row :gutter="20">
           <el-col :span="6">
             <el-form-item label="案件状态">
-              <el-select v-model="filters.case_status" placeholder="全部" clearable>
+              <el-select 
+                v-model="filters.case_status" 
+                placeholder="全部" 
+                clearable
+                @change="handleQuery"
+              >
+                <el-option label="全部" value="" />
                 <el-option label="待还款" value="待还款" />
                 <el-option label="部分还款" value="部分还款" />
                 <el-option label="正常结清" value="正常结清" />
@@ -33,7 +39,12 @@
 
           <el-col :span="6">
             <el-form-item label="案件队列">
-              <el-select v-model="filters.queue_id" placeholder="全部" clearable>
+              <el-select 
+                v-model="filters.queue_id" 
+                placeholder="全部" 
+                clearable
+                @change="handleQuery"
+              >
                 <el-option
                   v-for="queue in queues"
                   :key="queue.id"
@@ -90,6 +101,7 @@
                 placeholder="全部" 
                 clearable
                 :disabled="!filters.team_id"
+                @change="handleQuery"
               >
                 <el-option
                   v-for="collector in collectors"
@@ -115,6 +127,7 @@
                 placeholder="全部"
                 clearable
                 style="width: 100%"
+                @change="handleQuery"
               >
                 <el-option
                   v-for="option in filter.options"
@@ -134,12 +147,14 @@
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
                 style="width: 100%"
+                @change="handleQuery"
               />
               <el-input
                 v-else-if="filter.filter_type === 'range'"
                 v-model="dynamicFilterValues[filter.field_key]"
                 placeholder="范围，如：1000-5000"
                 style="width: 100%"
+                @blur="handleQuery"
               />
               <!-- 搜索框（String类型） -->
               <el-input
@@ -148,6 +163,7 @@
                 placeholder="搜索"
                 clearable
                 style="width: 100%"
+                @blur="handleQuery"
               />
             </el-form-item>
           </el-col>
@@ -163,6 +179,7 @@
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
                 style="width: 100%"
+                @change="handleQuery"
               />
             </el-form-item>
           </el-col>
@@ -178,6 +195,7 @@
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
                 style="width: 100%"
+                @change="handleQuery"
               />
             </el-form-item>
           </el-col>
@@ -266,14 +284,26 @@
         <el-table-column prop="case_status" label="案件状态" width="110" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="getCaseStatusType(row.case_status)">
-              {{ row.case_status }}
+              {{ getCaseStatusText(row.case_status) }}
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="product_name" label="产品名字" width="130" />
-        <el-table-column prop="app_name" label="App名字" width="130" />
-        <el-table-column prop="settlement_method" label="结清方式" width="130" />
+        <el-table-column prop="product_name" label="产品名字" width="130">
+          <template #default="{ row }">
+            {{ row.product_name || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="app_name" label="App名字" width="130">
+          <template #default="{ row }">
+            {{ row.app_name || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="settlement_method" label="结清方式" width="130">
+          <template #default="{ row }">
+            {{ row.settlement_method || '-' }}
+          </template>
+        </el-table-column>
         
         <el-table-column prop="settlement_time" label="结清时间" width="170">
           <template #default="{ row }">
@@ -281,9 +311,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleView(row)">查看详情</el-button>
+            <el-button link type="primary" @click="handleViewNotes(row)">查看催记</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -307,6 +338,129 @@
           @current-change="handlePageChange"
         />
       </div>
+
+      <!-- 历史催记对话框 -->
+      <el-dialog 
+        v-model="showHistoryNotesDialog" 
+        title="历史催记" 
+        width="1200px" 
+        top="5vh"
+        class="history-notes-dialog"
+      >
+        <div class="history-notes-content">
+          <!-- 搜索框 -->
+          <div class="history-search">
+            <el-input
+              v-model="historySearchKeyword"
+              placeholder="搜索案件ID"
+              clearable
+              @clear="handleHistorySearch"
+              @keyup.enter="handleHistorySearch"
+              style="width: 300px;"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+          </div>
+
+          <!-- 筛选器 -->
+          <div class="history-filters">
+            <el-select 
+              v-model="historyFilters.collector" 
+              placeholder="触达人" 
+              clearable 
+              style="width: 150px;"
+              @change="handleHistoryFilter"
+            >
+              <el-option 
+                v-for="collector in collectorList" 
+                :key="collector" 
+                :label="collector" 
+                :value="collector" 
+              />
+            </el-select>
+            
+            <el-select 
+              v-model="historyFilters.channel" 
+              placeholder="触达渠道" 
+              clearable 
+              style="width: 150px;"
+              @change="handleHistoryFilter"
+            >
+              <el-option label="WhatsApp" value="WhatsApp" />
+              <el-option label="SMS" value="SMS" />
+              <el-option label="RCS" value="RCS" />
+              <el-option label="电话外呼" value="电话外呼" />
+            </el-select>
+            
+            <el-select 
+              v-model="historyFilters.status" 
+              placeholder="状态" 
+              clearable 
+              style="width: 120px;"
+              @change="handleHistoryFilter"
+            >
+              <el-option label="可联" value="reachable" />
+              <el-option label="不存在" value="not_exist" />
+              <el-option label="未响应" value="no_response" />
+            </el-select>
+            
+            <el-select 
+              v-model="historyFilters.result" 
+              placeholder="结果" 
+              clearable 
+              style="width: 150px;"
+              @change="handleHistoryFilter"
+            >
+              <el-option label="承诺还款" value="promise_repay" />
+              <el-option label="拒绝还款" value="refuse_repay" />
+              <el-option label="失联" value="lost_contact" />
+              <el-option label="持续跟进" value="continuous_follow_up" />
+            </el-select>
+            
+            <el-date-picker
+              v-model="historyFilters.dateRange"
+              type="daterange"
+              range-separator="-"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              style="width: 240px;"
+              @change="handleHistoryFilter"
+            />
+          </div>
+
+          <!-- 历史催记列表 -->
+          <div class="history-notes-list">
+            <el-table 
+              :data="filteredHistoryNotes" 
+              stripe
+              style="width: 100%"
+              :empty-text="'暂无历史催记'"
+              max-height="500"
+            >
+              <el-table-column prop="register_time" label="登记时间" width="150" />
+              <el-table-column prop="case_id" label="案件ID" width="150" />
+              <el-table-column prop="collector" label="触达人" width="100" />
+              <el-table-column prop="channel" label="触达渠道" width="100" />
+              <el-table-column prop="status" label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="getStatusTagType(row.status)">
+                    {{ getStatusLabel(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="result" label="结果" width="120">
+                <template #default="{ row }">
+                  <span>{{ getResultLabel(row.result) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
+              <el-table-column prop="next_follow_up" label="下次跟进时间" width="150" />
+            </el-table>
+          </div>
+        </div>
+      </el-dialog>
 
       <!-- 筛选器配置对话框 -->
       <el-dialog 
@@ -394,6 +548,7 @@ import { getTenantQueues } from '@/api/queue'
 import { getTenantAgencies, getAgencyTeams, getTeamCollectors } from '@/api/organization'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
+import dayjs from 'dayjs'
 
 const router = useRouter()
 const tenantStore = useTenantStore()
@@ -618,6 +773,7 @@ const handleAgencyChange = () => {
   teams.value = []
   collectors.value = []
   loadTeams()
+  handleQuery() // 自动触发查询
 }
 
 // 处理小组变更
@@ -625,6 +781,7 @@ const handleTeamChange = () => {
   filters.value.collector_id = undefined
   collectors.value = []
   loadCollectors()
+  handleQuery() // 自动触发查询
 }
 
 // 查询
@@ -676,12 +833,30 @@ const getOverdueTagType = (days: number | string) => {
   return 'danger' // 正数红色
 }
 
+// 案件状态映射（英文编码转中文）
+const caseStatusMap: Record<string, string> = {
+  'pending_repayment': '待还款',
+  'partial_repayment': '部分还款',
+  'normal_settlement': '正常结清',
+  'extension_settlement': '展期结清',
+}
+
+// 获取案件状态中文名称
+const getCaseStatusText = (status: string) => {
+  return caseStatusMap[status] || status
+}
+
 // 案件状态标签类型
 const getCaseStatusType = (status: string) => {
   const map: any = {
-    '进行中': 'primary',
-    '已结清': 'success',
-    '逾期': 'danger',
+    '待还款': 'danger',
+    '部分还款': 'warning',
+    '正常结清': 'success',
+    '展期结清': 'success',
+    'pending_repayment': 'danger',
+    'partial_repayment': 'warning',
+    'normal_settlement': 'success',
+    'extension_settlement': 'success',
   }
   return map[status] || 'info'
 }
@@ -704,6 +879,181 @@ const handleAdd = () => {
 
 const handleView = (row: any) => {
   router.push(`/cases/${String(row.id)}`)
+}
+
+// 历史催记相关
+const showHistoryNotesDialog = ref(false)
+const currentCase = ref<any>(null)
+const historySearchKeyword = ref('')
+const historyFilters = ref({
+  collector: '',
+  channel: '',
+  status: '',
+  result: '',
+  dateRange: null as [Date, Date] | null
+})
+
+// 触达人列表（mock数据）
+const collectorList = ref(['张三', '李四', '王五', '赵六'])
+
+// 历史催记列表（mock数据）
+const historyNotes = ref<any[]>([])
+
+// 生成案件的mock催记数据
+const generateMockNotes = (caseData: any) => {
+  return [
+    {
+      id: 1,
+      register_time: '2025-01-15 10:30:25',
+      case_id: caseData?.loan_id || '-',
+      collector: '张三',
+      channel: 'WhatsApp',
+      status: 'reachable',
+      result: 'promise_repay',
+      remark: '客户承诺今天下午还款',
+      next_follow_up: '2025-01-15 14:00:00'
+    },
+    {
+      id: 2,
+      register_time: '2025-01-14 15:20:10',
+      case_id: caseData?.loan_id || '-',
+      collector: '李四',
+      channel: 'SMS',
+      status: 'no_response',
+      result: 'continuous_follow_up',
+      remark: '发送催收短信，未收到回复',
+      next_follow_up: '2025-01-15 09:00:00'
+    },
+    {
+      id: 3,
+      register_time: '2025-01-13 11:15:30',
+      case_id: caseData?.loan_id || '-',
+      collector: '王五',
+      channel: '电话外呼',
+      status: 'reachable',
+      result: 'refuse_repay',
+      remark: '电话接通，客户拒绝还款',
+      next_follow_up: '2025-01-14 10:00:00'
+    },
+    {
+      id: 4,
+      register_time: '2025-01-12 09:45:15',
+      case_id: caseData?.loan_id || '-',
+      collector: '赵六',
+      channel: 'RCS',
+      status: 'reachable',
+      result: 'promise_repay',
+      remark: '客户已查看消息，承诺周末还款',
+      next_follow_up: '2025-01-13 10:00:00'
+    }
+  ]
+}
+
+// 查看催记
+const handleViewNotes = (row: any) => {
+  currentCase.value = row
+  historySearchKeyword.value = row.loan_id || ''
+  historyNotes.value = generateMockNotes(row)
+  showHistoryNotesDialog.value = true
+}
+
+// 筛选后的历史催记列表
+const filteredHistoryNotes = computed(() => {
+  let result = historyNotes.value
+
+  // 搜索案件ID
+  if (historySearchKeyword.value) {
+    const keyword = historySearchKeyword.value.toLowerCase()
+    result = result.filter((note: any) => 
+      note.case_id?.toLowerCase().includes(keyword)
+    )
+  }
+
+  // 筛选触达人
+  if (historyFilters.value.collector) {
+    result = result.filter((note: any) => 
+      note.collector === historyFilters.value.collector
+    )
+  }
+
+  // 筛选触达渠道
+  if (historyFilters.value.channel) {
+    result = result.filter((note: any) => 
+      note.channel === historyFilters.value.channel
+    )
+  }
+
+  // 筛选状态
+  if (historyFilters.value.status) {
+    result = result.filter((note: any) => 
+      note.status === historyFilters.value.status
+    )
+  }
+
+  // 筛选结果
+  if (historyFilters.value.result) {
+    result = result.filter((note: any) => 
+      note.result === historyFilters.value.result
+    )
+  }
+
+  // 筛选时间范围
+  if (historyFilters.value.dateRange && historyFilters.value.dateRange.length === 2) {
+    const [startDate, endDate] = historyFilters.value.dateRange
+    result = result.filter((note: any) => {
+      const noteDate = dayjs(note.register_time)
+      return noteDate.isAfter(dayjs(startDate).startOf('day')) && 
+             noteDate.isBefore(dayjs(endDate).endOf('day'))
+    })
+  }
+
+  return result
+})
+
+// 处理历史催记搜索
+const handleHistorySearch = () => {
+  // 搜索逻辑已在 computed 中实现
+}
+
+// 处理历史催记筛选
+const handleHistoryFilter = () => {
+  // 筛选逻辑已在 computed 中实现
+}
+
+// 获取状态标签
+const getStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    'reachable': '可联',
+    'not_exist': '不存在',
+    'no_response': '未响应'
+  }
+  return labels[status] || status
+}
+
+// 获取状态标签类型
+const getStatusTagType = (status: string) => {
+  const types: Record<string, string> = {
+    'reachable': 'success',
+    'not_exist': 'danger',
+    'no_response': 'warning'
+  }
+  return types[status] || ''
+}
+
+// 获取结果标签
+const getResultLabel = (result: string) => {
+  const labels: Record<string, string> = {
+    'promise_repay': '承诺还款',
+    'refuse_repay': '拒绝还款',
+    'not_related': '与借款人不相关',
+    'related': '与借款人相关',
+    'promise_repay_on_behalf': '承诺代还',
+    'promise_inform': '承诺转告',
+    'lost_contact': '失联',
+    'continuous_follow_up': '持续跟进',
+    'other': '其它'
+  }
+  return labels[result] || result
 }
 
 // 筛选器配置
@@ -966,6 +1316,53 @@ onMounted(async () => {
 
 .filter-group-tree :deep(.el-tree-node__label) {
   font-size: 14px;
+}
+
+/* 历史催记对话框样式 */
+.history-notes-dialog :deep(.el-dialog__body) {
+  padding: 20px;
+}
+
+.history-notes-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.history-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.history-notes-list {
+  margin-top: 8px;
+}
+
+.history-notes-list :deep(.el-table) {
+  font-size: 13px;
+}
+
+.history-notes-list :deep(.el-table th) {
+  background: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+  padding: 12px 0;
+}
+
+.history-notes-list :deep(.el-table td) {
+  padding: 12px 0;
+}
+
+.history-notes-list :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+  background: #fafafa;
 }
 </style>
 

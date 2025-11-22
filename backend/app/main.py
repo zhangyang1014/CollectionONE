@@ -57,8 +57,13 @@ from app.api import (
     field_groups, standard_fields, custom_fields,
     tenants, cases, channel, auth, agencies, team_groups, teams, agency_working_hours,
     notification_config, public_notification, notification_template, field_display, queue,
+    # 权限管理API已迁移到Java后端
     # 数据看板API
-    communications, ptp, quality_inspections, performance, analytics, alerts, idle_monitor
+    communications, ptp, quality_inspections, performance, analytics, alerts, idle_monitor,
+    # Infinity外呼系统API
+    infinity_config, infinity_extension, infinity_call,
+    # 还款渠道和还款码API
+    payment_channels, payment_codes
 )
 from app.api import im_auth, im_face
 
@@ -79,6 +84,7 @@ app.include_router(notification_config.router, prefix=settings.API_V1_STR)
 app.include_router(public_notification.router, prefix=settings.API_V1_STR)
 app.include_router(notification_template.router, prefix=settings.API_V1_STR)
 app.include_router(field_display.router, prefix=settings.API_V1_STR)
+# app.include_router(permissions.router)  # 权限管理路由已迁移到Java后端
 app.include_router(im_auth.router, prefix=settings.API_V1_STR)  # IM端认证路由
 app.include_router(im_face.router, prefix=settings.API_V1_STR)  # IM端人脸识别路由
 
@@ -90,4 +96,13 @@ app.include_router(performance.router)
 app.include_router(analytics.router)
 app.include_router(alerts.router)
 app.include_router(idle_monitor.router, prefix=f"{settings.API_V1_STR}/idle-monitor", tags=["空闲催员监控"])
+
+# Infinity外呼系统API路由
+app.include_router(infinity_config.router, prefix=settings.API_V1_STR)
+app.include_router(infinity_extension.router, prefix=settings.API_V1_STR)
+app.include_router(infinity_call.router, prefix=settings.API_V1_STR)
+
+# 还款渠道和还款码API路由
+app.include_router(payment_channels.router)  # 管理控台-还款渠道配置
+app.include_router(payment_codes.router)  # IM端-还款码管理
 

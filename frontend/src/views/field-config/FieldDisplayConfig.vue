@@ -515,7 +515,8 @@ const getFieldSourceLabel = (source?: string) => {
   const labels: Record<string, string> = {
     'standard': '标准字段',
     'extended': '扩展字段',
-    'custom': '自定义字段'
+    'custom': '自定义字段',
+    'system': '系统字段'
   }
   return labels[source || ''] || '-'
 }
@@ -525,7 +526,8 @@ const getFieldSourceType = (source?: string) => {
   const types: Record<string, any> = {
     'standard': 'success',
     'extended': 'warning',
-    'custom': 'info'
+    'custom': 'info',
+    'system': 'danger'
   }
   return types[source || ''] || ''
 }

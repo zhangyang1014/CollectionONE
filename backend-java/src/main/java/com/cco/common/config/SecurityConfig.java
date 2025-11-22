@@ -50,17 +50,17 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 // 禁用 CSRF（使用JWT不需要CSRF保护）
-                .csrf().disable()
+                .csrf(csrf -> csrf.disable())
                 
                 // 配置会话管理为无状态
-                .sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 
-                .and()
                 // 配置授权规则
                 .authorizeHttpRequests(authorize -> authorize
                         // 公开接口不需要认证
-                        .antMatchers("/", "/health", "/api/v1/admin/auth/**", "/api/v1/im/auth/**").permitAll()
+                        .requestMatchers("/", "/health", "/api/v1/admin/auth/**", "/api/v1/im/auth/**").permitAll()
                         // 其他所有请求都需要认证
                         .anyRequest().authenticated()
                 )

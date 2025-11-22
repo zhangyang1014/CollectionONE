@@ -75,7 +75,7 @@
             <el-icon><Lock /></el-icon>
             <span>系统管理</span>
           </template>
-          <el-menu-item v-if="isSuperAdmin" index="/system/permissions">权限管理</el-menu-item>
+          <el-menu-item index="/system/permissions">权限配置</el-menu-item>
           <el-menu-item index="/system/notification-config">通知配置</el-menu-item>
         </el-sub-menu>
       </el-menu>
@@ -166,16 +166,35 @@ const currentTenantId = computed({
 const loadTenants = async () => {
   try {
     const res = await getTenants()
-    // 如果响应是数组，直接使用；否则使用res.data
-    tenants.value = Array.isArray(res) ? res : (res.data || [])
+    console.log('getTenants 原始响应：', res)
+    
+    // 处理多种可能的响应格式
+    if (Array.isArray(res)) {
+      tenants.value = res
+    } else if (res.data && Array.isArray(res.data)) {
+      tenants.value = res.data
+    } else if (res.data && res.data.items && Array.isArray(res.data.items)) {
+      tenants.value = res.data.items
+    } else {
+      console.warn('甲方列表响应格式不符合预期：', res)
+      tenants.value = []
+    }
     
     console.log('加载到的甲方列表：', tenants.value)
+    console.log('甲方数量：', tenants.value.length)
     
     // 从localStorage恢复之前的选择
     tenantStore.restoreFromStorage()
-  } catch (error) {
+    
+    // 如果没有数据，显示友好提示
+    if (tenants.value.length === 0) {
+      console.warn('当前没有可用的甲方数据')
+    }
+  } catch (error: any) {
     console.error('加载甲方列表失败：', error)
-    ElMessage.error('加载甲方列表失败')
+    console.error('错误详情：', error.response || error.message)
+    ElMessage.error(`加载甲方列表失败: ${error.message || '未知错误'}`)
+    tenants.value = []
   }
 }
 

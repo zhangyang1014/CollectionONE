@@ -339,6 +339,11 @@
         </el-table>
         <el-empty v-else description="暂无还款记录" />
       </el-tab-pane>
+
+      <!-- 还款码 -->
+      <el-tab-pane label="还款码" name="payment_codes">
+        <PaymentCodeTab :caseInfo="caseData" />
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 还款码弹窗 -->
@@ -387,6 +392,7 @@
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Picture, Document, Tickets, View } from '@element-plus/icons-vue'
+import PaymentCodeTab from '@/views/im/components/PaymentCodeTab.vue'
 
 // Props
 const props = defineProps<{

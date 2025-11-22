@@ -14,18 +14,39 @@ FIELD_MAPPING = {
 
 # 虚拟字段定义（不在标准字段表中，但需要配置的关联字段或计算字段）
 VIRTUAL_FIELDS = {
-    'queue_name': {'type': 'String', 'source': 'custom', 'name': '所属队列'},
-    'agency_name': {'type': 'String', 'source': 'custom', 'name': '催收机构'},
-    'team_name': {'type': 'String', 'source': 'custom', 'name': '催收小组'},
-    'collector_name': {'type': 'String', 'source': 'custom', 'name': '催员姓名'},
+    # 自定义字段（custom）- 关联字段和业务记录字段
+    'queue_name': {'type': 'Enum', 'source': 'custom', 'name': '所属队列'},
+    'agency_name': {'type': 'Enum', 'source': 'custom', 'name': '催收机构'},
+    'team_name': {'type': 'Enum', 'source': 'custom', 'name': '催收小组'},
+    'collector_name': {'type': 'Enum', 'source': 'custom', 'name': '催员姓名'},
     'assigned_at': {'type': 'Datetime', 'source': 'custom', 'name': '分配时间'},
-    'last_contact_time': {'type': 'Datetime', 'source': 'custom', 'name': '最后联系时间'},
-    'contact_count': {'type': 'Integer', 'source': 'custom', 'name': '联系次数'},
     'due_date': {'type': 'Date', 'source': 'custom', 'name': '应还日期'},
     'loan_date': {'type': 'Date', 'source': 'custom', 'name': '放款日期'},
     'email': {'type': 'String', 'source': 'custom', 'name': '邮箱'},
     'emergency_contact_name': {'type': 'String', 'source': 'custom', 'name': '紧急联系人'},
     'emergency_contact_phone': {'type': 'String', 'source': 'custom', 'name': '紧急联系人电话'},
+    
+    # 系统字段（system）- 自动计算和统计的字段
+    # 催收操作统计
+    'days_assigned': {'type': 'Integer', 'source': 'system', 'name': '已分发天数'},
+    'last_contact_time': {'type': 'Datetime', 'source': 'system', 'name': '最后联系时间'},
+    'contact_count': {'type': 'Integer', 'source': 'system', 'name': '联系次数'},
+    'view_phone_count': {'type': 'Integer', 'source': 'system', 'name': '查看本人联系电话次数'},
+    'call_count': {'type': 'Integer', 'source': 'system', 'name': '电话拨打次数'},
+    'call_connected_count': {'type': 'Integer', 'source': 'system', 'name': '电话拨通次数'},
+    'is_phone_reachable': {'type': 'Boolean', 'source': 'system', 'name': '本人电话是否可联'},
+    'whatsapp_sent_count': {'type': 'Integer', 'source': 'system', 'name': 'WA发送次数'},
+    'whatsapp_reply_count': {'type': 'Integer', 'source': 'system', 'name': 'WA回复次数'},
+    'is_whatsapp_reachable': {'type': 'Boolean', 'source': 'system', 'name': '本人WA是否可联'},
+    'rcs_sent_count': {'type': 'Integer', 'source': 'system', 'name': 'RCS发送次数'},
+    'rcs_reply_count': {'type': 'Integer', 'source': 'system', 'name': 'RCS回复次数'},
+    'sms_sent_count': {'type': 'Integer', 'source': 'system', 'name': '短信发送次数'},
+    # 客户历史统计
+    'total_loan_count': {'type': 'Integer', 'source': 'system', 'name': '历史借款总笔数'},
+    'cleared_loan_count': {'type': 'Integer', 'source': 'system', 'name': '已结清笔数'},
+    'overdue_loan_count': {'type': 'Integer', 'source': 'system', 'name': '历史逾期笔数'},
+    'max_overdue_days': {'type': 'Integer', 'source': 'system', 'name': '历史最大逾期天数'},
+    'avg_loan_amount': {'type': 'Decimal', 'source': 'system', 'name': '平均借款金额'},
 }
 
 def fix_field_display_data():

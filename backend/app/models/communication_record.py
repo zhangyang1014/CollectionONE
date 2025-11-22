@@ -1,5 +1,5 @@
 """通信记录模型"""
-from sqlalchemy import Column, BigInteger, String, Integer, DateTime, ForeignKey, Text, Boolean, Enum as SQLEnum
+from sqlalchemy import Column, BigInteger, String, Integer, DateTime, ForeignKey, Text, Boolean, Enum as SQLEnum, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -45,6 +45,10 @@ class CommunicationRecord(Base):
     # 渠道信息
     channel = Column(SQLEnum(ChannelEnum), nullable=False, index=True, comment='通信渠道')
     direction = Column(SQLEnum(DirectionEnum), nullable=False, comment='通信方向')
+    supplier_id = Column(BigInteger, ForeignKey('channel_suppliers.id', ondelete='SET NULL'), index=True, comment='供应商ID（标识使用的外呼供应商）')
+    infinity_extension_number = Column(String(50), comment='使用的分机号')
+    call_uuid = Column(String(100), index=True, comment='Infinity返回的通话唯一标识')
+    custom_params = Column(JSON, comment='自定义参数（JSON，存储 userid、memberid 等）')
     
     # 电话专属字段
     call_duration = Column(Integer, comment='通话时长（秒）')

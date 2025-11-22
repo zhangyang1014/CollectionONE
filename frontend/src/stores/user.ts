@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>('')
@@ -50,6 +50,11 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('userInfo')
   }
 
+  // 计算属性：获取用户角色
+  const role = computed(() => {
+    return userInfo.value?.role || ''
+  })
+
   // 初始化
   initFromStorage()
 
@@ -57,6 +62,7 @@ export const useUserStore = defineStore('user', () => {
     token,
     userInfo,
     permissions,
+    role,
     setToken,
     setUserInfo,
     setPermissions,

@@ -27,7 +27,7 @@ export interface FieldDisplayConfig {
   field_key: string // 字段标识
   field_name: string // 字段名称
   field_data_type?: string // 字段数据类型：String/Integer/Boolean/Enum等
-  field_source?: string // 字段来源：standard/extended/custom
+  field_source?: string // 字段来源：standard/extended/custom/system
   sort_order: number // 排序顺序
   display_width: number // 显示宽度（像素），0表示自动
   color_type: string // 颜色类型：normal/red/yellow/green
@@ -106,7 +106,7 @@ export interface AvailableFieldOption {
   field_key: string // 字段标识
   field_name: string // 字段名称
   field_type: string // 字段数据类型
-  field_source: string // 字段来源：standard/extended/custom
+  field_source: string // 字段来源：standard/extended/custom/system
   field_group_name?: string // 字段分组名称
   is_extended: boolean // 是否为扩展字段
   is_required: boolean // 是否必填
