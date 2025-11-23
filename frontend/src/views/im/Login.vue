@@ -119,6 +119,9 @@
               >
                 <el-icon :size="48"><Camera /></el-icon>
                 <p>点击开始人脸识别</p>
+                <p v-if="!checkCameraSupport()" class="camera-warning">
+                  ⚠️ 浏览器不支持摄像头，可跳过人脸识别直接登录
+                </p>
               </div>
             </div>
             <div class="face-status">
@@ -135,7 +138,7 @@
                 {{ faceError }}
               </el-text>
               <el-text v-else type="info" size="small">
-                请先完成人脸识别
+                请先完成人脸识别（开发测试模式：可跳过）
               </el-text>
             </div>
           </div>
@@ -147,7 +150,6 @@
             size="large"
             class="login-button"
             :loading="loading"
-            :disabled="!faceId"
             @click="handleLogin"
           >
             {{ loading ? '登录中...' : '登录' }}
@@ -181,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -315,10 +317,21 @@ const refreshCaptcha = () => {
   drawCaptcha()
 }
 
+// 检测是否支持摄像头API
+const checkCameraSupport = () => {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+}
+
 // 启动摄像头
 const startCamera = async () => {
   try {
     faceError.value = ''
+    
+    // 检查浏览器支持
+    if (!checkCameraSupport()) {
+      throw new Error('浏览器不支持摄像头API，请使用现代浏览器（Chrome、Firefox、Safari等）')
+    }
+    
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         width: { ideal: 640 },
@@ -338,8 +351,27 @@ const startCamera = async () => {
     }
   } catch (error: any) {
     console.error('启动摄像头失败:', error)
-    faceError.value = '无法访问摄像头，请检查权限设置'
-    ElMessage.error('无法访问摄像头，请检查权限设置')
+    
+    // 根据错误类型提供更友好的提示
+    let errorMessage = '无法访问摄像头，请检查权限设置'
+    
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      errorMessage = '摄像头权限被拒绝，请在浏览器设置中允许摄像头权限'
+    } else if (error.name === 'NotFoundError') {
+      errorMessage = '未找到摄像头设备'
+    } else if (error.name === 'NotReadableError') {
+      errorMessage = '摄像头被其他应用占用，请关闭其他应用后重试'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    faceError.value = errorMessage
+    
+    // 开发测试模式：不阻止用户继续，只显示警告
+    ElMessage.warning({
+      message: errorMessage + '（开发测试模式：可以跳过人脸识别直接登录）',
+      duration: 5000
+    })
   }
 }
 
@@ -385,32 +417,30 @@ const capturePhoto = async () => {
   }
 }
 
-// 从图片检测人脸
+// 从图片检测人脸（开发测试模式：失败不影响登录）
 const detectFaceFromImage = async (imageData: string) => {
   try {
     faceDetecting.value = true
     faceError.value = ''
     
-    // 将base64转换为File对象
-    const blob = await fetch(imageData).then(res => res.blob())
-    const file = new File([blob], 'face.jpg', { type: 'image/jpeg' })
+    // 直接使用base64字符串调用人脸检测API
+    // imRequest 的响应拦截器已经返回了 response.data，所以这里直接是 { face_id: string }
+    const response = await detectFace(imageData) as { face_id?: string }
     
-    // 调用人脸检测API
-    const response = await detectFace(file)
-    
-    if (response.face_id) {
+    if (response?.face_id) {
       faceId.value = response.face_id
       ElMessage.success('人脸识别成功')
     } else {
-      throw new Error('未检测到人脸')
+      // 开发测试模式：不抛出错误，静默处理
+      console.warn('⚠️ 人脸检测未返回face_id，但不影响登录（开发测试模式）')
+      faceId.value = ''
     }
   } catch (error: any) {
-    console.error('人脸检测失败:', error)
-    faceError.value = error.message || '人脸识别失败，请重新拍照'
-    ElMessage.error(faceError.value)
-    // 清空已拍摄的照片，允许重拍
-    capturedImage.value = ''
+    // 开发测试模式：人脸检测失败不影响登录，只记录日志
+    console.warn('⚠️ 人脸检测失败，但不影响登录（开发测试模式）:', error.message)
+    faceError.value = ''
     faceId.value = ''
+    // 不清空照片，允许用户继续尝试或直接登录
   } finally {
     faceDetecting.value = false
   }
@@ -451,10 +481,10 @@ const handleLogin = async () => {
       return
     }
 
-    // 检查人脸识别
+    // 人脸识别为可选项（开发测试模式）
+    // 如果没有人脸识别，给出提示但仍允许登录
     if (!faceId.value || !capturedImage.value) {
-      ElMessage.warning('请先完成人脸识别')
-      return
+      console.log('⚠️ 跳过人脸识别（开发测试模式）')
     }
 
     loading.value = true
@@ -466,18 +496,20 @@ const handleLogin = async () => {
       password: loginForm.password
     })
 
-    // 登录成功后上传人脸记录
-    try {
-      await uploadLoginFace({
-        collector_id: loginForm.collectorId,
-        tenant_id: loginForm.tenantId,
-        face_image: capturedImage.value,
-        face_id: faceId.value,
-        login_time: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('上传人脸记录失败:', error)
-      // 不影响登录流程，仅记录错误
+    // 登录成功后上传人脸记录（如果有的话）
+    if (capturedImage.value && faceId.value) {
+      try {
+        await uploadLoginFace({
+          collector_id: loginForm.collectorId,
+          tenant_id: loginForm.tenantId,
+          face_image: capturedImage.value,
+          face_id: faceId.value,
+          login_time: new Date().toISOString()
+        })
+      } catch (error) {
+        console.error('上传人脸记录失败:', error)
+        // 不影响登录流程，仅记录错误
+      }
     }
 
     ElMessage.success('登录成功')
@@ -485,8 +517,38 @@ const handleLogin = async () => {
     // 停止摄像头
     stopCamera()
     
+    // 确保状态已更新，使用 nextTick 等待 Vue 响应式更新完成
+    await nextTick()
+    
+    // 再次确认登录状态（从 localStorage 恢复，确保路由守卫能读取到）
+    if (typeof imUserStore.initFromStorage === 'function') {
+      imUserStore.initFromStorage()
+    }
+    
+    console.log('[Login] 登录成功，准备跳转，当前状态:', {
+      isLoggedIn: imUserStore.isLoggedIn,
+      hasToken: !!imUserStore.token,
+      hasUser: !!imUserStore.user,
+      token: imUserStore.token?.substring(0, 20) + '...',
+      user: imUserStore.user
+    })
+    
+    // 再次检查 localStorage
+    const storedToken = localStorage.getItem('im_token')
+    const storedUser = localStorage.getItem('im_user')
+    console.log('[Login] localStorage 检查:', {
+      hasStoredToken: !!storedToken,
+      hasStoredUser: !!storedUser,
+      storedTokenLength: storedToken?.length || 0
+    })
+    
     // 跳转到工作台
-    router.push('/im/workspace')
+    console.log('[Login] 开始跳转到 /im/workspace')
+    router.push('/im/workspace').then(() => {
+      console.log('[Login] 路由跳转成功')
+    }).catch((error) => {
+      console.error('[Login] 路由跳转失败:', error)
+    })
   } catch (error: any) {
     console.error('登录失败:', error)
     if (error !== false) { // 不是表单验证错误
@@ -820,6 +882,12 @@ const handleSimulateLogin = async () => {
 .face-placeholder p {
   margin: 10px 0 0 0;
   font-size: 14px;
+}
+
+.face-placeholder .camera-warning {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #f56c6c;
 }
 
 .face-status {

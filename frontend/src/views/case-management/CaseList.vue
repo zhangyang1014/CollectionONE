@@ -113,33 +113,58 @@
             </el-form-item>
           </el-col>
 
-          <!-- 动态筛选器 -->
+          <!-- 动态筛选器 - 基于字段展示配置自动生成 -->
+          
+          <!-- 可搜索字段（文本） -->
           <el-col 
-            v-for="filter in dynamicFilters" 
-            :key="filter.field_key" 
+            v-for="field in searchableFields.slice(0, 2)" 
+            :key="`search-${field.field_key}`" 
             :span="6"
           >
-            <el-form-item :label="filter.field_name">
-              <!-- 下拉选择（Enum类型） -->
+            <el-form-item :label="field.field_name">
+              <el-input
+                v-model="dynamicFilterValues[field.field_key]"
+                placeholder="搜索"
+                clearable
+                style="width: 100%"
+                @blur="handleQuery"
+                @clear="handleQuery"
+              />
+            </el-form-item>
+          </el-col>
+
+          <!-- 可筛选字段（枚举） -->
+          <el-col 
+            v-for="field in filterableFields.slice(0, 2)" 
+            :key="`filter-${field.field_key}`" 
+            :span="6"
+          >
+            <el-form-item :label="field.field_name">
               <el-select
-                v-if="filter.filter_type === 'select'"
-                v-model="dynamicFilterValues[filter.field_key]"
+                v-model="dynamicFilterValues[field.field_key]"
                 placeholder="全部"
                 clearable
                 style="width: 100%"
                 @change="handleQuery"
               >
-                <el-option
-                  v-for="option in filter.options"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
+                <!-- TODO: 从枚举配置中获取选项 -->
+                <el-option label="选项1" value="option1" />
+                <el-option label="选项2" value="option2" />
               </el-select>
-              <!-- 范围选择（数字类型） -->
+            </el-form-item>
+          </el-col>
+
+          <!-- 可范围检索字段（数字/日期） -->
+          <el-col 
+            v-for="field in rangeSearchableFields.slice(0, 1)" 
+            :key="`range-${field.field_key}`" 
+            :span="6"
+          >
+            <el-form-item :label="field.field_name">
+              <!-- 日期类型 -->
               <el-date-picker
-                v-else-if="filter.filter_type === 'range' && filter.field_type === 'Date'"
-                v-model="dynamicFilterValues[filter.field_key]"
+                v-if="field.field_data_type === 'Date'"
+                v-model="dynamicFilterValues[field.field_key]"
                 type="daterange"
                 range-separator="至"
                 start-placeholder="开始日期"
@@ -149,21 +174,15 @@
                 style="width: 100%"
                 @change="handleQuery"
               />
+              <!-- 数字类型 -->
               <el-input
-                v-else-if="filter.filter_type === 'range'"
-                v-model="dynamicFilterValues[filter.field_key]"
+                v-else
+                v-model="dynamicFilterValues[field.field_key]"
                 placeholder="范围，如：1000-5000"
                 style="width: 100%"
                 @blur="handleQuery"
-              />
-              <!-- 搜索框（String类型） -->
-              <el-input
-                v-else-if="filter.filter_type === 'search'"
-                v-model="dynamicFilterValues[filter.field_key]"
-                placeholder="搜索"
+                @clear="handleQuery"
                 clearable
-                style="width: 100%"
-                @blur="handleQuery"
               />
             </el-form-item>
           </el-col>
@@ -225,99 +244,37 @@
         <el-button type="primary" @click="handleSearch">搜索</el-button>
       </div>
 
-      <!-- 案件列表表格 -->
-      <el-table
+      <!-- 案件列表表格 - 使用动态字段展示配置 -->
+      <DynamicCaseTable
         v-if="currentTenantId"
         :data="displayCases"
+        :columns="getTableColumns()"
+        :loading="configLoading"
         border
-        :default-sort="{ prop: 'overdue_days', order: 'descending' }"
+        show-actions
+        :actions-width="200"
         @sort-change="handleSortChange"
       >
-        <el-table-column prop="loan_id" label="贷款编号" width="150">
-          <template #default="{ row }">
-            <span>{{ row.loan_id || '-' }}</span>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="user_name" label="用户名" width="150">
-          <template #default="{ row }">
-            <span class="user-name">{{ row.user_first_name || row.user_name }}</span>
-          </template>
-        </el-table-column>
+        <!-- 自定义逾期天数显示 -->
+        <template #cell-overdue_days="{ row }">
+          <el-tag :type="getOverdueTagType(row.overdue_days)" effect="dark">
+            {{ row.overdue_days }} 天
+          </el-tag>
+        </template>
 
-        <el-table-column prop="user_id" label="用户ID" width="150">
-          <template #default="{ row }">
-            <span class="user-id-text">{{ row.user_id }}</span>
-          </template>
-        </el-table-column>
+        <!-- 自定义案件状态显示 -->
+        <template #cell-case_status="{ row }">
+          <el-tag :type="getCaseStatusType(row.case_status)">
+            {{ getCaseStatusText(row.case_status) }}
+          </el-tag>
+        </template>
 
-        <el-table-column prop="overdue_days" label="逾期天数" width="120" sortable="custom">
-          <template #default="{ row }">
-            <el-tag :type="getOverdueTagType(row.overdue_days)" effect="dark">
-              {{ row.overdue_days }} 天
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column
-          prop="outstanding_amount"
-          label="未还金额"
-          width="130"
-          sortable="custom"
-        >
-          <template #default="{ row }">
-            <span class="amount">¥{{ formatAmount(row.outstanding_amount) }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column
-          prop="total_due_amount"
-          label="应还金额"
-          width="130"
-          sortable="custom"
-        >
-          <template #default="{ row }">
-            <span class="amount">¥{{ formatAmount(row.total_due_amount) }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="case_status" label="案件状态" width="110" sortable="custom">
-          <template #default="{ row }">
-            <el-tag :type="getCaseStatusType(row.case_status)">
-              {{ getCaseStatusText(row.case_status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="product_name" label="产品名字" width="130">
-          <template #default="{ row }">
-            {{ row.product_name || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="app_name" label="App名字" width="130">
-          <template #default="{ row }">
-            {{ row.app_name || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="settlement_method" label="结清方式" width="130">
-          <template #default="{ row }">
-            {{ row.settlement_method || '-' }}
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="settlement_time" label="结清时间" width="170">
-          <template #default="{ row }">
-            {{ formatDateTime(row.settlement_time) }}
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleView(row)">查看详情</el-button>
-            <el-button link type="primary" @click="handleViewNotes(row)">查看催记</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <!-- 操作列 -->
+        <template #actions="{ row }">
+          <el-button link type="primary" @click="handleView(row)">查看详情</el-button>
+          <el-button link type="primary" @click="handleViewNotes(row)">查看催记</el-button>
+        </template>
+      </DynamicCaseTable>
 
       <!-- 未选择甲方时的提示 -->
       <el-empty
@@ -548,12 +505,30 @@ import { getTenantQueues } from '@/api/queue'
 import { getTenantAgencies, getAgencyTeams, getTeamCollectors } from '@/api/organization'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
+import { useFieldDisplayConfig } from '@/composables/useFieldDisplayConfig'
+import DynamicCaseTable from '@/components/DynamicCaseTable.vue'
 import dayjs from 'dayjs'
+import { getApiUrl } from '@/config/api'
 
 const router = useRouter()
 const tenantStore = useTenantStore()
 const userStore = useUserStore()
 const currentTenantId = computed(() => tenantStore.currentTenantId)
+
+// 使用字段展示配置Hook - 控台案件列表场景
+const {
+  loading: configLoading,
+  visibleConfigs,
+  searchableFields,
+  filterableFields,
+  rangeSearchableFields,
+  getTableColumns,
+  formatFieldValue
+} = useFieldDisplayConfig({
+  tenantId: currentTenantId,
+  sceneType: 'admin_case_list',
+  autoLoad: true
+})
 
 // 权限检查：是否为超级管理员或甲方管理员
 const canManageFilters = computed(() => {
@@ -589,26 +564,20 @@ const filters = ref<{
   settlement_date_range: null,
 })
 
-// 动态筛选器配置（从字段映射配置中获取）
-const dynamicFilters = ref<Array<{
-  field_key: string
-  field_name: string
-  field_type: string
-  filter_type: 'select' | 'range' | 'search'
-  options?: Array<{ label: string, value: any }>
-}>>([])
-
-// 动态筛选器的值
+// 动态筛选器的值(基于字段展示配置自动生成)
 const dynamicFilterValues = ref<Record<string, any>>({})
 
-// 筛选器配置对话框
+// 筛选器配置相关变量
 const filterConfigDialogVisible = ref(false)
-const availableFields = ref<any[]>([]) // 可配置为筛选器的字段列表
-const selectedFilterFields = ref<string[]>([]) // 已选中的字段标识列表
-const filterGroupTreeData = ref<any[]>([]) // 字段分组树数据
-const currentFilterGroupId = ref<number | undefined>() // 当前选中的分组ID
-const currentFilterGroupName = ref<string>('') // 当前选中的分组名称
-const filteredAvailableFields = ref<any[]>([]) // 当前分组下的字段列表
+const selectedFilterFields = ref<string[]>([])
+const dynamicFilters = ref<any[]>([])
+const availableFields = ref<any[]>([])
+const filterGroupTreeData = ref<any[]>([])
+const currentFilterGroupId = ref<number | null>(null)
+const currentFilterGroupName = ref<string>('')
+const filteredAvailableFields = ref<any[]>([])
+
+// 注意: 筛选器配置现在基于"甲方字段展示配置"自动生成,不再需要单独配置
 
 const pagination = ref({
   page: 1,
@@ -618,6 +587,11 @@ const pagination = ref({
 
 // 搜索过滤
 const searchedCases = computed(() => {
+  // 确保 cases.value 是数组
+  if (!Array.isArray(cases.value)) {
+    return []
+  }
+  
   if (!searchKeyword.value) {
     return cases.value
   }
@@ -762,7 +736,14 @@ const loadCases = async () => {
   
   const res = await getCases(params)
   // 如果响应是数组，直接使用；否则使用res.data
-  cases.value = Array.isArray(res) ? res : (res.data || [])
+  // 确保始终是数组
+  if (Array.isArray(res)) {
+    cases.value = res
+  } else if (res && Array.isArray(res.data)) {
+    cases.value = res.data
+  } else {
+    cases.value = []
+  }
   updateTotal()
 }
 
@@ -1068,7 +1049,7 @@ const handleFilterConfig = async () => {
   
   // 加载可配置的字段列表
   try {
-    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/fields`
+    const url = getApiUrl(`tenants/${currentTenantId.value}/fields`)
     const response = await fetch(url)
     const result = await response.json()
     availableFields.value = (result.data || []).filter((field: any) => {

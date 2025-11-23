@@ -5,6 +5,7 @@ import { imLogin, imLogout, getImUserInfo } from '@/api/im'
 export interface ImUser {
   id: string
   collectorId: string
+  collectorIdNumeric?: number // 数字格式的collectorId，用于API调用
   collectorName: string
   tenantId: string
   tenantName: string
@@ -16,6 +17,13 @@ export interface ImUser {
   phone?: string
   token: string
   whatsappConnected?: boolean
+  // 时区信息
+  agencyTimezone?: string // 机构时区（IANA时区名称，如：America/Mexico_City）
+  agencyTimezoneShort?: string // 机构时区缩写（如：CST）
+  agencyTimezoneOffset?: number // 机构时区UTC偏移量（如：-6）
+  tenantTimezone?: string // 甲方时区（IANA时区名称，如：America/Mexico_City）
+  tenantTimezoneShort?: string // 甲方时区缩写（如：CST）
+  tenantTimezoneOffset?: number // 甲方时区UTC偏移量（如：-6）
 }
 
 export const useImUserStore = defineStore('imUser', () => {
@@ -49,16 +57,40 @@ export const useImUserStore = defineStore('imUser', () => {
     password: string
   }) => {
     try {
-      const response = await imLogin(credentials)
+      // imRequest已经返回了response.data，所以response就是后端返回的完整对象
+      // 响应格式: { code: 200, message: "success", data: { token: "...", user: {...} } }
+      const response = await imLogin(credentials) as {
+        code?: number
+        message?: string
+        data?: {
+          token?: string
+          user?: any
+        }
+      }
       
-      if (response.code === 200) {
-        token.value = response.data.token
-        user.value = response.data.user
-        isLoggedIn.value = true
-
-        // 保存到localStorage
-        localStorage.setItem('im_token', token.value)
-        localStorage.setItem('im_user', JSON.stringify(user.value))
+      if (response.code === 200 && response.data) {
+        // 先保存到localStorage（确保路由守卫能立即读取到）
+        const tokenValue = response.data.token
+        const userValue = response.data.user
+        
+        if (tokenValue && userValue) {
+          localStorage.setItem('im_token', tokenValue)
+          localStorage.setItem('im_user', JSON.stringify(userValue))
+          
+          // 然后更新响应式状态
+          token.value = tokenValue
+          user.value = userValue as ImUser
+          isLoggedIn.value = true
+          
+          console.log('[IM Store] 登录成功，状态已更新:', {
+            isLoggedIn: isLoggedIn.value,
+            hasToken: !!token.value,
+            hasUser: !!user.value,
+            tokenLength: token.value?.length || 0
+          })
+        } else {
+          throw new Error('登录响应数据不完整')
+        }
 
         return response.data
       } else {
@@ -91,9 +123,12 @@ export const useImUserStore = defineStore('imUser', () => {
   // 更新用户信息
   const updateUserInfo = async () => {
     try {
-      const response = await getImUserInfo()
-      if (response.code === 200) {
-        user.value = { ...user.value, ...response.data }
+      const response = await getImUserInfo() as {
+        code?: number
+        data?: any
+      }
+      if (response.code === 200 && response.data) {
+        user.value = { ...user.value, ...response.data } as ImUser
         localStorage.setItem('im_user', JSON.stringify(user.value))
       }
     } catch (error) {
@@ -131,7 +166,8 @@ export const useImUserStore = defineStore('imUser', () => {
     updateUserInfo,
     hasPermission,
     hasAnyPermission,
-    hasAllPermissions
+    hasAllPermissions,
+    initFromStorage  // ✅ 导出initFromStorage方法
   }
 })
 

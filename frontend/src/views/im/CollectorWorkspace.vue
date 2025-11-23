@@ -5,6 +5,93 @@
       <div class="header-left">
         <el-icon :size="28" class="logo-icon"><ChatDotRound /></el-icon>
         <span class="system-name">催收ONE</span>
+        
+        <!-- 数据入口（放在"催收ONE"右边） -->
+        <div class="dashboard-trigger-wrapper">
+          <div 
+            class="dashboard-float-trigger"
+            @mouseenter="showDashboardPanel = true"
+            @mouseleave="handleDashboardMouseLeave"
+          >
+            <el-icon :size="18"><DataAnalysis /></el-icon>
+            <span>数据</span>
+          </div>
+
+          <!-- 数据面板（悬停显示） -->
+          <div 
+            v-if="showDashboardPanel"
+            class="dashboard-float-panel"
+            @mouseenter="showDashboardPanel = true"
+            @mouseleave="handleDashboardMouseLeave"
+          >
+            <div class="dashboard-panel-header">
+              <h3>核心数据</h3>
+              <div class="dashboard-panel-actions">
+                <span class="refresh-time">上次刷新: {{ lastRefreshTime }}</span>
+                <el-button text size="small" @click="handleRefreshDashboard">
+                  <el-icon><Refresh /></el-icon>
+                </el-button>
+                <el-button text size="small" type="primary" @click="viewMoreReports">
+                  更多数据 <el-icon><Right /></el-icon>
+                </el-button>
+              </div>
+            </div>
+            
+            <div class="dashboard-panel-metrics">
+              <!-- 排名块 -->
+              <div class="metric-block">
+                <div class="block-title">排名</div>
+                <div class="block-dimensions">
+                  <div class="dimension-item">
+                    <div class="dimension-value primary">{{ dashboardData.teamRank }}</div>
+                  </div>
+                  <div class="dimension-item">
+                    <div class="dimension-value primary">{{ dashboardData.amountRank }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 应催块 -->
+              <div class="metric-block">
+                <div class="block-title">应催</div>
+                <div class="block-dimensions">
+                  <div class="dimension-item">
+                    <div class="dimension-value">{{ dashboardData.totalCases }}</div>
+                  </div>
+                  <div class="dimension-item">
+                    <div class="dimension-value">{{ formatCurrency(dashboardData.totalAmount) }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 未还块 -->
+              <div class="metric-block">
+                <div class="block-title">未还</div>
+                <div class="block-dimensions">
+                  <div class="dimension-item">
+                    <div class="dimension-value warning">{{ dashboardData.unpaidCases }}</div>
+                  </div>
+                  <div class="dimension-item">
+                    <div class="dimension-value warning">{{ formatCurrency(dashboardData.unpaidAmount) }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 回收率块 -->
+              <div class="metric-block">
+                <div class="block-title">回收率</div>
+                <div class="block-dimensions">
+                  <div class="dimension-item">
+                    <div class="dimension-value success">{{ dashboardData.caseRecoveryRate }}%</div>
+                  </div>
+                  <div class="dimension-item">
+                    <div class="dimension-value success">{{ dashboardData.amountRecoveryRate }}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="header-center">
@@ -107,13 +194,26 @@
           </div>
         </div>
 
-        <!-- 时区显示 -->
+        <!-- 时区显示 - 两个时区 -->
         <div class="timezone-display">
-          <el-icon><Clock /></el-icon>
-          <span>{{ currentTime }}</span>
-          <el-tooltip :content="`时区: ${currentTimezone}`" placement="bottom">
-            <span class="timezone-label">{{ timezoneShort }}</span>
-          </el-tooltip>
+          <!-- 我的时区（催员机构时区） -->
+          <div class="timezone-item">
+            <el-icon><Clock /></el-icon>
+            <span class="timezone-label">我的时区:</span>
+            <span class="timezone-time">{{ myTime }}</span>
+            <el-tooltip :content="`我的时区: ${myTimezone}`" placement="bottom">
+              <span class="timezone-short">{{ myTimezoneShort }}</span>
+            </el-tooltip>
+          </div>
+          <!-- 客户时区（甲方时区） -->
+          <div class="timezone-item">
+            <el-icon><Clock /></el-icon>
+            <span class="timezone-label">客户时区:</span>
+            <span class="timezone-time">{{ customerTime }}</span>
+            <el-tooltip :content="`客户时区: ${customerTimezone}`" placement="bottom">
+              <span class="timezone-short">{{ customerTimezoneShort }}</span>
+            </el-tooltip>
+          </div>
         </div>
 
         <!-- 语言切换 -->
@@ -178,75 +278,6 @@
     <div class="workspace-main">
       <!-- 左侧：案件列表 -->
       <div class="case-list-section" :style="{ width: `${leftPanelWidth}px` }">
-        <!-- 看板数据 -->
-        <div class="dashboard-card">
-          <div class="dashboard-header">
-            <h3>核心数据</h3>
-            <div class="dashboard-actions">
-              <span class="refresh-time">上次刷新: {{ lastRefreshTime }}</span>
-              <el-button text @click="refreshDashboard">
-                <el-icon><Refresh /></el-icon>
-              </el-button>
-              <el-button text type="primary" @click="viewMoreReports">
-                更多数据 <el-icon><Right /></el-icon>
-              </el-button>
-            </div>
-          </div>
-          
-          <div class="dashboard-metrics">
-            <!-- 排名块 -->
-            <div class="metric-block">
-              <div class="block-title">排名</div>
-              <div class="block-dimensions">
-                <div class="dimension-item">
-                  <div class="dimension-value primary">{{ dashboardData.teamRank }}</div>
-                </div>
-                <div class="dimension-item">
-                  <div class="dimension-value primary">{{ dashboardData.amountRank }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 应催块 -->
-            <div class="metric-block">
-              <div class="block-title">应催</div>
-              <div class="block-dimensions">
-                <div class="dimension-item">
-                  <div class="dimension-value">{{ dashboardData.totalCases }}</div>
-                </div>
-                <div class="dimension-item">
-                  <div class="dimension-value">{{ formatCurrency(dashboardData.totalAmount) }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 未还块 -->
-            <div class="metric-block">
-              <div class="block-title">未还</div>
-              <div class="block-dimensions">
-                <div class="dimension-item">
-                  <div class="dimension-value warning">{{ dashboardData.unpaidCases }}</div>
-                </div>
-                <div class="dimension-item">
-                  <div class="dimension-value warning">{{ formatCurrency(dashboardData.unpaidAmount) }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 回收率块 -->
-            <div class="metric-block">
-              <div class="block-title">回收率</div>
-              <div class="block-dimensions">
-                <div class="dimension-item">
-                  <div class="dimension-value success">{{ dashboardData.caseRecoveryRate }}%</div>
-                </div>
-                <div class="dimension-item">
-                  <div class="dimension-value success">{{ dashboardData.amountRecoveryRate }}%</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- 搜索框 -->
         <div class="search-box">
@@ -392,68 +423,53 @@
             </el-button-group>
           </div>
 
-          <el-table
+          <DynamicCaseTable
             :data="paginatedCases"
+            :columns="getTableColumns()"
+            :loading="configLoading"
             :height="tableHeight"
+            show-selection
             @selection-change="handleSelectionChange"
             @row-click="handleRowClick"
             :row-class-name="getRowClassName"
             highlight-current-row
           >
-            <el-table-column type="selection" width="45" />
-            <el-table-column prop="loan_id" label="贷款编号" width="100">
-              <template #default="{ row }">
-                <div class="loan-id-cell">
-                  <span>{{ row.loan_id || '-' }}</span>
-                  <span 
-                    v-if="row.loan_id && hasUnreadMessagesForLoan(row.loan_id)" 
-                    class="case-unread-dot"
-                  ></span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column prop="user_name" label="用户名" width="100" show-overflow-tooltip>
-              <template #default="{ row }">
-                <div class="user-name-cell">
-                  <span class="user-name">{{ row.user_name }}</span>
-                  <span class="user-id">{{ row.user_id }}</span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column prop="case_status" label="状态" width="80" sortable>
-              <template #default="{ row }">
-                <el-tag size="small">{{ row.case_status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="contact_channels" label="应答渠道" width="80" sortable align="center">
-              <template #default="{ row }">
-                <el-badge :value="row.contact_channels || 0" type="primary" />
-              </template>
-            </el-table-column>
-            <el-table-column prop="outstanding_amount" label="未还金额" width="95" sortable>
-              <template #default="{ row }">
-                <span class="amount">{{ formatCurrency(row.outstanding_amount) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="total_due_amount" label="应还金额" width="95" sortable>
-              <template #default="{ row }">
-                <span class="amount">{{ formatCurrency(row.total_due_amount) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="overdue_days" label="逾期天数" width="85" sortable>
-              <template #default="{ row }">
-                <el-tag :type="getOverdueType(row.overdue_days)" size="small">
-                  {{ row.overdue_days }}天
-                </el-tag>
-              </template>
-            </el-table-column>
+            <!-- 自定义贷款编号 - 显示未读消息标记 -->
+            <template #cell-loan_id="{ row }">
+              <div class="loan-id-cell">
+                <span>{{ row.loan_id || '-' }}</span>
+                <span 
+                  v-if="row.loan_id && hasUnreadMessagesForLoan(row.loan_id)" 
+                  class="case-unread-dot"
+                ></span>
+              </div>
+            </template>
 
-            <!-- 更多字段（可展开） -->
-            <el-table-column v-if="showMoreFields" prop="product_name" label="产品" width="110" />
-            <el-table-column v-if="showMoreFields" prop="app_name" label="App" width="110" />
-            <el-table-column v-if="showMoreFields" prop="settlement_method" label="结清方式" width="95" />
-            <el-table-column v-if="showMoreFields" prop="settlement_time" label="结清时间" width="150" />
-          </el-table>
+            <!-- 自定义用户名 - 显示用户ID -->
+            <template #cell-user_name="{ row }">
+              <div class="user-name-cell">
+                <span class="user-name">{{ row.user_name }}</span>
+                <span class="user-id">{{ row.user_id }}</span>
+              </div>
+            </template>
+
+            <!-- 自定义状态 -->
+            <template #cell-case_status="{ row }">
+              <el-tag size="small">{{ row.case_status }}</el-tag>
+            </template>
+
+            <!-- 自定义应答渠道 -->
+            <template #cell-contact_channels="{ row }">
+              <el-badge :value="row.contact_channels || 0" type="primary" />
+            </template>
+
+            <!-- 自定义逾期天数 -->
+            <template #cell-overdue_days="{ row }">
+              <el-tag :type="getOverdueType(row.overdue_days)" size="small">
+                {{ row.overdue_days }}天
+              </el-tag>
+            </template>
+          </DynamicCaseTable>
 
           <!-- 分页器 -->
           <div class="pagination-bar">
@@ -545,16 +561,21 @@ import {
   Search,
   FolderAdd,
   RefreshLeft,
-  Phone
+  Phone,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 import { useImUserStore } from '@/stores/imUser'
-import { getCases } from '@/api/case'
+import { getCases } from '@/api/imCase'
+import { useFieldDisplayConfig } from '@/composables/useFieldDisplayConfig'
+import { useDashboardData } from '@/composables/useDashboardData'
 import CaseDetail from '@/components/CaseDetail.vue'
 import IMPanel from '@/components/IMPanel.vue'
+import DynamicCaseTable from '@/components/DynamicCaseTable.vue'
 import type { Case } from '@/types'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezonePlugin from 'dayjs/plugin/timezone'
+import { getTimezoneByTenantId } from '@/utils/timezone'
 
 dayjs.extend(utc)
 dayjs.extend(timezonePlugin)
@@ -563,16 +584,88 @@ const router = useRouter()
 const imUserStore = useImUserStore()
 const user = computed(() => imUserStore.user)
 
+// 使用字段展示配置Hook - 催员案件列表场景
+const tenantIdForConfig = computed(() => user.value?.tenantId ? Number(user.value.tenantId) : null)
+
+// 列表场景配置
+const {
+  loading: configLoading,
+  visibleConfigs,
+  searchableFields,
+  filterableFields,
+  rangeSearchableFields,
+  getTableColumns,
+  formatFieldValue
+} = useFieldDisplayConfig({
+  tenantId: tenantIdForConfig,
+  sceneType: 'collector_case_list',
+  autoLoad: true
+})
+
+// 详情场景配置（暂时未使用，保留以备将来使用）
+// const {
+//   visibleConfigs: detailConfigs,
+//   loading: detailConfigLoading
+// } = useFieldDisplayConfig({
+//   tenantId: tenantIdForConfig,
+//   sceneType: 'collector_case_detail',
+//   autoLoad: true
+// })
+
 // IMPanel引用
 const imPanelRef = ref<any>(null)
 
-// 时区和时间
-const currentTimezone = ref('America/Mexico_City')
-const timezoneShort = ref('CST')
-const currentTime = ref('')
+// 时区和时间 - 两个时区
+// 我的时区（催员机构时区）
+const myTimezone = ref('America/Mexico_City')
+const myTimezoneShort = ref('CST')
+const myTime = ref('')
 
+// 客户时区（甲方时区）
+const customerTimezone = ref('America/Mexico_City')
+const customerTimezoneShort = ref('CST')
+const customerTime = ref('')
+
+// 更新两个时区的时间
 const updateTime = () => {
-  currentTime.value = dayjs().tz(currentTimezone.value).format('HH:mm:ss')
+  myTime.value = dayjs().tz(myTimezone.value).format('HH:mm:ss')
+  customerTime.value = dayjs().tz(customerTimezone.value).format('HH:mm:ss')
+}
+
+// 初始化时区信息
+const initTimezones = () => {
+  if (!user.value) return
+  
+  // 1. 我的时区（催员机构时区）- 从用户信息中获取
+  if (user.value.agencyTimezone) {
+    myTimezone.value = user.value.agencyTimezone
+    myTimezoneShort.value = user.value.agencyTimezoneShort || 'UTC'
+  } else {
+    // 如果没有，根据tenantId设置默认值
+    const defaultTimezone = getTimezoneByTenantId(user.value.tenantId)
+    myTimezone.value = defaultTimezone.timezone
+    myTimezoneShort.value = defaultTimezone.timezoneShort
+  }
+  
+  // 2. 客户时区（甲方时区）- 从用户信息中获取，如果有选中案件则使用案件的tenant_id
+  if (selectedCase.value?.tenant_id) {
+    // 如果有选中案件，使用案件的tenant_id获取时区
+    const caseTimezone = getTimezoneByTenantId(selectedCase.value.tenant_id)
+    customerTimezone.value = caseTimezone.timezone
+    customerTimezoneShort.value = caseTimezone.timezoneShort
+  } else if (user.value.tenantTimezone) {
+    // 如果没有选中案件，使用用户信息中的甲方时区
+    customerTimezone.value = user.value.tenantTimezone
+    customerTimezoneShort.value = user.value.tenantTimezoneShort || 'UTC'
+  } else {
+    // 如果都没有，根据用户的tenantId设置默认值
+    const defaultTimezone = getTimezoneByTenantId(user.value.tenantId)
+    customerTimezone.value = defaultTimezone.timezone
+    customerTimezoneShort.value = defaultTimezone.timezoneShort
+  }
+  
+  // 立即更新时间
+  updateTime()
 }
 
 // 语言
@@ -1038,18 +1131,32 @@ const resetPanelHeight = () => {
   ElMessage.success('已重置面板高度')
 }
 
-// 看板数据
-const dashboardData = ref({
-  teamRank: 2,
-  totalCases: 28,
-  unpaidCases: 15,
-  caseRecoveryRate: 46.4,
-  amountRank: 3,
-  totalAmount: 245000,
-  unpaidAmount: 131250,
-  amountRecoveryRate: 46.4
-})
-const lastRefreshTime = ref('')
+// 使用看板数据组合式函数
+const {
+  dashboardData,
+  lastRefreshTime,
+  refreshDashboard: refreshDashboardData,
+  formatCurrency,
+  initRefreshTime
+} = useDashboardData()
+
+// 数据面板显示控制
+const showDashboardPanel = ref(false)
+const dashboardPanelTimer = ref<number | null>(null)
+
+// 处理数据面板鼠标离开
+const handleDashboardMouseLeave = () => {
+  dashboardPanelTimer.value = window.setTimeout(() => {
+    showDashboardPanel.value = false
+    dashboardPanelTimer.value = null
+  }, 200)
+}
+
+// 刷新看板数据
+const handleRefreshDashboard = async () => {
+  await refreshDashboardData()
+  ElMessage.success('数据已刷新')
+}
 
 // 搜索和过滤
 const searchKeyword = ref('')
@@ -1074,7 +1181,6 @@ const appList = ref(['PesoMex', 'DineroFácil', 'CashMexico'])
 const cases = ref<Case[]>([])
 const selectedCases = ref<Case[]>([])
 const selectAll = ref(false)
-const showMoreFields = ref(false)
 const selectedCase = ref<Case | null>(null)
 
 // Mock完整案件数据（用于详情页展示）
@@ -1114,9 +1220,9 @@ const mockFullCaseData = computed(() => {
       emergency_contact_phone: currentCase.mobile_number,
     },
     document_images: {
-      id_front_image: 'https://via.placeholder.com/400x300/4CAF50/ffffff?text=ID+Front',
-      id_back_image: 'https://via.placeholder.com/400x300/2196F3/ffffff?text=ID+Back',
-      live_photo: 'https://via.placeholder.com/400x300/FF9800/ffffff?text=Live+Photo',
+      id_front_image: '', // 证件正面照片（暂无）
+      id_back_image: '', // 证件背面照片（暂无）
+      live_photo: '', // 活体照片（暂无）
       document_status: ['待审核', '已审核', '需复核'][Math.floor(Math.random() * 3)],
       document_verification: {
         is_fake_id: false,
@@ -1198,7 +1304,7 @@ const mockFullCaseData = computed(() => {
           overdue_days: isCurrent ? Math.floor(Math.random() * 15) : 0,
         }
       }),
-      payment_qr_code: 'https://via.placeholder.com/300x300/673AB7/ffffff?text=Payment+QR+Code'
+      payment_qr_code: '' // 支付二维码（暂无）
     } : null
   }
 })
@@ -1211,14 +1317,21 @@ const pagination = ref({
 
 // 动态计算表格高度
 const tableHeight = computed(() => {
-  // 基础高度 = 100vh - 顶部条(60) - 看板(200) - 搜索(52) - 基础过滤器(52) - 按钮行(40) - 列表头(48) - 分页(56) - 边距(20)
-  const baseDeduction = 528
+  // 基础高度 = 100vh - 顶部条(60) - 搜索(52) - 基础过滤器(52) - 按钮行(40) - 列表头(48) - 分页(56) - 边距(20)
+  // 移除了看板高度(200px)，让案件列表撑满剩余空间
+  const baseDeduction = 328
   // 如果显示更多过滤器，额外减去52px
   const extraDeduction = showMoreFilters.value ? 52 : 0
   return `calc(100vh - ${baseDeduction + extraDeduction}px)`
 })
 
 const filteredCases = computed(() => {
+  // 确保 cases.value 是数组
+  if (!Array.isArray(cases.value)) {
+    console.warn('cases.value 不是数组:', cases.value)
+    return []
+  }
+  
   let result = cases.value
 
   // 搜索过滤
@@ -1226,6 +1339,7 @@ const filteredCases = computed(() => {
     const keyword = searchKeyword.value.toLowerCase()
     result = result.filter((c: any) =>
       c.user_id?.toLowerCase().includes(keyword) ||
+      c.user_name?.toLowerCase().includes(keyword) ||
       c.loan_id?.toLowerCase().includes(keyword) ||
       c.mobile_number?.toLowerCase().includes(keyword)
     )
@@ -1272,10 +1386,6 @@ const handleAccountCommand = async (command: string) => {
   }
 }
 
-const refreshDashboard = () => {
-  lastRefreshTime.value = dayjs().format('HH:mm:ss')
-  ElMessage.success('数据已刷新')
-}
 
 const viewMoreReports = () => {
   ElMessage.info('跳转到报表页面功能开发中')
@@ -1340,11 +1450,6 @@ const getOverdueType = (days: number) => {
   return 'danger'
 }
 
-const formatCurrency = (amount: number) => {
-  if (!amount) return '0'
-  return Math.round(amount).toLocaleString('zh-CN')
-}
-
 // 未读消息状态映射（loan_id -> hasUnread）
 const unreadMessagesMap = ref<Record<string, boolean>>({})
 
@@ -1362,6 +1467,19 @@ const hasUnreadMessagesForLoan = (loanId: string) => {
 
 // 监听选中案件的变化，更新未读消息状态
 watch(() => selectedCase.value, (newCase) => {
+  // 当选中案件变化时，更新客户时区
+  if (newCase?.tenant_id) {
+    const caseTimezone = getTimezoneByTenantId(newCase.tenant_id)
+    customerTimezone.value = caseTimezone.timezone
+    customerTimezoneShort.value = caseTimezone.timezoneShort
+    updateTime() // 立即更新时间
+  } else if (user.value?.tenantTimezone) {
+    // 如果没有选中案件，使用用户信息中的甲方时区
+    customerTimezone.value = user.value.tenantTimezone
+    customerTimezoneShort.value = user.value.tenantTimezoneShort || 'UTC'
+    updateTime()
+  }
+  
   if (newCase && imPanelRef.value) {
     const loanId = newCase.loan_id
     if (loanId) {
@@ -1399,25 +1517,60 @@ watch(() => imPanelRef.value?.hasUnreadMessagesForCase, (hasUnread) => {
 
 const loadCases = async () => {
   try {
-    if (!user.value?.tenantId || !user.value?.id) {
+    if (!user.value?.tenantId) {
       console.warn('用户信息不完整，无法加载案件')
       cases.value = []
       return
     }
     
-    console.log('开始加载案件, tenantId:', user.value.tenantId, 'collectorId:', user.value.id)
+    // 优先使用collectorIdNumeric，如果没有则尝试从id中解析
+    let collectorIdNum: number | undefined
+    if (user.value.collectorIdNumeric) {
+      collectorIdNum = user.value.collectorIdNumeric
+    } else if (user.value.id) {
+      // 尝试从字符串ID中提取数字（如果是纯数字字符串）
+      const parsed = parseInt(user.value.id as string)
+      if (!isNaN(parsed)) {
+        collectorIdNum = parsed
+      }
+    }
+    
+    if (!collectorIdNum) {
+      console.error('无法获取催员数字ID，用户数据:', user.value)
+      ElMessage.error('用户信息错误：缺少催员ID')
+      cases.value = []
+      return
+    }
+    
+    console.log('开始加载案件, tenantId:', user.value.tenantId, 'collectorIdNumeric:', collectorIdNum)
     
     // 构建查询参数：只查询当前催员的案件
     const params: any = {
       tenant_id: parseInt(user.value.tenantId),  // 转换为整数
-      collector_id: parseInt(user.value.id as string)  // 催员ID
+      collector_id: collectorIdNum  // 使用数字ID
     }
     
-    const res = await getCases(params)
+    const res: any = await getCases(params)
     console.log('案件加载响应:', res)
     
-    // 后端直接返回数组，不是 {data: []} 格式
-    cases.value = Array.isArray(res) ? res : (res.data || [])
+    // 处理不同的响应格式
+    if (Array.isArray(res)) {
+      // 直接返回数组
+      cases.value = res
+    } else if (res.data && Array.isArray(res.data)) {
+      // 包装在data中的数组
+      cases.value = res.data
+    } else if (res.data && res.data.items && Array.isArray(res.data.items)) {
+      // 包装在data.items中的数组（Java后端格式）
+      cases.value = res.data.items
+    } else if (res.items && Array.isArray(res.items)) {
+      // 直接在items中的数组
+      cases.value = res.items
+    } else {
+      console.error('未知的响应格式:', res)
+      cases.value = []
+    }
+    
     console.log('加载的案件数量:', cases.value.length)
     
     if (cases.value.length > 0) {
@@ -1432,25 +1585,24 @@ const loadCases = async () => {
 }
 
 onMounted(() => {
-  updateTime()
+  // 初始化时区信息
+  initTimezones()
+  
+  // 每秒更新时间
   setInterval(updateTime, 1000)
-  refreshDashboard()
+  
+  initRefreshTime()
   loadCases()
-
-  // 根据机构设置时区
-  if (user.value?.tenantId === '1' || (user.value as any)?.tenantCode === 'BTQ') {
-    currentTimezone.value = 'America/Mexico_City'
-    timezoneShort.value = 'CST'
-  } else if (user.value?.tenantId === '2' || (user.value as any)?.tenantCode === 'BTSK') {
-    currentTimezone.value = 'Asia/Kolkata'
-    timezoneShort.value = 'IST'
-  }
 })
 
 onUnmounted(() => {
   // 清理通知面板定时器
   if (notificationPanelTimer.value) {
     clearTimeout(notificationPanelTimer.value)
+  }
+  // 清理数据面板定时器
+  if (dashboardPanelTimer.value) {
+    clearTimeout(dashboardPanelTimer.value)
   }
   // 清理轮播定时器
   stopCarousel()
@@ -1481,6 +1633,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
 }
 
 .logo-icon {
@@ -1810,12 +1963,40 @@ onUnmounted(() => {
 .timezone-display {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   padding: 8px 16px;
   background: #f5f7fa;
   border-radius: 20px;
   font-size: 14px;
   color: #606266;
+}
+
+.timezone-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timezone-item .timezone-label {
+  color: #909399;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.timezone-item .timezone-time {
+  font-weight: 500;
+  color: #303133;
+  font-family: 'Courier New', monospace;
+  min-width: 70px;
+}
+
+.timezone-item .timezone-short {
+  color: #909399;
+  font-size: 12px;
+  padding: 2px 6px;
+  background: #e4e7ed;
+  border-radius: 4px;
+  cursor: help;
 }
 
 .timezone-label {
@@ -1875,6 +2056,113 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
+}
+
+/* 数据入口包装器（放在顶部导航栏） */
+.dashboard-trigger-wrapper {
+  position: relative;
+  margin-left: 12px;
+}
+
+/* 数据入口按钮 */
+.dashboard-float-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #25D366 0%, #20BD5A 100%);
+  color: #ffffff;
+  border-radius: 18px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.25);
+  transition: all 0.3s ease;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 100;
+  position: relative;
+  white-space: nowrap;
+}
+
+.dashboard-float-trigger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+  background: linear-gradient(135deg, #20BD5A 0%, #1DA850 100%);
+}
+
+.dashboard-float-trigger .el-icon {
+  font-size: 16px;
+}
+
+/* 数据面板（悬停显示） */
+.dashboard-float-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  z-index: 1000;
+  width: 600px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  animation: slideDownFade 0.3s ease-out;
+}
+
+.dashboard-float-panel::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 20px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid #ffffff;
+  filter: drop-shadow(0 -2px 4px rgba(0, 0, 0, 0.1));
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.dashboard-panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #303133;
+  font-weight: 600;
+}
+
+.dashboard-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-panel-actions .refresh-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.dashboard-panel-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
 
 /* 左侧案件列表 */
@@ -1885,39 +2173,13 @@ onUnmounted(() => {
   background: #ffffff;
 }
 
-/* 看板 */
-.dashboard-card {
+/* 看板指标块（保留用于悬浮面板） */
+.metric-block {
+  background: #f5f7fa;
+  border-radius: 8px;
   padding: 16px;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.dashboard-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.dashboard-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #303133;
-}
-
-.dashboard-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.refresh-time {
-  font-size: 12px;
-  color: #909399;
-}
-
-.dashboard-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  flex-direction: column;
   gap: 12px;
 }
 

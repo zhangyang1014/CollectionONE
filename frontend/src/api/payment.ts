@@ -2,6 +2,7 @@
  * 还款渠道和还款码相关API
  */
 import request from '@/utils/request'
+import imRequest from '@/utils/imRequest'
 
 // ==================== 还款渠道配置API（管理控台） ====================
 
@@ -93,7 +94,7 @@ export function sortPaymentChannels(data: {
  * 获取可用还款渠道（IM端）
  */
 export function getAvailableChannels(partyId: number) {
-  return request({
+  return imRequest({
     url: '/api/im/payment-channels',
     method: 'get',
     params: { party_id: partyId }
@@ -104,7 +105,7 @@ export function getAvailableChannels(partyId: number) {
  * 获取案件期数信息
  */
 export function getCaseInstallments(caseId: number) {
-  return request({
+  return imRequest({
     url: `/api/im/cases/${caseId}/installments`,
     method: 'get'
   })
@@ -120,7 +121,7 @@ export function requestPaymentCode(data: {
   installment_number?: number
   amount: number
 }) {
-  return request({
+  return imRequest({
     url: '/api/im/payment-codes/request',
     method: 'post',
     data
@@ -136,7 +137,7 @@ export function getPaymentCodes(params: {
   page?: number
   page_size?: number
 }) {
-  return request({
+  return imRequest({
     url: '/api/im/payment-codes',
     method: 'get',
     params
@@ -147,7 +148,7 @@ export function getPaymentCodes(params: {
  * 查询还款码详情
  */
 export function getPaymentCodeDetail(codeNo: string) {
-  return request({
+  return imRequest({
     url: `/api/im/payment-codes/${codeNo}`,
     method: 'get'
   })

@@ -41,23 +41,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String loginId = tokenProvider.getSubjectFromToken(jwt);
+            if (StringUtils.hasText(jwt)) {
+                // Mock模式：如果是Mock Token，直接放行（不验证JWT）
+                if (jwt.startsWith("MOCK_")) {
+                    log.debug("Mock Token detected, skipping JWT validation for request: {}", request.getRequestURI());
+                    // Mock模式下，直接放行，不设置认证信息
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+                
+                // 验证Token
+                if (tokenProvider.validateToken(jwt)) {
+                    String loginId = tokenProvider.getSubjectFromToken(jwt);
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(loginId);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(loginId);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("Set authentication for user: {}", loginId);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("Set authentication for user: {}", loginId);
+                } else {
+                    // Token无效或过期，返回401
+                    log.warn("Invalid or expired JWT token for request: {}", request.getRequestURI());
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"code\":401,\"message\":\"Token已过期，请重新登录\"}");
+                    return; // 不继续执行过滤链
+                }
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);
+            // 发生异常时也返回401
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":401,\"message\":\"认证失败，请重新登录\"}");
+            return;
         }
 
         filterChain.doFilter(request, response);

@@ -350,10 +350,21 @@ const loadPaymentCodes = async () => {
       params.status = filterStatus.value
     }
 
-    const res = await getPaymentCodes(params)
-    // 注意：实际后端返回 code: 0 表示成功
-    if (res.code === 0) {
-      paymentCodes.value = res.data.list || res.data.items || []
+    const res: any = await getPaymentCodes(params)
+    // 兼容不同的响应格式：code: 200 (Java后端) 或 code: 0 (Python后端)
+    if (res.code === 200 || res.code === 0 || !res.code) {
+      // 处理不同的数据格式
+      if (Array.isArray(res.data)) {
+        paymentCodes.value = res.data
+      } else if (res.data?.items) {
+        paymentCodes.value = res.data.items
+      } else if (res.data?.list) {
+        paymentCodes.value = res.data.list
+      } else if (Array.isArray(res)) {
+        paymentCodes.value = res
+      } else {
+        paymentCodes.value = []
+      }
     }
   } catch (error: any) {
     console.error('加载还款码列表失败:', error)
@@ -370,12 +381,19 @@ const loadAvailableChannels = async () => {
     const partyId = props.caseInfo?.tenant_id || props.caseInfo?.party_id || 1
     console.log('加载可用渠道 - partyId:', partyId, 'caseInfo:', props.caseInfo)
     
-    const res = await getAvailableChannels(partyId)
+    const res: any = await getAvailableChannels(partyId)
     console.log('渠道API响应:', res)
     
-    // 注意：实际后端返回 code: 0 表示成功
-    if (res.code === 0) {
-      availableChannels.value = res.data || []
+    // 兼容不同的响应格式：code: 200 (Java后端) 或 code: 0 (Python后端)
+    if (res.code === 200 || res.code === 0 || !res.code) {
+      // 处理不同的数据格式
+      if (Array.isArray(res.data)) {
+        availableChannels.value = res.data
+      } else if (Array.isArray(res)) {
+        availableChannels.value = res
+      } else {
+        availableChannels.value = []
+      }
       console.log('可用渠道数量:', availableChannels.value.length)
     } else {
       console.error('API返回错误:', res)
@@ -411,10 +429,10 @@ const loadInstallments = async () => {
   
   try {
     const caseId = props.caseInfo.id || props.caseInfo.case_id
-    const res = await getCaseInstallments(caseId)
-    // 注意：实际后端返回 code: 0 表示成功
-    if (res.code === 0) {
-      installments.value = res.data.installments || []
+    const res: any = await getCaseInstallments(caseId)
+    // 兼容不同的响应格式：code: 200 (Java后端) 或 code: 0 (Python后端)
+    if (res.code === 200 || res.code === 0 || !res.code) {
+      installments.value = res.data?.installments || res.data || []
       // 默认选择当前逾期期数
       if (res.data.current_overdue) {
         requestForm.installment_number = res.data.current_overdue
@@ -464,9 +482,9 @@ const handleRequestCode = async () => {
       amount: requestForm.amount
     }
 
-    const res = await requestPaymentCode(data)
-    // 注意：实际后端返回 code: 0 表示成功
-    if (res.code === 0) {
+    const res: any = await requestPaymentCode(data)
+    // 兼容不同的响应格式：code: 200 (Java后端) 或 code: 0 (Python后端)
+    if (res.code === 200 || res.code === 0 || !res.code) {
       ElMessage.success('还款码生成成功')
       showAmountDialog.value = false
       
@@ -488,10 +506,10 @@ const handleRequestCode = async () => {
 // 查看详情
 const showDetail = async (row: PaymentCodeListItem) => {
   try {
-    const res = await getPaymentCodeDetail(row.code_no)
-    // 注意：实际后端返回 code: 0 表示成功
-    if (res.code === 0) {
-      currentDetail.value = res.data
+    const res: any = await getPaymentCodeDetail(row.code_no)
+    // 兼容不同的响应格式：code: 200 (Java后端) 或 code: 0 (Python后端)
+    if (res.code === 200 || res.code === 0 || !res.code) {
+      currentDetail.value = res.data || res
       showDetailDialog.value = true
     }
   } catch (error) {

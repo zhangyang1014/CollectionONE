@@ -1,0 +1,57 @@
+---
+description: 前端API调用规则 - 避免硬编码URL和端口
+tags: [frontend, api, typescript, vue]
+priority: critical
+---
+
+# 前端API调用规则
+
+## 🚨 严禁硬编码URL
+
+### ❌ 错误示例（会导致404）
+
+```typescript
+// ❌ 绝对不要这样写！
+const url = 'http://localhost:8000/api/v1/cases'
+const url = 'http://localhost:8080/api/v1/cases'
+const response = await fetch('http://localhost:8000/api/v1/tenants')
+```
+
+### ✅ 正确示例
+
+```typescript
+// ✅ 方法1: 使用API配置（最佳）
+import { getApiUrl } from '@/config/api'
+const url = getApiUrl('cases')
+
+// ✅ 方法2: 使用request工具（推荐）
+import request from '@/utils/request'
+const data = await request({ url: '/cases', method: 'get' })
+
+// ✅ 方法3: 使用API_BASE_URL常量
+import { API_BASE_URL } from '@/config/api'
+const url = `${API_BASE_URL}/api/v1/cases`
+```
+
+## 自动检测脚本
+
+```bash
+#!/bin/bash
+# 检查硬编码URL
+HARDCODED=$(grep -r "localhost:8000\|localhost:8080" frontend/src --include="*.ts" --include="*.vue" | grep -v "config/api.ts" | wc -l)
+
+if [ $HARDCODED -gt 0 ]; then
+  echo "❌ 发现硬编码URL！"
+  grep -r "localhost:8000\|localhost:8080" frontend/src --include="*.ts" --include="*.vue" | grep -v "config/api.ts"
+  exit 1
+fi
+
+echo "✅ 未发现硬编码URL"
+```
+
+## Code Review检查项
+
+- [ ] 没有 `localhost:8000` 硬编码
+- [ ] 没有 `localhost:8080` 硬编码（除了config/api.ts）
+- [ ] 使用了 `@/config/api` 或 `@/utils/request`
+- [ ] 考虑了响应格式兼容性（Java后端返回 `{code, message, data}`）

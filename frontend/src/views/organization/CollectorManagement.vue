@@ -564,7 +564,8 @@ const loadAgencies = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/agencies`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`tenants/${currentTenantId.value}/agencies`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -591,7 +592,8 @@ const loadTeams = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/agencies/${currentAgencyId.value}/teams`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`agencies/${currentAgencyId.value}/teams`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -618,7 +620,8 @@ const loadFormTeams = async (agencyId: number) => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/agencies/${agencyId}/teams`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`agencies/${agencyId}/teams`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -658,7 +661,8 @@ const loadCollectors = async () => {
       for (const agency of agencies.value) {
         try {
           // 加载该机构的小组
-          const teamsUrl = `http://localhost:8000/api/v1/agencies/${agency.id}/teams`
+          const { getApiUrl } = await import('@/config/api')
+          const teamsUrl = getApiUrl(`agencies/${agency.id}/teams`)
           const teamsResponse = await fetch(teamsUrl)
           const teamsResult = await teamsResponse.json()
           // API直接返回数组，不是{data: [...]}格式
@@ -667,7 +671,7 @@ const loadCollectors = async () => {
           // 遍历该机构的所有小组，加载催员
           for (const team of agencyTeams) {
             try {
-              const collectorsUrl = `http://localhost:8000/api/v1/teams/${team.id}/collectors`
+              const collectorsUrl = getApiUrl(`teams/${team.id}/collectors`)
               const collectorsResponse = await fetch(collectorsUrl)
               const collectorsResult = await collectorsResponse.json()
               // API直接返回数组，不是{data: [...]}格式
@@ -695,7 +699,7 @@ const loadCollectors = async () => {
       
       for (const team of teams.value) {
         try {
-          const collectorsUrl = `http://localhost:8000/api/v1/teams/${team.id}/collectors`
+          const collectorsUrl = `http://getApiUrl/api/v1/teams/${team.id}/collectors`
           const collectorsResponse = await fetch(collectorsUrl)
           const collectorsResult = await collectorsResponse.json()
           // API直接返回数组，不是{data: [...]}格式
@@ -716,7 +720,8 @@ const loadCollectors = async () => {
       }
     } else if (currentAgencyId.value && currentTeamId.value) {
       // 选择了机构和小组：加载该小组的催员
-      const collectorsUrl = `http://localhost:8000/api/v1/teams/${currentTeamId.value}/collectors`
+      const { getApiUrl } = await import('@/config/api')
+      const collectorsUrl = getApiUrl(`teams/${currentTeamId.value}/collectors`)
       const collectorsResponse = await fetch(collectorsUrl)
       const collectorsResult = await collectorsResponse.json()
       // API直接返回数组，不是{data: [...]}格式

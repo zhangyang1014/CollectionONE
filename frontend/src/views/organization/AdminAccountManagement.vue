@@ -405,7 +405,8 @@ const loadAgencies = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/agencies`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`tenants/${currentTenantId.value}/agencies`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -425,7 +426,8 @@ const loadTeams = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/agencies/${currentAgencyId.value}/teams`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`agencies/${currentAgencyId.value}/teams`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -472,7 +474,8 @@ const loadAccounts = async () => {
       for (const agency of agencies.value) {
         try {
           // 加载该机构的小组
-          const teamsUrl = `http://localhost:8000/api/v1/agencies/${agency.id}/teams`
+          const { getApiUrl } = await import('@/config/api')
+          const teamsUrl = getApiUrl(`agencies/${agency.id}/teams`)
           const teamsResponse = await fetch(teamsUrl)
           const teamsResult = await teamsResponse.json()
           // API直接返回数组，不是{data: [...]}格式
@@ -481,7 +484,7 @@ const loadAccounts = async () => {
           // 遍历该机构的所有小组，加载账号
           for (const team of agencyTeams) {
             try {
-              const accountsUrl = `http://localhost:8000/api/v1/teams/${team.id}/admin-accounts`
+              const accountsUrl = getApiUrl(`teams/${team.id}/admin-accounts`)
               const accountsResponse = await fetch(accountsUrl)
               const accountsResult = await accountsResponse.json()
               // API直接返回数组，不是{data: [...]}格式
@@ -509,7 +512,7 @@ const loadAccounts = async () => {
       
       for (const team of teams.value) {
         try {
-          const accountsUrl = `http://localhost:8000/api/v1/teams/${team.id}/admin-accounts`
+          const accountsUrl = `http://getApiUrl/api/v1/teams/${team.id}/admin-accounts`
           const accountsResponse = await fetch(accountsUrl)
           const accountsResult = await accountsResponse.json()
           // API直接返回数组，不是{data: [...]}格式
@@ -530,7 +533,8 @@ const loadAccounts = async () => {
       }
     } else if (currentAgencyId.value && currentTeamId.value) {
       // 选择了机构和小组：加载该小组的账号
-      const accountsUrl = `http://localhost:8000/api/v1/teams/${currentTeamId.value}/admin-accounts`
+      const { getApiUrl } = await import('@/config/api')
+      const accountsUrl = getApiUrl(`teams/${currentTeamId.value}/admin-accounts`)
       const accountsResponse = await fetch(accountsUrl)
       const accountsResult = await accountsResponse.json()
       // API直接返回数组，不是{data: [...]}格式
@@ -586,7 +590,8 @@ const loadFormTeams = async (agencyId: number) => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/agencies/${agencyId}/teams`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`agencies/${agencyId}/teams`)
     const response = await fetch(url)
     const result = await response.json()
     

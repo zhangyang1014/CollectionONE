@@ -291,7 +291,8 @@ const loadAgencies = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/agencies?tenant_id=${currentTenantId.value}`
+    const { getApiUrl } = await import('@/config/api')
+    const url = `${getApiUrl('agencies')}?tenant_id=${currentTenantId.value}`
     const response = await fetch(url)
     const result = await response.json()
     
@@ -312,7 +313,8 @@ const loadTeamGroups = async () => {
   }
 
   try {
-    let url = `http://localhost:8000/api/v1/team-groups?tenant_id=${currentTenantId.value}`
+    const { getApiUrl } = await import('@/config/api')
+    let url = `${getApiUrl('team-groups')}?tenant_id=${currentTenantId.value}`
     
     if (currentAgencyId.value) {
       url += `&agency_id=${currentAgencyId.value}`
@@ -388,7 +390,8 @@ const handleEdit = async (row: any) => {
   
   // 获取小组群详情（包含SPV账号信息）并回显
   try {
-    const response = await fetch(`http://localhost:8000/api/v1/team-groups/${row.id}`)
+    const { getApiUrl } = await import('@/config/api')
+    const response = await fetch(getApiUrl(`team-groups/${row.id}`))
     const teamGroupDetail = await response.json()
     
     // 如果存在SPV账号信息，回显
@@ -414,9 +417,10 @@ const handleSave = async () => {
     
     saving.value = true
 
+    const { getApiUrl } = await import('@/config/api')
     const url = isEdit.value 
-      ? `http://localhost:8000/api/v1/team-groups/${form.value.id}` 
-      : 'http://localhost:8000/api/v1/team-groups'
+      ? getApiUrl(`team-groups/${form.value.id}`)
+      : getApiUrl('team-groups')
     
     const method = isEdit.value ? 'PUT' : 'POST'
     
@@ -478,7 +482,8 @@ const handleToggleStatus = async (row: any) => {
       }
     )
 
-    const response = await fetch(`http://localhost:8000/api/v1/team-groups/${row.id}`, {
+    const { getApiUrl } = await import('@/config/api')
+    const response = await fetch(getApiUrl(`team-groups/${row.id}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

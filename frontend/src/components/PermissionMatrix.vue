@@ -52,7 +52,14 @@
               <template #default="{ row }">
                 <div class="permission-item-cell">
                   <span class="item-name">{{ row.item_name }}</span>
-                  <el-tooltip v-if="row.description" :content="row.description" placement="top">
+                  <el-tooltip 
+                    v-if="row.description" 
+                    placement="top"
+                    popper-class="permission-tooltip"
+                  >
+                    <template #content>
+                      <div style="white-space: pre-line;">{{ row.description }}</div>
+                    </template>
                     <el-icon class="info-icon"><InfoFilled /></el-icon>
                   </el-tooltip>
                 </div>
@@ -269,8 +276,9 @@ const handleSave = async () => {
       })
     })
     
+    // 发送保存事件，等待父组件处理完成
     emit('save', updatedConfigs)
-    ElMessage.success('权限配置已保存')
+    // 注意：成功消息由父组件的 handleSaveConfigs 方法显示
   } catch (error) {
     if (error !== 'cancel') {
       console.error('保存失败:', error)
@@ -419,6 +427,15 @@ const handleBatchApply = () => {
 
 .permission-editable {
   background: #f0f9ff;
+}
+</style>
+
+<style>
+/* 权限说明tooltip样式 - 全局样式，不使用scoped */
+.permission-tooltip {
+  white-space: pre-line;
+  max-width: 400px;
+  line-height: 1.6;
 }
 </style>
 

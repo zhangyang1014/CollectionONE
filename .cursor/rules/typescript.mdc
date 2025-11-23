@@ -1,0 +1,69 @@
+---
+description: TypeScript语法规则 - 避免常见编译错误
+tags: [typescript, syntax, import]
+priority: high
+---
+
+# TypeScript语法规则
+
+## import语句规则
+
+### ❌ 错误：import在函数/块内部
+
+```typescript
+// ❌ 会导致编译错误！
+function loadData() {
+  import { something } from 'somewhere'  // 语法错误
+}
+
+// ❌ 会导致编译错误！
+try {
+  import { getApiUrl } from '@/config/api'  // 语法错误
+  const url = getApiUrl('cases')
+} catch (e) {}
+```
+
+### ✅ 正确：import在文件顶部
+
+```typescript
+// ✅ import必须在文件顶部
+import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import { getApiUrl } from '@/config/api'
+import type { MyType } from '@/types'
+
+// 然后才是其他代码
+export function useMyComposable() {
+  const url = getApiUrl('cases')
+  // ...
+}
+```
+
+## import组织顺序
+
+```typescript
+// 1. Vue核心
+import { ref, computed, watch } from 'vue'
+import type { Ref } from 'vue'
+
+// 2. 第三方库
+import { ElMessage } from 'element-plus'
+
+// 3. 项目类型定义
+import type { MyType } from '@/types'
+
+// 4. 项目工具/配置
+import { getApiUrl } from '@/config/api'
+import request from '@/utils/request'
+
+// 5. 项目组件（如果有）
+import MyComponent from '@/components/MyComponent.vue'
+```
+
+## 自动检测
+
+```bash
+# 检查import语句位置（简单检查）
+grep -A 5 "try {" frontend/src/**/*.ts | grep "import {"
+# 应该无结果
+```

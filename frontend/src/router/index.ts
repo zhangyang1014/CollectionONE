@@ -241,23 +241,57 @@ router.beforeEach((to, _from, next) => {
   
   // 优先检查IM端路由（避免被管理后台路由守卫拦截）
   if (to.path.startsWith('/im')) {
-    console.log('[IM路由守卫] 当前路径:', to.path)
-    console.log('[IM路由守卫] isLoggedIn:', imUserStore.isLoggedIn)
-    console.log('[IM路由守卫] requiresAuth:', to.meta.requiresAuth)
+    console.log('[IM路由守卫] 当前路径:', to.path, 'from:', _from.path)
+    
+    // 始终先尝试从localStorage恢复状态（确保状态是最新的，特别是刚登录后）
+    const storedToken = localStorage.getItem('im_token')
+    const storedUser = localStorage.getItem('im_user')
+    
+    if (storedToken && storedUser) {
+      // 如果localStorage有数据，但store状态未同步，强制同步
+      if (!imUserStore.isLoggedIn || !imUserStore.token) {
+        if (typeof imUserStore.initFromStorage === 'function') {
+          const restored = imUserStore.initFromStorage()
+          console.log('[IM路由守卫] 从localStorage恢复状态:', restored)
+        } else {
+          // 备用方法：直接设置store状态
+          try {
+            imUserStore.token = storedToken
+            imUserStore.user = JSON.parse(storedUser)
+            imUserStore.isLoggedIn = true
+            console.log('[IM路由守卫] 直接从localStorage恢复状态（备用方法）')
+          } catch (e) {
+            console.error('[IM路由守卫] 恢复状态失败:', e)
+          }
+        }
+      }
+    }
+    
+    console.log('[IM路由守卫] 状态检查:', {
+      isLoggedIn: imUserStore.isLoggedIn,
+      hasToken: !!imUserStore.token,
+      hasUser: !!imUserStore.user,
+      localStorageToken: !!storedToken,
+      localStorageUser: !!storedUser,
+      requiresAuth: to.meta.requiresAuth,
+      fromPath: _from.path,
+      toPath: to.path
+    })
+    
+    // 如果 localStorage 有数据但 store 状态未同步，强制同步
+    if (storedToken && storedUser && !imUserStore.isLoggedIn) {
+      console.warn('[IM路由守卫] ⚠️ 检测到 localStorage 有数据但 store 状态未同步，强制同步')
+      if (typeof imUserStore.initFromStorage === 'function') {
+        const restored = imUserStore.initFromStorage()
+        console.log('[IM路由守卫] 强制同步结果:', restored)
+      }
+    }
     
     // 如果需要认证但未登录
     if (to.meta.requiresAuth && !imUserStore.isLoggedIn) {
-      console.log('[IM路由守卫] 需要认证但未登录，尝试从localStorage恢复')
-      // 尝试从localStorage恢复IM端登录状态
-      const restored = imUserStore.initFromStorage()
-      console.log('[IM路由守卫] localStorage恢复结果:', restored)
-      console.log('[IM路由守卫] 恢复后 isLoggedIn:', imUserStore.isLoggedIn)
-      
-      if (!imUserStore.isLoggedIn) {
-        console.log('[IM路由守卫] 仍未登录，重定向到登录页')
-        next('/im/login')
-        return
-      }
+      console.log('[IM路由守卫] 需要认证但未登录，重定向到登录页')
+      next('/im/login')
+      return
     }
     
     // 如果已登录但访问登录页
@@ -268,7 +302,7 @@ router.beforeEach((to, _from, next) => {
     }
     
     // IM端路由检查完成，直接放行
-    console.log('[IM路由守卫] 检查通过，放行')
+    console.log('[IM路由守卫] 检查通过，放行到:', to.path)
     next()
     return
   }

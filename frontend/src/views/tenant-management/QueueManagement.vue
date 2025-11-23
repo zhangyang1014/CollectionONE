@@ -178,7 +178,8 @@ const loadQueues = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/queues`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`tenants/${currentTenantId.value}/queues`)
     const response = await fetch(url)
     const result = await response.json()
     

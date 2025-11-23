@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { HomeFilled, Document, Setting, OfficeBuilding, User, Connection, Lock, DataAnalysis } from '@element-plus/icons-vue'
@@ -165,7 +165,12 @@ const currentTenantId = computed({
 // 加载甲方列表
 const loadTenants = async () => {
   try {
-    const res = await getTenants()
+    // 设置超时，避免长时间等待
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('请求超时')), 5000)
+    })
+    
+    const res = await Promise.race([getTenants(), timeoutPromise]) as any
     console.log('getTenants 原始响应：', res)
     
     // 处理多种可能的响应格式
@@ -193,8 +198,10 @@ const loadTenants = async () => {
   } catch (error: any) {
     console.error('加载甲方列表失败：', error)
     console.error('错误详情：', error.response || error.message)
-    ElMessage.error(`加载甲方列表失败: ${error.message || '未知错误'}`)
+    // 不显示错误提示，避免干扰用户，静默失败
+    // ElMessage.error(`加载甲方列表失败: ${error.message || '未知错误'}`)
     tenants.value = []
+    // 即使失败也继续，不影响页面正常使用
   }
 }
 
@@ -234,7 +241,11 @@ const handleCommand = async (command: string) => {
 }
 
 onMounted(() => {
-  loadTenants()
+  // 异步加载甲方列表，不阻塞页面渲染
+  // 使用 nextTick 确保页面先渲染完成
+  nextTick(() => {
+    loadTenants()
+  })
 })
 </script>
 

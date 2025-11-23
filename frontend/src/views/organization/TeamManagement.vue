@@ -282,7 +282,8 @@ const loadAgencies = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/agencies`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`tenants/${currentTenantId.value}/agencies`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -302,7 +303,8 @@ const loadTeamGroups = async (agencyId?: number) => {
   }
 
   try {
-    let url = `http://localhost:8000/api/v1/team-groups?tenant_id=${currentTenantId.value}`
+    const { getApiUrl } = await import('@/config/api')
+    let url = `${getApiUrl('team-groups')}?tenant_id=${currentTenantId.value}`
     
     if (agencyId) {
       url += `&agency_id=${agencyId}`
@@ -326,7 +328,8 @@ const loadQueues = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/queues`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`tenants/${currentTenantId.value}/queues`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -357,7 +360,8 @@ const loadAllTeams = async () => {
     // 遍历所有机构，加载每个机构的小组
     for (const agency of agencies.value) {
       try {
-        const teamsUrl = `http://localhost:8000/api/v1/agencies/${agency.id}/teams`
+        const { getApiUrl } = await import('@/config/api')
+        const teamsUrl = getApiUrl(`agencies/${agency.id}/teams`)
         const teamsResponse = await fetch(teamsUrl)
         const teamsResult = await teamsResponse.json()
         // API直接返回数组，不是{data: [...]}格式
@@ -501,7 +505,8 @@ const handleSave = async () => {
     
     if (isEdit.value && form.value.id) {
       // 更新小组
-      const url = `http://localhost:8000/api/v1/teams/${form.value.id}`
+      const { getApiUrl } = await import('@/config/api')
+      const url = getApiUrl(`teams/${form.value.id}`)
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
@@ -518,7 +523,8 @@ const handleSave = async () => {
       ElMessage.success('更新成功')
     } else {
       // 创建小组
-      const url = `http://localhost:8000/api/v1/teams`
+      const { getApiUrl } = await import('@/config/api')
+      const url = getApiUrl('teams')
       const response = await fetch(url, {
         method: 'POST',
         headers: {

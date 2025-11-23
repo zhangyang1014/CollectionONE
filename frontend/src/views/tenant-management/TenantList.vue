@@ -301,7 +301,8 @@ const handleEdit = async (row: any) => {
   
   // 获取该甲方的管理员账号信息并回显
   try {
-    const response = await fetch(`http://localhost:8000/api/v1/tenants/${row.id}/admin-accounts`)
+    const { getApiUrl } = await import('@/config/api')
+    const response = await fetch(getApiUrl(`tenants/${row.id}/admin-accounts`))
     const accounts = await response.json()
     
     // 如果存在管理员账号，回显第一个账号的信息
@@ -345,9 +346,10 @@ const handleSave = async () => {
   try {
     await formRef.value.validate()
     
+    const { getApiUrl } = await import('@/config/api')
     const url = isEdit.value 
-      ? `http://localhost:8000/api/v1/tenants/${form.value.id}` 
-      : 'http://localhost:8000/api/v1/tenants'
+      ? getApiUrl(`tenants/${form.value.id}`)
+      : getApiUrl('tenants')
     
     const method = isEdit.value ? 'PUT' : 'POST'
     
@@ -397,7 +399,8 @@ const handleSave = async () => {
 // 创建甲方管理员账号
 const createTenantAdmin = async (tenantId: number) => {
   try {
-    const response = await fetch('http://localhost:8000/api/v1/admin-accounts', {
+    const { getApiUrl } = await import('@/config/api')
+    const response = await fetch(getApiUrl('admin-accounts'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -426,7 +429,8 @@ const createTenantAdmin = async (tenantId: number) => {
 const updateTenantAdmin = async (tenantId: number) => {
   try {
     // 先获取现有管理员账号
-    const response = await fetch(`http://localhost:8000/api/v1/tenants/${tenantId}/admin-accounts`)
+    const { getApiUrl } = await import('@/config/api')
+    const response = await fetch(getApiUrl(`tenants/${tenantId}/admin-accounts`))
     const accounts = await response.json()
     
     if (accounts && accounts.length > 0) {
@@ -442,7 +446,8 @@ const updateTenantAdmin = async (tenantId: number) => {
         updateData.password = form.value.admin_password
       }
       
-      await fetch(`http://localhost:8000/api/v1/admin-accounts/${adminId}`, {
+      const { getApiUrl } = await import('@/config/api')
+      await fetch(getApiUrl(`admin-accounts/${adminId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

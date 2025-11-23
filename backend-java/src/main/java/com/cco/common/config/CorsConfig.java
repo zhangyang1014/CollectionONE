@@ -17,17 +17,20 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
     
-    @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    // 直接使用硬编码值，避免配置依赖
+    private final List<String> allowedOrigins = Arrays.asList(
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:8080"
+    );
     
-    @Value("${app.cors.allowed-methods}")
-    private List<String> allowedMethods;
+    private final List<String> allowedMethods = Arrays.asList(
+        "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
+    );
     
-    @Value("${app.cors.allowed-headers}")
-    private List<String> allowedHeaders;
+    private final List<String> allowedHeaders = List.of("*");
     
-    @Value("${app.cors.exposed-headers}")
-    private List<String> exposedHeaders;
+    private final List<String> exposedHeaders = List.of("*");
     
     @Value("${app.cors.allow-credentials}")
     private Boolean allowCredentials;

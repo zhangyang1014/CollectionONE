@@ -293,7 +293,8 @@ const loadAgencies = async () => {
   }
 
   try {
-    const url = `http://localhost:8000/api/v1/tenants/${currentTenantId.value}/agencies`
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`tenants/${currentTenantId.value}/agencies`)
     const response = await fetch(url)
     const result = await response.json()
     
@@ -350,7 +351,8 @@ const handleEdit = async (row: any) => {
   
   // 获取该机构的管理员账号信息并回显
   try {
-    const response = await fetch(`http://localhost:8000/api/v1/agencies/${row.id}/admin-accounts`)
+    const { getApiUrl } = await import('@/config/api')
+    const response = await fetch(getApiUrl(`agencies/${row.id}/admin-accounts`))
     const accounts = await response.json()
     
     // 如果存在管理员账号，回显第一个账号的信息

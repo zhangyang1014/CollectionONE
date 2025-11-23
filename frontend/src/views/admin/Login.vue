@@ -103,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -246,13 +246,31 @@ const handleLogin = async () => {
       const userInfo = response.data.user
       const token = response.data.token
       
+      // 先保存到localStorage（确保路由守卫能立即读取到）
       userStore.setToken(token)
       userStore.setUserInfo(userInfo)
 
       ElMessage.success('登录成功')
       
+      // 确保状态已更新，使用 nextTick 等待 Vue 响应式更新完成
+      await nextTick()
+      
+      // 再次确认登录状态（从 localStorage 恢复，确保路由守卫能读取到）
+      if (typeof userStore.initFromStorage === 'function') {
+        userStore.initFromStorage()
+      }
+      
+      console.log('[Admin Login] 登录成功，准备跳转，当前状态:', {
+        hasToken: !!userStore.token,
+        hasUserInfo: !!userStore.userInfo
+      })
+      
       // 跳转到工作台
-      router.push('/dashboard')
+      router.push('/dashboard').then(() => {
+        console.log('[Admin Login] 路由跳转成功')
+      }).catch((error) => {
+        console.error('[Admin Login] 路由跳转失败:', error)
+      })
     } else {
       throw new Error(response.message || '登录失败')
     }

@@ -76,6 +76,45 @@
               <span class="contact-phone">{{ contact.phone_last4 }}</span>
             </div>
           </div>
+          <!-- 电话状态图标（只显示有电话渠道的联系人） -->
+          <div class="contact-phone-status" v-if="contact.channels && contact.channels.includes('call') && contact.phoneStatus">
+            <!-- 未拨打：绿色电话 -->
+            <el-icon 
+              v-if="contact.phoneStatus === 'never_called'" 
+              class="phone-status-icon phone-status-never-called"
+              :size="18"
+              :title="'未拨打'"
+            >
+              <Phone />
+            </el-icon>
+            <!-- 从未接通：空心电话 -->
+            <el-icon 
+              v-else-if="contact.phoneStatus === 'never_connected'" 
+              class="phone-status-icon phone-status-never-connected"
+              :size="18"
+              :title="'从未接通'"
+            >
+              <Phone />
+            </el-icon>
+            <!-- 播过且接通：对号 -->
+            <el-icon 
+              v-else-if="contact.phoneStatus === 'connected'" 
+              class="phone-status-icon phone-status-connected"
+              :size="18"
+              :title="'已接通'"
+            >
+              <CircleCheck />
+            </el-icon>
+            <!-- 号码不存在：电话上打x -->
+            <el-icon 
+              v-else-if="contact.phoneStatus === 'invalid_number'" 
+              class="phone-status-icon phone-status-invalid"
+              :size="18"
+              :title="'号码不存在'"
+            >
+              <CircleCloseFilled />
+            </el-icon>
+          </div>
         </div>
       </div>
       
@@ -1076,6 +1115,7 @@
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { makeCall } from '@/api/infinity'
+import { getContactPhoneStatus } from '@/api/case'
 import { useUserStore } from '@/stores/user'
 import { 
   User, Plus, Document, Picture, Orange, Promotion, ChatDotRound, 
@@ -1099,7 +1139,8 @@ const contacts = ref([
     phone_last4: (props.caseData?.mobile_number || '').slice(-4),
     relation: '本人',
     channels: ['whatsapp', 'sms', 'call'],
-    relation_level: 0 // 关联度
+    relation_level: 0, // 关联度
+    phoneStatus: null as string | null // 电话状态：never_called, never_connected, connected, invalid_number
   },
   // Mock联系人数据 - BTSK案件
   {
@@ -1109,7 +1150,8 @@ const contacts = ref([
     phone_last4: '3210',
     relation: '配偶',
     channels: ['whatsapp', 'call'],
-    relation_level: 0 // 关联度
+    relation_level: 0, // 关联度
+    phoneStatus: null as string | null
   },
   {
     id: 3,
@@ -1118,7 +1160,8 @@ const contacts = ref([
     phone_last4: '4321',
     relation: '朋友',
     channels: ['whatsapp', 'sms'],
-    relation_level: 0 // 关联度
+    relation_level: 0, // 关联度
+    phoneStatus: null as string | null
   },
   // Mock联系人数据 - BTQ案件（用于模拟不同案件）
   {
@@ -1128,7 +1171,8 @@ const contacts = ref([
     phone_last4: '5678',
     relation: '本人',
     channels: ['whatsapp', 'sms', 'call'],
-    relation_level: 0 // 关联度
+    relation_level: 0, // 关联度
+    phoneStatus: null as string | null
   },
   {
     id: 5,
@@ -1137,7 +1181,8 @@ const contacts = ref([
     phone_last4: '6789',
     relation: '配偶',
     channels: ['whatsapp', 'sms'],
-    relation_level: 0 // 关联度
+    relation_level: 0, // 关联度
+    phoneStatus: null as string | null
   },
   {
     id: 6,
@@ -1146,7 +1191,8 @@ const contacts = ref([
     phone_last4: '7890',
     relation: '朋友',
     channels: ['whatsapp', 'call'],
-    relation_level: 0 // 关联度
+    relation_level: 0, // 关联度
+    phoneStatus: null as string | null
   }
 ])
 
@@ -2693,6 +2739,55 @@ onUnmounted(() => {
   }
 })
 
+// 获取联系人电话状态
+const fetchContactPhoneStatuses = async () => {
+  if (!props.caseData?.id) {
+    return
+  }
+  
+  const caseId = props.caseData.id
+  
+  // 为每个联系人获取电话状态
+  for (const contact of contacts.value) {
+    try {
+      // 只获取有电话渠道的联系人状态
+      if (contact.channels && contact.channels.includes('call')) {
+        // 确保传递有效的参数
+        const contactId = contact.id
+        const phoneNumber = contact.phone || ''
+        
+        // 调试日志
+        console.log(`[电话状态] 联系人: ${contact.name}, ID: ${contactId}, Phone: ${phoneNumber}`)
+        
+        if (!contactId && !phoneNumber) {
+          console.warn(`联系人 ${contact.name} 缺少ID和电话号码，跳过获取电话状态`)
+          continue
+        }
+        
+        const statusData = await getContactPhoneStatus(
+          caseId,
+          contactId,
+          phoneNumber
+        )
+        
+        if (statusData && statusData.status) {
+          contact.phoneStatus = statusData.status
+        } else {
+          // 默认状态：未拨打
+          contact.phoneStatus = 'never_called'
+        }
+      } else {
+        // 没有电话渠道的联系人，不显示电话状态
+        contact.phoneStatus = null
+      }
+    } catch (error) {
+      console.error(`获取联系人 ${contact.id} 的电话状态失败:`, error)
+      // 出错时默认显示未拨打状态
+      contact.phoneStatus = 'never_called'
+    }
+  }
+}
+
 // 监听案件变化
 watch(() => props.caseData?.id, () => {
   // 更新本人联系人信息
@@ -2703,7 +2798,8 @@ watch(() => props.caseData?.id, () => {
       phone: props.caseData?.mobile_number || '',
       phone_last4: (props.caseData?.mobile_number || '').slice(-4),
       relation: '本人',
-      channels: ['whatsapp', 'sms', 'call']
+      channels: ['whatsapp', 'sms', 'call'],
+      phoneStatus: null // 初始状态，稍后获取
     }
   }
   // 自动选中本人联系人
@@ -2713,6 +2809,8 @@ watch(() => props.caseData?.id, () => {
     updateContactMethod()
     updateContactInfo()
   }
+  // 获取所有联系人的电话状态
+  fetchContactPhoneStatuses()
 }, { immediate: true })
 
 // 切换联系人和渠道的方法（供父组件调用）
@@ -2879,6 +2977,9 @@ defineExpose({
 .contact-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .contact-relation-row {
@@ -2923,6 +3024,61 @@ defineExpose({
 .contact-phone {
   color: #909399;
   flex-shrink: 0;
+}
+
+/* 电话状态图标 */
+.contact-phone-status {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+.phone-status-icon {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* 未拨打：绿色电话 */
+.phone-status-never-called {
+  color: #67C23A;
+}
+
+.phone-status-never-called:hover {
+  color: #85ce61;
+  transform: scale(1.1);
+}
+
+/* 从未接通：空心电话（灰色） */
+.phone-status-never-connected {
+  color: #909399;
+  opacity: 0.6;
+}
+
+.phone-status-never-connected:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* 播过且接通：对号（绿色） */
+.phone-status-connected {
+  color: #67C23A;
+}
+
+.phone-status-connected:hover {
+  color: #85ce61;
+  transform: scale(1.1);
+}
+
+/* 号码不存在：电话上打x（红色） */
+.phone-status-invalid {
+  color: #F56C6C;
+}
+
+.phone-status-invalid:hover {
+  color: #f78989;
+  transform: scale(1.1);
 }
 
 .add-contact-btn {

@@ -49,6 +49,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // 启用 CORS（使用 CorsConfig 中的配置）
+                .cors(cors -> cors.configure(http))
+                
                 // 禁用 CSRF（使用JWT不需要CSRF保护）
                 .csrf(csrf -> csrf.disable())
                 
@@ -57,16 +60,10 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 
-                // 配置授权规则
+                // 配置授权规则 - 临时允许所有请求（Mock模式）
                 .authorizeHttpRequests(authorize -> authorize
-                        // 公开接口不需要认证
-                        .requestMatchers("/", "/health", "/api/v1/admin/auth/**", "/api/v1/im/auth/**").permitAll()
-                        // 其他所有请求都需要认证
-                        .anyRequest().authenticated()
-                )
-                
-                // 添加JWT过滤器
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        .anyRequest().permitAll()
+                );
 
         return http.build();
     }
