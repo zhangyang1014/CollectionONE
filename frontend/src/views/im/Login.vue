@@ -18,7 +18,7 @@
         class="login-form"
         @submit.prevent="handleLogin"
       >
-        <el-form-item prop="tenantId">
+        <el-form-item prop="tenantId" label="">
           <el-input
             v-model="loginForm.tenantId"
             placeholder="请输入机构ID"
@@ -31,7 +31,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="collectorId">
+        <el-form-item prop="collectorId" label="">
           <el-input
             v-model="loginForm.collectorId"
             placeholder="请输入催员ID"
@@ -44,7 +44,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="password">
+        <el-form-item prop="password" label="">
           <el-input
             v-model="loginForm.password"
             type="password"
@@ -59,7 +59,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="captcha">
+        <el-form-item prop="captcha" label="">
           <div class="captcha-row">
             <el-input
               v-model="loginForm.captcha"
@@ -81,7 +81,7 @@
           </div>
         </el-form-item>
 
-        <el-form-item>
+        <el-form-item label="">
           <!-- 人脸识别区域 -->
           <div class="face-recognition-section">
             <div class="face-camera-container">
@@ -144,7 +144,7 @@
           </div>
         </el-form-item>
 
-        <el-form-item>
+        <el-form-item label="">
           <el-button
             type="primary"
             size="large"

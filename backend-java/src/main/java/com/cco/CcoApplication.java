@@ -1,5 +1,6 @@
 package com.cco;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -10,7 +11,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @version 1.0.0
  */
 @SpringBootApplication(exclude = {
-    org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class
+    org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+    com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration.class
 })
 public class CcoApplication {
 

@@ -1,0 +1,16 @@
+package com.cco.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.cco.model.entity.CaseContact;
+import org.apache.ibatis.annotations.Mapper;
+
+/**
+ * 案件联系人Mapper
+ * 对应Python: app/models/case_contact.py
+ */
+@Mapper
+public interface CaseContactMapper extends BaseMapper<CaseContact> {
+    
+}
+
+

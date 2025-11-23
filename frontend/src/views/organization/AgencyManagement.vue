@@ -112,8 +112,8 @@
 
         <el-form-item label="机构类型" prop="agency_type">
           <el-radio-group v-model="form.agency_type">
-            <el-radio label="real">真实机构</el-radio>
-            <el-radio label="virtual">虚拟机构</el-radio>
+            <el-radio value="real">真实机构</el-radio>
+            <el-radio value="virtual">虚拟机构</el-radio>
           </el-radio-group>
         </el-form-item>
 

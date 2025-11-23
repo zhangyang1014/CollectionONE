@@ -393,12 +393,65 @@ CREATE TABLE IF NOT EXISTS `public_notifications` (
     KEY `idx_agency_id` (`agency_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='公共通知表';
 
--- 注意：还有其他16个表（案件字段值表、案件联系人表、沟通记录表、PTP记录表、质检记录表等）
--- 这里为了简洁，只列出了核心的15个表
--- 在实际部署时，需要根据Python模型创建完整的31个表
+-- 16. 案件联系人表
+CREATE TABLE IF NOT EXISTS `case_contacts` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `case_id` BIGINT NOT NULL COMMENT '案件ID',
+    `contact_name` VARCHAR(100) NOT NULL COMMENT '联系人姓名',
+    `phone_number` VARCHAR(50) NOT NULL COMMENT '联系电话',
+    `relation` VARCHAR(50) NOT NULL COMMENT '关系（本人/配偶/朋友/同事/家人等）',
+    `is_primary` TINYINT(1) DEFAULT 0 COMMENT '是否本人',
+    `available_channels` JSON COMMENT '可用通信渠道，格式：["whatsapp", "sms", "call"]',
+    `remark` VARCHAR(500) COMMENT '备注',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_case_id` (`case_id`),
+    KEY `idx_is_primary` (`is_primary`),
+    CONSTRAINT `fk_case_contact_case` FOREIGN KEY (`case_id`) REFERENCES `cases` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='案件联系人表';
 
--- 创建索引优化查询性能
-ALTER TABLE `tenants` ADD INDEX `idx_created_at` (`created_at`);
-ALTER TABLE `cases` ADD INDEX `idx_created_at` (`created_at`);
-ALTER TABLE `collectors` ADD INDEX `idx_created_at` (`created_at`);
+-- 17. 通信记录表
+CREATE TABLE IF NOT EXISTS `communication_records` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `case_id` BIGINT NOT NULL COMMENT '案件ID',
+    `collector_id` BIGINT NOT NULL COMMENT '催员ID',
+    `contact_person_id` BIGINT COMMENT '联系人ID（本人或其他联系人）',
+    `channel` VARCHAR(50) NOT NULL COMMENT '通信渠道: phone, whatsapp, sms, rcs',
+    `direction` VARCHAR(20) NOT NULL COMMENT '通信方向: inbound, outbound',
+    `supplier_id` BIGINT COMMENT '供应商ID（标识使用的外呼供应商）',
+    `infinity_extension_number` VARCHAR(50) COMMENT 'Infinity返回的分机号',
+    `call_uuid` VARCHAR(100) COMMENT 'Infinity返回的通话唯一标识',
+    `custom_params` JSON COMMENT '自定义参数（JSON格式）',
+    `call_duration` INT COMMENT '通话时长（秒）- 电话专属',
+    `is_connected` TINYINT(1) COMMENT '是否接通 - 电话专属',
+    `call_record_url` VARCHAR(500) COMMENT '录音链接 - 电话专属',
+    `is_replied` TINYINT(1) COMMENT '是否回复 - 消息专属（WhatsApp/SMS/RCS）',
+    `message_content` TEXT COMMENT '消息内容 - 消息专属',
+    `contact_result` VARCHAR(50) COMMENT '联系结果: contacted(可联), connected(已接通), not_connected(未接通), refused(拒绝), invalid_number(无效号码) 等',
+    `ttfc_seconds` INT COMMENT '首次触达时长（秒，从案件分配到首次有效触达）',
+    `remark` TEXT COMMENT '备注',
+    `contacted_at` DATETIME NOT NULL COMMENT '触达时间',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_case_id` (`case_id`),
+    KEY `idx_collector_id` (`collector_id`),
+    KEY `idx_contact_person_id` (`contact_person_id`),
+    KEY `idx_channel` (`channel`),
+    KEY `idx_contact_result` (`contact_result`),
+    KEY `idx_contacted_at` (`contacted_at`),
+    CONSTRAINT `fk_communication_case` FOREIGN KEY (`case_id`) REFERENCES `cases` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_communication_collector` FOREIGN KEY (`collector_id`) REFERENCES `collectors` (`id`),
+    CONSTRAINT `fk_communication_contact` FOREIGN KEY (`contact_person_id`) REFERENCES `case_contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='通信记录表';
+
+-- 注意：还有其他表（案件字段值表、PTP记录表、质检记录表等）
+-- 这里为了简洁，只列出了核心的表
+-- 在实际部署时，需要根据Python模型创建完整的表结构
+
+-- 创建索引优化查询性能（如果索引不存在，需要手动检查）
+-- ALTER TABLE `tenants` ADD INDEX `idx_created_at` (`created_at`);
+-- ALTER TABLE `cases` ADD INDEX `idx_created_at` (`created_at`);
+-- ALTER TABLE `collectors` ADD INDEX `idx_created_at` (`created_at`);
 

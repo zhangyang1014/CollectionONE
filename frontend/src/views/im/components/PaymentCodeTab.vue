@@ -11,10 +11,10 @@
     <!-- 筛选器 -->
     <div class="filter-bar">
       <el-radio-group v-model="filterStatus" @change="loadPaymentCodes">
-        <el-radio-button label="">全部</el-radio-button>
-        <el-radio-button label="PENDING">待支付</el-radio-button>
-        <el-radio-button label="PAID">已支付</el-radio-button>
-        <el-radio-button label="EXPIRED">已过期</el-radio-button>
+        <el-radio-button value="">全部</el-radio-button>
+        <el-radio-button value="PENDING">待支付</el-radio-button>
+        <el-radio-button value="PAID">已支付</el-radio-button>
+        <el-radio-button value="EXPIRED">已过期</el-radio-button>
       </el-radio-group>
     </div>
 
@@ -36,7 +36,7 @@
             <div>
               <div class="channel-name">{{ row.channel_name }}</div>
               <el-tag size="small" :type="getTypeTag(row.payment_type)">
-                {{ PAYMENT_TYPE_TEXT[row.payment_type] }}
+                {{ PAYMENT_TYPE_TEXT[row.payment_type as PaymentType] || row.payment_type }}
               </el-tag>
             </div>
           </div>
@@ -60,8 +60,8 @@
 
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
-          <el-tag :type="PAYMENT_STATUS_TAG_TYPE[row.status]">
-            {{ PAYMENT_STATUS_TEXT[row.status] }}
+          <el-tag :type="(PAYMENT_STATUS_TAG_TYPE[row.status as PaymentStatus] || 'info') as any">
+            {{ PAYMENT_STATUS_TEXT[row.status as PaymentStatus] || row.status }}
           </el-tag>
           <div v-if="row.status === 'PENDING' && row.remaining_seconds" class="countdown">
             <el-icon><Timer /></el-icon>
@@ -212,7 +212,7 @@
           <div>
             <div class="detail-channel-name">{{ currentDetail.channel_name }}</div>
             <el-tag :type="getTypeTag(currentDetail.payment_type)">
-              {{ PAYMENT_TYPE_TEXT[currentDetail.payment_type] }}
+              {{ PAYMENT_TYPE_TEXT[currentDetail.payment_type as PaymentType] || currentDetail.payment_type }}
             </el-tag>
           </div>
         </div>
@@ -266,8 +266,8 @@
           </div>
           <div class="info-item">
             <span class="label">状态：</span>
-            <el-tag :type="PAYMENT_STATUS_TAG_TYPE[currentDetail.status]">
-              {{ PAYMENT_STATUS_TEXT[currentDetail.status] }}
+            <el-tag :type="(PAYMENT_STATUS_TAG_TYPE[currentDetail.status as PaymentStatus] || 'info') as any">
+              {{ PAYMENT_STATUS_TEXT[currentDetail.status as PaymentStatus] || currentDetail.status }}
             </el-tag>
           </div>
           <div class="info-item">
@@ -558,7 +558,7 @@ const getTypeTag = (type: string) => {
     H5: 'primary',
     QR: 'warning'
   }
-  return map[type] || ''
+  return map[type] || 'info' // 默认返回 'info' 而不是空字符串
 }
 
 onMounted(() => {

@@ -13,6 +13,9 @@
       fixed="left"
     />
 
+    <!-- 前置自定义列 -->
+    <slot name="prepend-columns" />
+
     <!-- 动态列 -->
     <el-table-column
       v-for="column in effectiveColumns"

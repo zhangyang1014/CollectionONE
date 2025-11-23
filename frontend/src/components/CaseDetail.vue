@@ -364,14 +364,14 @@
     <!-- 查看手机号原因弹窗 -->
     <el-dialog v-model="phoneReasonDialogVisible" title="请选择查看客户手机号原因" width="450px" align-center>
       <el-form :model="phoneReasonForm" label-position="top">
-        <el-form-item label="查看原因">
+        <el-form-item label="查看原因" prop="reason">
           <el-radio-group v-model="phoneReasonForm.reason">
             <el-radio value="facebook">Facebook查询</el-radio>
             <el-radio value="social_security">社保查询</el-radio>
             <el-radio value="other">其他</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="phoneReasonForm.reason === 'other'" label="请说明原因" required>
+        <el-form-item v-if="phoneReasonForm.reason === 'other'" label="请说明原因" prop="otherReason" required>
           <el-input 
             v-model="phoneReasonForm.otherReason" 
             type="textarea" 

@@ -385,8 +385,8 @@
       <el-form :model="form" label-width="140px">
         <el-form-item label="字段来源" v-if="!form.id">
           <el-radio-group v-model="form.field_source" disabled>
-            <el-radio label="standard">标准字段</el-radio>
-            <el-radio label="custom">自定义字段</el-radio>
+            <el-radio value="standard">标准字段</el-radio>
+            <el-radio value="custom">自定义字段</el-radio>
           </el-radio-group>
         </el-form-item>
 

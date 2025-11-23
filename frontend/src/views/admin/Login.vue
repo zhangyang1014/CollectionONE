@@ -18,7 +18,7 @@
         class="login-form"
         @submit.prevent="handleLogin"
       >
-        <el-form-item prop="loginId">
+        <el-form-item prop="loginId" label="">
           <el-input
             v-model="loginForm.loginId"
             placeholder="请输入登录ID"
@@ -31,7 +31,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="password">
+        <el-form-item prop="password" label="">
           <el-input
             v-model="loginForm.password"
             type="password"
@@ -46,7 +46,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="captcha">
+        <el-form-item prop="captcha" label="">
           <div class="captcha-row">
             <el-input
               v-model="loginForm.captcha"
@@ -68,7 +68,7 @@
           </div>
         </el-form-item>
 
-        <el-form-item>
+        <el-form-item label="">
           <el-button
             type="primary"
             size="large"

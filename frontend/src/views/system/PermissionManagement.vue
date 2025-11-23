@@ -14,14 +14,14 @@
       <!-- 角色选择器 -->
       <div class="role-selector">
         <el-radio-group v-model="selectedRole" @change="handleRoleChange">
-          <el-radio-button label="all">全部角色</el-radio-button>
-          <el-radio-button label="SUPER_ADMIN">超级管理员</el-radio-button>
-          <el-radio-button label="TENANT_ADMIN">甲方管理员</el-radio-button>
-          <el-radio-button label="AGENCY_ADMIN">机构管理员</el-radio-button>
-          <el-radio-button label="TEAM_LEADER">小组长</el-radio-button>
-          <el-radio-button label="QUALITY_INSPECTOR">质检员</el-radio-button>
-          <el-radio-button label="DATA_SOURCE">数据源</el-radio-button>
-          <el-radio-button label="COLLECTOR">催员</el-radio-button>
+          <el-radio-button value="all">全部角色</el-radio-button>
+          <el-radio-button value="SUPER_ADMIN">超级管理员</el-radio-button>
+          <el-radio-button value="TENANT_ADMIN">甲方管理员</el-radio-button>
+          <el-radio-button value="AGENCY_ADMIN">机构管理员</el-radio-button>
+          <el-radio-button value="TEAM_LEADER">小组长</el-radio-button>
+          <el-radio-button value="QUALITY_INSPECTOR">质检员</el-radio-button>
+          <el-radio-button value="DATA_SOURCE">数据源</el-radio-button>
+          <el-radio-button value="COLLECTOR">催员</el-radio-button>
         </el-radio-group>
       </div>
 

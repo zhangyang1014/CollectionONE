@@ -199,9 +199,9 @@
 
           <el-form-item label="分配层级" prop="target_level">
             <el-radio-group v-model="formData.target_level">
-              <el-radio label="agency">机构</el-radio>
-              <el-radio label="team">小组</el-radio>
-              <el-radio label="collector">催员</el-radio>
+              <el-radio value="agency">机构</el-radio>
+              <el-radio value="team">小组</el-radio>
+              <el-radio value="collector">催员</el-radio>
             </el-radio-group>
           </el-form-item>
 
@@ -243,8 +243,8 @@
 
           <el-form-item label="分配方式" prop="assignment_mode">
             <el-radio-group v-model="formData.assignment_mode">
-              <el-radio label="by_count">按数量平均</el-radio>
-              <el-radio label="by_amount">按金额平均</el-radio>
+              <el-radio value="by_count">按数量平均</el-radio>
+              <el-radio value="by_amount">按金额平均</el-radio>
             </el-radio-group>
           </el-form-item>
 
@@ -257,9 +257,9 @@
 
           <el-form-item label="粘连粒度" v-if="formData.enable_stickiness">
             <el-radio-group v-model="formData.stickiness_level">
-              <el-radio label="customer">同客户</el-radio>
-              <el-radio label="customer_product" disabled>同客户+产品（阶段三）</el-radio>
-              <el-radio label="customer_merchant" disabled>同客户+商户（阶段三）</el-radio>
+              <el-radio value="customer">同客户</el-radio>
+              <el-radio value="customer_product" disabled>同客户+产品（阶段三）</el-radio>
+              <el-radio value="customer_merchant" disabled>同客户+商户（阶段三）</el-radio>
             </el-radio-group>
           </el-form-item>
 
@@ -273,9 +273,9 @@
 
           <el-form-item label="容量限制模式" prop="capacity_mode">
             <el-radio-group v-model="formData.capacity_mode">
-              <el-radio label="hard">硬限制（严格上限）</el-radio>
-              <el-radio label="soft">软限制（允许超10%）</el-radio>
-              <el-radio label="unlimited">无限制（仅统计）</el-radio>
+              <el-radio value="hard">硬限制（严格上限）</el-radio>
+              <el-radio value="soft">软限制（允许超10%）</el-radio>
+              <el-radio value="unlimited">无限制（仅统计）</el-radio>
             </el-radio-group>
           </el-form-item>
 

@@ -14,9 +14,9 @@
       <!-- 筛选器 -->
       <div class="filter-bar">
         <el-radio-group v-model="filterStatus" @change="loadChannels">
-          <el-radio-button label="">全部</el-radio-button>
-          <el-radio-button :label="true">已启用</el-radio-button>
-          <el-radio-button :label="false">已禁用</el-radio-button>
+          <el-radio-button value="">全部</el-radio-button>
+          <el-radio-button :value="true">已启用</el-radio-button>
+          <el-radio-button :value="false">已禁用</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -139,8 +139,8 @@
 
         <el-form-item label="请求方法" prop="api_method">
           <el-radio-group v-model="formData.api_method">
-            <el-radio label="POST">POST</el-radio>
-            <el-radio label="GET">GET</el-radio>
+            <el-radio value="POST">POST</el-radio>
+            <el-radio value="GET">GET</el-radio>
           </el-radio-group>
         </el-form-item>
 

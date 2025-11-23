@@ -135,12 +135,12 @@
             <div class="notification-filters">
               <el-scrollbar>
                 <el-radio-group v-model="notificationFilter" size="small" class="filter-group">
-                  <el-radio-button label="all">全部</el-radio-button>
-                  <el-radio-button label="unreplied">案件有待回复信息</el-radio-button>
-                  <el-radio-button label="nudge">催办机制</el-radio-button>
-                  <el-radio-button label="case_update">案件信息更新</el-radio-button>
-                  <el-radio-button label="performance">组织绩效通知</el-radio-button>
-                  <el-radio-button label="timeout">长时间未响应</el-radio-button>
+                  <el-radio-button value="all">全部</el-radio-button>
+                  <el-radio-button value="unreplied">案件有待回复信息</el-radio-button>
+                  <el-radio-button value="nudge">催办机制</el-radio-button>
+                  <el-radio-button value="case_update">案件信息更新</el-radio-button>
+                  <el-radio-button value="performance">组织绩效通知</el-radio-button>
+                  <el-radio-button value="timeout">长时间未响应</el-radio-button>
                 </el-radio-group>
               </el-scrollbar>
             </div>
@@ -424,6 +424,7 @@
           </div>
 
           <DynamicCaseTable
+            :key="tableKey"
             :data="paginatedCases"
             :columns="getTableColumns()"
             :loading="configLoading"
@@ -434,6 +435,33 @@
             :row-class-name="getRowClassName"
             highlight-current-row
           >
+            <!-- 联系状态颜色块列 -->
+            <template #prepend-columns>
+              <el-table-column 
+                label="C" 
+                width="32" 
+                align="center"
+                class-name="contact-status-column"
+              >
+                <template #default="{ row }">
+                  <div class="contact-status-blocks">
+                    <!-- 电话状态块 -->
+                    <div 
+                      class="status-block phone-block"
+                      :class="getPhoneStatusClassReactive(row)"
+                      :title="getPhoneStatusTitleReactive(row)"
+                    ></div>
+                    <!-- WA状态块 -->
+                    <div 
+                      class="status-block wa-block"
+                      :class="getWAStatusClassReactive(row)"
+                      :title="getWAStatusTitleReactive(row)"
+                    ></div>
+                  </div>
+                </template>
+              </el-table-column>
+            </template>
+
             <!-- 自定义贷款编号 - 显示未读消息标记 -->
             <template #cell-loan_id="{ row }">
               <div class="loan-id-cell">
@@ -576,6 +604,7 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezonePlugin from 'dayjs/plugin/timezone'
 import { getTimezoneByTenantId } from '@/utils/timezone'
+import imRequest from '@/utils/imRequest'
 
 dayjs.extend(utc)
 dayjs.extend(timezonePlugin)
@@ -614,6 +643,9 @@ const {
 
 // IMPanel引用
 const imPanelRef = ref<any>(null)
+
+// 表格刷新key（用于强制重新渲染）
+const tableKey = ref(Date.now())
 
 // 时区和时间 - 两个时区
 // 我的时区（催员机构时区）
@@ -1356,6 +1388,34 @@ const paginatedCases = computed(() => {
   return filteredCases.value.slice(start, end)
 })
 
+// 监听分页变化，加载新页的通信记录
+watch(() => pagination.value.page, () => {
+  nextTick(() => {
+    loadCurrentPageCommunications()
+  })
+})
+
+// 监听筛选结果变化，加载新页的通信记录
+watch(() => filteredCases.value, () => {
+  nextTick(() => {
+    loadCurrentPageCommunications()
+  })
+}, { deep: false })
+
+// 监听分页变化，加载新页的通信记录
+watch(() => pagination.value.page, () => {
+  nextTick(() => {
+    loadCurrentPageCommunications()
+  })
+})
+
+// 监听筛选结果变化，加载新页的通信记录
+watch(() => filteredCases.value, () => {
+  nextTick(() => {
+    loadCurrentPageCommunications()
+  })
+}, { deep: false })
+
 // 方法
 const handleLanguageChange = (lang: string) => {
   currentLanguage.value = languageMap[lang]
@@ -1452,6 +1512,428 @@ const getOverdueType = (days: number) => {
 
 // 未读消息状态映射（loan_id -> hasUnread）
 const unreadMessagesMap = ref<Record<string, boolean>>({})
+
+// 通信记录映射（caseId -> records[]）
+const communicationRecordsMap = ref<Record<string, any[]>>({})
+
+// 案件状态映射（caseId -> { phoneStatus, waStatus }）- 响应式状态缓存
+const caseStatusMap = computed(() => {
+  const statusMap: Record<string, { phoneStatus: string, waStatus: string }> = {}
+  
+  // 遍历所有案件，计算状态
+  paginatedCases.value.forEach((row: Case) => {
+    const caseId = row.id || row.case_id
+    if (!caseId) return
+    
+    const records = communicationRecordsMap.value[caseId] || []
+    
+    // 特殊调试：BT0001_CASE_001
+    const isDebugCase = row.loan_id && row.loan_id.includes('BT0001_CASE_001')
+    if (isDebugCase) {
+      console.log(`[状态映射] ===== 计算案件 ${row.loan_id} (ID: ${caseId}) =====`)
+      console.log(`[状态映射] 通信记录数: ${records.length}`)
+      if (records.length > 0) {
+        console.log(`[状态映射] 所有记录:`, records.map((r: any) => ({
+          id: r.id,
+          channel: r.channel,
+          contact_result: r.contact_result,
+          contact_person_id: r.contact_person_id,
+          contact_person: r.contact_person
+        })))
+      }
+    }
+    
+    // 计算电话状态
+    let phoneStatus = 'none'
+    if (records.length > 0) {
+      const phoneRecords = records.filter((record: any) => {
+        if (record.channel !== 'phone' && record.channel !== 'call') return false
+        if (!record.contact_person_id) return true
+        if (record.contact_person && record.contact_person.is_primary) return true
+        if (record.contact_person && record.contact_person.relation === '本人') return true
+        return false
+      })
+      
+      if (isDebugCase) {
+        console.log(`[状态映射] 电话记录数: ${phoneRecords.length}`)
+        if (phoneRecords.length > 0) {
+          console.log(`[状态映射] 电话记录详情:`, phoneRecords.map((r: any) => ({
+            id: r.id,
+            channel: r.channel,
+            contact_result: r.contact_result,
+            contact_person_id: r.contact_person_id
+          })))
+        }
+      }
+      
+      if (phoneRecords.length > 0) {
+        const hasContactable = phoneRecords.some((r: any) => r.contact_result === 'contacted')
+        phoneStatus = hasContactable ? 'contactable' : 'called'
+        
+        if (isDebugCase) {
+          console.log(`[状态映射] 是否有可联记录: ${hasContactable}`)
+          console.log(`[状态映射] 所有 contact_result 值:`, phoneRecords.map((r: any) => r.contact_result))
+          console.log(`[状态映射] 最终电话状态: ${phoneStatus}`)
+        }
+      }
+    }
+    
+    // 计算WA状态
+    let waStatus = 'none'
+    if (records.length > 0) {
+      const waRecords = records.filter((record: any) => {
+        if (record.channel !== 'whatsapp' && record.channel !== 'wa') return false
+        if (!record.contact_person_id) return true
+        if (record.contact_person && record.contact_person.is_primary) return true
+        if (record.contact_person && record.contact_person.relation === '本人') return true
+        return false
+      })
+      
+      if (waRecords.length > 0) {
+        const hasReply = waRecords.some((r: any) => r.is_replied === true || r.direction === 'inbound')
+        waStatus = hasReply ? 'replied' : 'sent'
+      }
+    }
+    
+    statusMap[caseId] = { phoneStatus, waStatus }
+    
+    if (isDebugCase) {
+      console.log(`[状态映射] 最终状态:`, statusMap[caseId])
+    }
+  })
+  
+  return statusMap
+})
+
+// 加载案件的通信记录
+const loadCaseCommunications = async (caseId: number | string, forceRefresh: boolean = false) => {
+  try {
+    const caseIdNum = typeof caseId === 'string' ? parseInt(caseId) : caseId
+    if (isNaN(caseIdNum)) return []
+    
+    // 如果已经缓存且不是强制刷新，直接返回
+    if (!forceRefresh && communicationRecordsMap.value[caseIdNum]) {
+      return communicationRecordsMap.value[caseIdNum]
+    }
+    
+    // 获取通信记录
+    const res: any = await imRequest({
+      url: `/api/v1/communications/case/${caseIdNum}`,
+      method: 'get'
+    })
+    
+    // 处理不同的响应格式
+    let records: any[] = []
+    if (Array.isArray(res)) {
+      records = res
+    } else if (res.data && Array.isArray(res.data)) {
+      records = res.data
+    } else if (res.data && res.data.items && Array.isArray(res.data.items)) {
+      records = res.data.items
+    } else if (res.items && Array.isArray(res.items)) {
+      records = res.items
+    }
+    
+    console.log(`[通信记录] 案件 ${caseIdNum} 加载完成，记录数: ${records.length}`, records)
+    
+    // 特殊检查：如果是 BT0001_CASE_005，输出详细信息
+    const caseItem = cases.value.find((c: any) => (c.id || c.case_id) === caseIdNum)
+    if (caseItem && caseItem.loan_id && caseItem.loan_id.includes('BT0001_CASE_005')) {
+      console.log(`[通信记录] ===== 检查案件 BT0001_CASE_005 =====`)
+      console.log(`  案件ID: ${caseIdNum}`)
+      console.log(`  loan_id: ${caseItem.loan_id}`)
+      console.log(`  查询到的记录数: ${records.length}`)
+      console.log(`  记录详情:`, records)
+    }
+    
+    // 缓存结果（即使是空数组也要缓存，避免重复请求）
+    communicationRecordsMap.value[caseIdNum] = records
+    return records
+  } catch (error) {
+    console.error(`加载案件 ${caseId} 的通信记录失败:`, error)
+    // 如果查询失败，清除缓存，返回空数组
+    const caseIdNum = typeof caseId === 'string' ? parseInt(caseId) : caseId
+    if (!isNaN(caseIdNum)) {
+      communicationRecordsMap.value[caseIdNum] = []
+    }
+    return []
+  }
+}
+
+// 批量加载当前页案件的通信记录
+const loadCurrentPageCommunications = async (forceRefresh: boolean = false) => {
+  if (paginatedCases.value.length === 0) return
+  
+  const batchSize = 5
+  const casesToLoad = paginatedCases.value
+  
+  for (let i = 0; i < casesToLoad.length; i += batchSize) {
+    const batch = casesToLoad.slice(i, i + batchSize)
+    await Promise.all(
+      batch.map(async (caseItem: any) => {
+        const caseId = caseItem.id || caseItem.case_id
+        if (caseId) {
+          await loadCaseCommunications(caseId, forceRefresh)
+        }
+      })
+    )
+  }
+}
+
+// 清除所有通信记录缓存
+const clearCommunicationCache = () => {
+  communicationRecordsMap.value = {}
+  console.log('[通信记录] 已清除所有缓存')
+}
+
+// 调试函数：清除缓存并重新加载
+const debugReloadCommunications = async () => {
+  console.log('[调试] 开始清除缓存并重新加载通信记录...')
+  clearCommunicationCache()
+  await loadCurrentPageCommunications(true)
+  console.log('[调试] 重新加载完成')
+  console.log('[调试] 当前缓存内容:', communicationRecordsMap.value)
+}
+
+// 将调试函数暴露到 window 对象，方便在控制台调用
+if (typeof window !== 'undefined') {
+  ;(window as any).debugReloadCommunications = debugReloadCommunications
+  ;(window as any).debugCommunicationCache = () => {
+    console.log('[调试] 当前通信记录缓存:', communicationRecordsMap.value)
+  }
+  console.log('[调试] 可用函数:')
+  console.log('  - window.debugReloadCommunications() // 清除缓存并重新加载')
+  console.log('  - window.debugCommunicationCache()   // 查看当前缓存')
+}
+
+// 获取电话联系状态
+const getPhoneStatus = (row: Case) => {
+  const caseId = row.id || row.case_id
+  if (!caseId) {
+    console.log(`[电话状态] 案件 ${caseId} (loan_id: ${row.loan_id}) 无ID，返回 none`)
+    return 'none'
+  }
+  
+  // 特殊检查：如果是 BT0001_CASE_002 或 BT0001_CASE_005，输出详细信息
+  if (row.loan_id && (row.loan_id.includes('BT0001_CASE_002') || row.loan_id.includes('BT0001_CASE_005'))) {
+    console.log(`[电话状态] ===== 检查案件 ${row.loan_id} =====`)
+    console.log(`  案件ID: ${caseId}`)
+    console.log(`  loan_id: ${row.loan_id}`)
+    console.log(`  row.id: ${row.id}`)
+    console.log(`  row.case_id: ${row.case_id}`)
+    console.log(`  communicationRecordsMap 缓存内容:`, communicationRecordsMap.value)
+    console.log(`  该案件的缓存记录:`, communicationRecordsMap.value[caseId])
+  }
+  
+  const records = communicationRecordsMap.value[caseId]
+  
+  // 如果缓存中没有数据，强制返回 'none'
+  if (!records || !Array.isArray(records) || records.length === 0) {
+    console.log(`[电话状态] 案件 ${caseId} (${row.loan_id}) 缓存中无记录，返回 none`)
+    return 'none'
+  }
+  
+  if (row.loan_id && (row.loan_id.includes('BT0001_CASE_002') || row.loan_id.includes('BT0001_CASE_005'))) {
+    console.log(`[电话状态] 案件 ${caseId} (${row.loan_id}) 的通信记录:`, records)
+    console.log(`  记录数: ${records.length}`)
+    console.log(`  记录类型: ${Array.isArray(records) ? 'Array' : typeof records}`)
+    if (records.length > 0) {
+      console.log(`  记录详情:`, records)
+      records.forEach((record: any, index: number) => {
+        console.log(`    记录 ${index + 1}:`, {
+          id: record.id,
+          channel: record.channel,
+          contact_person_id: record.contact_person_id,
+          contact_result: record.contact_result,
+          contact_person: record.contact_person
+        })
+      })
+    } else {
+      console.log(`  ⚠️ 记录数为0，应该返回 'none' 状态`)
+    }
+  }
+  
+  // 筛选出电话渠道的记录，且是本人（contact_person_id为null或contact_person.is_primary为true或relation为'本人'）
+  const phoneRecords = records.filter((record: any) => {
+    if (record.channel !== 'phone' && record.channel !== 'call') {
+      return false
+    }
+    
+    // 判断是否是本人
+    if (!record.contact_person_id) {
+      return true
+    }
+    if (record.contact_person && record.contact_person.is_primary) {
+      return true
+    }
+    if (record.contact_person && record.contact_person.relation === '本人') {
+      return true
+    }
+    return false
+  })
+  
+  console.log(`[电话状态] 案件 ${caseId} 的电话记录:`, phoneRecords)
+  
+  if (phoneRecords.length === 0) {
+    console.log(`[电话状态] 案件 ${caseId} 无电话记录，返回 none`)
+    return 'none' // 未拨打过电话
+  }
+  
+  // 检查是否有"可联"的催记（contact_result必须严格等于'contacted'）
+  const hasContactableRecord = phoneRecords.some((record: any) => {
+    // 严格检查：contact_result 必须等于 'contacted'（区分大小写）
+    const isContactable = record.contact_result === 'contacted'
+    
+    // 详细日志输出
+    if (row.loan_id && (row.loan_id.includes('BT0001_CASE_002') || row.loan_id.includes('BT0001_CASE_005'))) {
+      console.log(`[电话状态] 记录 ${record.id}:`, {
+        id: record.id,
+        channel: record.channel,
+        contact_result: record.contact_result,
+        contact_person_id: record.contact_person_id,
+        isContactable: isContactable,
+        contact_person: record.contact_person
+      })
+    } else {
+      console.log(`[电话状态] 记录 ${record.id}: channel=${record.channel}, contact_result="${record.contact_result}", isContactable=${isContactable}`)
+    }
+    
+    // 如果 contact_result 不是 'contacted'，输出信息（不是警告，因为这是正常情况）
+    if (record.contact_result && record.contact_result !== 'contacted') {
+      console.log(`[电话状态] 记录 ${record.id} 的 contact_result="${record.contact_result}"，不是"contacted"，不计入可联状态`)
+    }
+    
+    return isContactable
+  })
+  
+  if (hasContactableRecord) {
+    console.log(`[电话状态] ✅ 案件 ${caseId} (${row.loan_id}) 有可联记录（contact_result='contacted'），返回 contactable`)
+    return 'contactable' // 有"可联"的催记
+  }
+  
+  // 检查是否有任何电话记录（无论结果如何）
+  const hasAnyPhoneRecord = phoneRecords.length > 0
+  if (hasAnyPhoneRecord) {
+    console.log(`[电话状态] ⚠️ 案件 ${caseId} (${row.loan_id}) 有电话记录但无可联记录（contact_result='contacted'），返回 called`)
+    console.log(`[电话状态]   电话记录数: ${phoneRecords.length}`)
+    console.log(`[电话状态]   所有 contact_result 值:`, phoneRecords.map((r: any) => r.contact_result))
+  }
+  
+  return 'called' // 已拨打但无"可联"催记
+}
+
+// 获取电话状态CSS类（响应式版本）
+const getPhoneStatusClassReactive = (row: Case) => {
+  const caseId = row.id || row.case_id
+  const status = caseId ? (caseStatusMap.value[caseId]?.phoneStatus || 'none') : 'none'
+  
+  return {
+    'status-none': status === 'none',
+    'status-called': status === 'called',
+    'status-contactable': status === 'contactable'
+  }
+}
+
+// 保留原函数用于其他地方（如果需要）
+const getPhoneStatusClass = (row: Case) => {
+  return getPhoneStatusClassReactive(row)
+}
+
+// 获取电话状态提示文本（响应式版本）
+const getPhoneStatusTitleReactive = (row: Case) => {
+  const caseId = row.id || row.case_id
+  const status = caseId ? (caseStatusMap.value[caseId]?.phoneStatus || 'none') : 'none'
+  const titles: Record<string, string> = {
+    'none': '未拨打过电话',
+    'called': '本人电话播过但无"可联"催记',
+    'contactable': '本人电话有"可联"的催记'
+  }
+  return titles[status] || ''
+}
+
+// 保留原函数用于其他地方（如果需要）
+const getPhoneStatusTitle = (row: Case) => {
+  return getPhoneStatusTitleReactive(row)
+}
+
+// 获取WA联系状态
+const getWAStatus = (row: Case) => {
+  const caseId = row.id || row.case_id
+  if (!caseId) return 'none'
+  
+  const records = communicationRecordsMap.value[caseId]
+  
+  // 如果缓存中没有数据，强制返回 'none'
+  if (!records || !Array.isArray(records) || records.length === 0) {
+    return 'none'
+  }
+  
+  // 筛选出WhatsApp渠道的记录，且是本人
+  const waRecords = records.filter((record: any) => {
+    if (record.channel !== 'whatsapp' && record.channel !== 'wa') {
+      return false
+    }
+    
+    // 判断是否是本人
+    if (!record.contact_person_id) {
+      return true
+    }
+    if (record.contact_person && record.contact_person.is_primary) {
+      return true
+    }
+    if (record.contact_person && record.contact_person.relation === '本人') {
+      return true
+    }
+    return false
+  })
+  
+  if (waRecords.length === 0) {
+    return 'none' // 未给本人发送wa
+  }
+  
+  // 检查是否有回复（is_replied为true或direction为'inbound'）
+  const hasReply = waRecords.some((record: any) => {
+    return record.is_replied === true || record.direction === 'inbound'
+  })
+  
+  if (hasReply) {
+    return 'replied' // 客户本人有答复的wa
+  }
+  
+  return 'sent' // 给本人发送过wa
+}
+
+// 获取WA状态CSS类（响应式版本）
+const getWAStatusClassReactive = (row: Case) => {
+  const caseId = row.id || row.case_id
+  const status = caseId ? (caseStatusMap.value[caseId]?.waStatus || 'none') : 'none'
+  return {
+    'status-none': status === 'none',
+    'status-sent': status === 'sent',
+    'status-replied': status === 'replied'
+  }
+}
+
+// 获取WA状态提示文本（响应式版本）
+const getWAStatusTitleReactive = (row: Case) => {
+  const caseId = row.id || row.case_id
+  const status = caseId ? (caseStatusMap.value[caseId]?.waStatus || 'none') : 'none'
+  const titles: Record<string, string> = {
+    'none': '未给本人发送wa',
+    'sent': '给本人发送过wa',
+    'replied': '客户本人有答复的wa'
+  }
+  return titles[status] || ''
+}
+
+// 保留原函数用于其他地方（如果需要）
+const getWAStatusClass = (row: Case) => {
+  return getWAStatusClassReactive(row)
+}
+
+const getWAStatusTitle = (row: Case) => {
+  return getWAStatusTitleReactive(row)
+}
 
 // 检查案件是否有未读消息
 const hasUnreadMessagesForLoan = (loanId: string) => {
@@ -1575,6 +2057,17 @@ const loadCases = async () => {
     
     if (cases.value.length > 0) {
       selectedCase.value = cases.value[0]
+      // 清除之前的缓存，强制从数据库重新加载
+      clearCommunicationCache()
+      // 异步加载当前页案件的通信记录（强制刷新）
+      nextTick(() => {
+        loadCurrentPageCommunications(true) // 强制刷新
+        // 强制触发表格重新渲染
+        nextTick(() => {
+          // 通过修改一个响应式变量来触发表格更新
+          tableKey.value = Date.now()
+        })
+      })
     }
   } catch (error) {
     console.error('加载案件失败:', error)
@@ -2371,6 +2864,22 @@ onUnmounted(() => {
   padding: 8px 0;
 }
 
+/* 压缩表头高度 */
+.case-list-table :deep(.el-table__header-wrapper) {
+  line-height: 1.2;
+}
+
+.case-list-table :deep(.el-table__header th) {
+  padding: 8px 0 !important;
+  height: auto !important;
+  line-height: 1.2 !important;
+}
+
+.case-list-table :deep(.el-table__header .cell) {
+  line-height: 1.2 !important;
+  padding: 0 10px;
+}
+
 /* 用户名列的单元格允许内容溢出 */
 .case-list-table :deep(.el-table__body-wrapper tr td:nth-child(3)) {
   overflow: hidden;
@@ -2615,6 +3124,82 @@ onUnmounted(() => {
 .no-case-selected p {
   margin-top: 16px;
   font-size: 14px;
+}
+
+/* 联系状态颜色块样式 */
+.contact-status-column {
+  padding: 0 !important;
+}
+
+.contact-status-column .cell {
+  padding: 0 !important;
+  height: 100%;
+}
+
+.contact-status-blocks {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 40px;
+  gap: 0;
+}
+
+.status-block {
+  width: 10px;
+  height: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* 电话状态颜色 - 左边块 */
+/* 确保 status-none 优先级最高，避免被其他状态覆盖 */
+.phone-block.status-none {
+  background-color: transparent !important;
+  border: 2px solid #CCCCCC !important;
+  border-right: 2px solid #CCCCCC !important;
+}
+
+/* 确保 status-called 不会显示实心 */
+.phone-block.status-called {
+  background-color: transparent !important;
+  border: 2px solid #4169E1 !important;
+  border-right: 2px solid #4169E1 !important;
+}
+
+/* 只有 status-contactable 才显示实心蓝色 */
+.phone-block.status-contactable {
+  background-color: #4169E1 !important;
+  border: 2px solid #4169E1 !important;
+  border-right: 2px solid #4169E1 !important;
+}
+
+/* 确保默认状态是灰色（防止没有状态类时显示错误） */
+.phone-block:not(.status-none):not(.status-called):not(.status-contactable) {
+  background-color: transparent !important;
+  border: 2px solid #CCCCCC !important;
+  border-right: 2px solid #CCCCCC !important;
+}
+
+/* WA状态颜色 - 右边块 */
+.wa-block.status-none {
+  background-color: transparent !important;
+  border: 2px solid #CCCCCC !important;
+  border-left: 2px solid #CCCCCC !important;
+}
+
+.wa-block.status-sent {
+  background-color: transparent !important;
+  border: 2px solid #32CD32 !important;
+  border-left: 2px solid #32CD32 !important;
+}
+
+.wa-block.status-replied {
+  background-color: #32CD32 !important;
+  border: 2px solid #32CD32 !important;
+  border-left: 2px solid #32CD32 !important;
 }
 </style>
 

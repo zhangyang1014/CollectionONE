@@ -632,7 +632,7 @@
             </div>
 
             <!-- 关联度（仅非本人时显示） -->
-            <el-form-item v-if="!isMainContact" label="关联度" class="relation-level-item">
+            <el-form-item v-if="!isMainContact" label="关联度" prop="relation_level" class="relation-level-item">
               <div class="relation-level-row">
                 <el-rate 
                   v-model="caseNoteForm.relation_level" 
@@ -646,7 +646,7 @@
             </el-form-item>
 
             <!-- 沟通状态 -->
-            <el-form-item label="沟通状态" required>
+            <el-form-item label="沟通状态" prop="communication_status" required>
               <el-radio-group v-model="caseNoteForm.communication_status" class="status-radio-group">
                 <el-radio value="reachable">可联</el-radio>
                 <el-radio value="not_exist">不存在</el-radio>
@@ -655,7 +655,7 @@
             </el-form-item>
 
             <!-- 沟通结果（根据沟通状态动态显示） -->
-            <el-form-item label="沟通结果" required>
+            <el-form-item label="沟通结果" prop="communication_result" required>
               <el-radio-group v-model="caseNoteForm.communication_result" class="result-radio-group">
                 <!-- 可联 - 本人 -->
                 <template v-if="caseNoteForm.communication_status === 'reachable' && isMainContact">
@@ -684,7 +684,7 @@
             </el-form-item>
 
             <!-- 备注 -->
-            <el-form-item label="备注">
+            <el-form-item label="备注" prop="remark">
               <el-input 
                 v-model="caseNoteForm.remark" 
                 type="textarea" 
@@ -694,7 +694,7 @@
             </el-form-item>
 
             <!-- 下次跟进时间 -->
-            <el-form-item label="下次跟进时间">
+            <el-form-item label="下次跟进时间" prop="follow_up_type">
               <el-radio-group v-model="caseNoteForm.follow_up_type" style="margin-bottom: 12px;">
                 <el-radio value="one_hour">一小时后</el-radio>
                 <el-radio value="specific_time">具体时间</el-radio>
@@ -721,7 +721,7 @@
             </el-form-item>
 
             <!-- 提交按钮 -->
-            <el-form-item>
+            <el-form-item label="">
               <el-button type="success" @click="submitCaseNote" style="width: 100%;">
                 提交催记
               </el-button>

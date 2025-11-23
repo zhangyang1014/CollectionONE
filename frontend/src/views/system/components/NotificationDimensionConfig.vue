@@ -84,9 +84,9 @@
 
             <el-form-item label="通知时间范围">
               <el-radio-group v-model="config.data.notify_time_range.type">
-                <el-radio label="working_hours">工作时间</el-radio>
-                <el-radio label="all_day">全天</el-radio>
-                <el-radio label="custom">自定义</el-radio>
+                <el-radio value="working_hours">工作时间</el-radio>
+                <el-radio value="all_day">全天</el-radio>
+                <el-radio value="custom">自定义</el-radio>
               </el-radio-group>
               <div v-if="config.data.notify_time_range.type === 'custom'" style="margin-top: 10px;">
                 <el-time-select
@@ -111,9 +111,9 @@
 
             <el-form-item label="优先级">
               <el-radio-group v-model="config.data.priority">
-                <el-radio label="high">高</el-radio>
-                <el-radio label="medium">中</el-radio>
-                <el-radio label="low">低</el-radio>
+                <el-radio value="high">高</el-radio>
+                <el-radio value="medium">中</el-radio>
+                <el-radio value="low">低</el-radio>
               </el-radio-group>
             </el-form-item>
 
@@ -266,10 +266,10 @@
 
             <el-form-item label="通知范围">
               <el-radio-group v-model="config.data.notify_scope">
-                <el-radio label="self">仅本人</el-radio>
-                <el-radio label="team">小组</el-radio>
-                <el-radio label="agency">机构</el-radio>
-                <el-radio label="all">全部</el-radio>
+                <el-radio value="self">仅本人</el-radio>
+                <el-radio value="team">小组</el-radio>
+                <el-radio value="agency">机构</el-radio>
+                <el-radio value="all">全部</el-radio>
               </el-radio-group>
             </el-form-item>
 
