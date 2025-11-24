@@ -29,6 +29,11 @@ public class FieldDisplayConfigController {
     private FieldDisplayConfigService fieldDisplayConfigService;
 
     /**
+     * Mock模式下的内存存储：key = "tenantId_sceneType", value = 配置列表
+     */
+    private static final Map<String, List<Map<String, Object>>> MOCK_STORAGE = new HashMap<>();
+
+    /**
      * 获取字段展示配置列表 - 从数据库读取
      */
     @GetMapping
@@ -61,8 +66,33 @@ public class FieldDisplayConfigController {
             // 如果数据库没有数据，使用Mock数据
             if (configs == null || configs.isEmpty()) {
                 log.info("========== 使用Mock数据，tenantId={}, sceneType={} ==========", finalTenantId, finalSceneType);
-                List<Map<String, Object>> mockConfigs = generateMockConfigs(finalTenantId, finalSceneType);
-                log.info("========== Mock数据生成完成，共{}条 ==========", mockConfigs.size());
+                
+                // 优先从内存存储中读取（如果之前保存过）
+                // 确保storageKey格式一致（使用Long类型的字符串表示）
+                String storageKey = String.valueOf(finalTenantId) + "_" + finalSceneType;
+                log.info("========== 查找内存存储，tenantId={}, sceneType={}, key={} ==========", 
+                    finalTenantId, finalSceneType, storageKey);
+                log.info("========== 当前内存存储的所有keys: {} ==========", MOCK_STORAGE.keySet());
+                List<Map<String, Object>> mockConfigs = MOCK_STORAGE.get(storageKey);
+                
+                if (mockConfigs == null || mockConfigs.isEmpty()) {
+                    // 如果内存中没有，则生成新的Mock数据
+                    mockConfigs = generateMockConfigs(finalTenantId, finalSceneType);
+                    log.info("========== Mock数据生成完成，共{}条 ==========", mockConfigs.size());
+                } else {
+                    log.info("========== 从内存存储读取Mock数据，storageKey={}, 共{}条 ==========", storageKey, mockConfigs.size());
+                    // 确保数据按sort_order排序
+                    mockConfigs.sort((a, b) -> {
+                        Integer orderA = getSortOrder(a);
+                        Integer orderB = getSortOrder(b);
+                        return Integer.compare(orderA, orderB);
+                    });
+                    log.info("========== 排序后的顺序 ==========");
+                    for (Map<String, Object> config : mockConfigs) {
+                        log.info("  - {} (sort_order={})", config.get("field_key"), config.get("sort_order"));
+                    }
+                }
+                
                 return ResponseData.success(mockConfigs);
             }
             
@@ -84,7 +114,14 @@ public class FieldDisplayConfigController {
             e.printStackTrace();
             // 即使出错也返回Mock数据
             try {
-                List<Map<String, Object>> mockConfigs = generateMockConfigs(finalTenantId, finalSceneType);
+                // 优先从内存存储中读取
+                String storageKey = finalTenantId + "_" + finalSceneType;
+                List<Map<String, Object>> mockConfigs = MOCK_STORAGE.get(storageKey);
+                
+                if (mockConfigs == null || mockConfigs.isEmpty()) {
+                    mockConfigs = generateMockConfigs(finalTenantId, finalSceneType);
+                }
+                
                 log.info("异常情况下生成Mock数据，共{}条", mockConfigs.size());
                 return ResponseData.success(mockConfigs);
             } catch (Exception mockError) {
@@ -147,11 +184,6 @@ public class FieldDisplayConfigController {
         log.info("批量创建或更新字段展示配置，request={}", request);
         
         try {
-            if (fieldDisplayConfigService == null) {
-                log.warn("FieldDisplayConfigService未注入，返回成功（Mock模式）");
-                return ResponseData.success("批量保存成功（Mock模式）");
-            }
-            
             // 处理tenant_id可能是字符串或数字的情况
             Object tenantIdObj = request.get("tenant_id");
             Long tenantId = null;
@@ -177,7 +209,74 @@ public class FieldDisplayConfigController {
                 return ResponseData.success("批量保存成功（无配置需要保存）");
             }
             
-            // 处理每个配置项
+            // 检查是否应该使用Mock模式（Service未注入或mapper为null）
+            boolean useMockMode = false;
+            if (fieldDisplayConfigService == null) {
+                useMockMode = true;
+                log.warn("FieldDisplayConfigService未注入，使用Mock模式");
+            } else {
+                // 尝试查询一次，如果失败则使用Mock模式
+                try {
+                    fieldDisplayConfigService.list(tenantId, sceneType, null);
+                    // 如果能查询到数据或没有异常，说明数据库可用
+                    log.info("数据库可用，使用数据库模式");
+                } catch (Exception e) {
+                    useMockMode = true;
+                    log.warn("数据库不可用（Mock模式），使用内存存储: {}", e.getMessage());
+                }
+            }
+            
+            // Mock模式：保存到内存存储
+            if (useMockMode) {
+                // 确保storageKey格式一致（使用Long类型的字符串表示）
+                String storageKey = String.valueOf(tenantId) + "_" + sceneType;
+                log.info("批量保存 - Mock模式，tenantId={}, sceneType={}, storageKey={}, 收到{}条配置", 
+                    tenantId, sceneType, storageKey, configsList.size());
+                
+                // 深拷贝配置列表，避免引用问题
+                List<Map<String, Object>> savedConfigs = new ArrayList<>();
+                for (Map<String, Object> configMap : configsList) {
+                    Map<String, Object> savedConfig = new HashMap<>();
+                    // 复制所有字段
+                    savedConfig.putAll(configMap);
+                    // 确保sort_order是Integer类型
+                    if (savedConfig.containsKey("sort_order")) {
+                        Object sortOrderObj = savedConfig.get("sort_order");
+                        if (sortOrderObj instanceof Number) {
+                            savedConfig.put("sort_order", ((Number) sortOrderObj).intValue());
+                        } else if (sortOrderObj != null) {
+                            try {
+                                savedConfig.put("sort_order", Integer.valueOf(sortOrderObj.toString()));
+                            } catch (Exception e) {
+                                log.warn("无法转换sort_order: {}", sortOrderObj);
+                                savedConfig.put("sort_order", 0);
+                            }
+                        }
+                    }
+                    savedConfigs.add(savedConfig);
+                    log.info("保存配置: field_key={}, sort_order={}", 
+                        savedConfig.get("field_key"), savedConfig.get("sort_order"));
+                }
+                
+                // 按sort_order排序（保持用户设置的排序）
+                savedConfigs.sort((a, b) -> {
+                    Integer orderA = getSortOrder(a);
+                    Integer orderB = getSortOrder(b);
+                    return Integer.compare(orderA, orderB);
+                });
+                
+                // 注意：不重新分配序号，保持用户设置的sort_order
+                // 这样用户拖拽后的排序会被正确保存
+                
+                MOCK_STORAGE.put(storageKey, savedConfigs);
+                log.info("已保存到内存存储，key={}, 共{}条配置，排序后的顺序:", storageKey, savedConfigs.size());
+                for (Map<String, Object> config : savedConfigs) {
+                    log.info("  - {} (sort_order={})", config.get("field_key"), config.get("sort_order"));
+                }
+                return ResponseData.success("批量保存成功（Mock模式）");
+            }
+            
+            // 数据库模式：处理每个配置项
             int successCount = 0;
             int failCount = 0;
             for (Map<String, Object> configMap : configsList) {
@@ -439,6 +538,24 @@ public class FieldDisplayConfigController {
                 return "催员案件详情";
             default:
                 return sceneType;
+        }
+    }
+
+    /**
+     * 获取配置的排序顺序
+     */
+    private Integer getSortOrder(Map<String, Object> config) {
+        Object sortOrderObj = config.get("sort_order");
+        if (sortOrderObj == null) {
+            return 0;
+        }
+        if (sortOrderObj instanceof Number) {
+            return ((Number) sortOrderObj).intValue();
+        }
+        try {
+            return Integer.valueOf(sortOrderObj.toString());
+        } catch (Exception e) {
+            return 0;
         }
     }
 

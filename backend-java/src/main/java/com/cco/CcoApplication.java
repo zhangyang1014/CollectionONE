@@ -10,10 +10,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author CCO Team
  * @version 1.0.0
  */
-@SpringBootApplication(exclude = {
-    org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
-    com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration.class
-})
+@SpringBootApplication
+@MapperScan("com.cco.mapper")
 public class CcoApplication {
 
     public static void main(String[] args) {
