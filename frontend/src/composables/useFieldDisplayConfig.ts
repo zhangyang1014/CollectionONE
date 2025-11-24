@@ -9,7 +9,7 @@ import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FieldDisplayConfig } from '@/types/fieldDisplay'
-import { getApiUrl } from '@/config/api'
+import { getFieldDisplayConfigs } from '@/api/fieldDisplay'
 
 /**
  * 场景类型
@@ -69,16 +69,12 @@ export function useFieldDisplayConfig(options: UseFieldDisplayConfigOptions) {
 
     loading.value = true
     try {
-      const url = `${getApiUrl('field-display-configs')}?tenant_id=${tid}&scene_type=${sceneType}`
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-      
-      const data = await response.json()
-      // Java后端返回格式：{ code: 200, message: "success", data: [...] }
-      configs.value = Array.isArray(data) ? data : (data.data ? data.data : [])
+      // 使用统一的API工具，自动处理认证和错误
+      const data = await getFieldDisplayConfigs({
+        tenant_id: tid,
+        scene_type: sceneType
+      })
+      configs.value = Array.isArray(data) ? data : []
       
       console.log(`[useFieldDisplayConfig] 已加载${sceneType}的字段配置,共${configs.value.length}个字段`)
     } catch (error) {
