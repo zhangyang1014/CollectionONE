@@ -10,6 +10,8 @@
 ,居住地址,address,String,"123 Main St, Quezon City",包含街道、城市、省份、邮编,否
 ,居住年限,years_at_address,Integer,5,当前居住地年数,否
 ,居住类型,housing_type,Enum,Own / Rent / With Family,居住情况,否
+五、联系方式（Contact Information）,手机号码,mobile_number,String,+63 9123456789,用户注册手机号,否
+,公司联系电话,company_phone,String,+63 2 9123456,公司电话,否
 二、教育（Education）,教育程度,education_level,Enum,University / High School,最高学历,否
 ,学校名称,school_name,String,University of the Philippines,毕业学校或当前学校,否
 ,专业,major,String,Business Administration,学习或毕业专业,否
@@ -19,7 +21,6 @@
 ,行业类别,industry,String,Transportation,所属行业,否
 ,工作年限,years_of_employment,Integer,3,当前岗位工作时长,否
 ,工作地址,work_address,String,"15 Pasay Ave, Manila",工作地点,否
-,公司联系电话,company_phone,String,+63 2 9123456,公司电话,否
 ,收入类型,income_type,Enum,Monthly / Weekly / Daily,工资发放周期,否
 ,发薪日,payday,String,15th / End of Month,发薪时间,否
 ,收入,income_range,String,32000 PHP – 64000 PHP,每月或每周收入区间,否

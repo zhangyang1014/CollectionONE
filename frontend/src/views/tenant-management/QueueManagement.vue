@@ -194,8 +194,13 @@ const loadQueues = async () => {
 
 // 格式化范围显示
 const formatRange = (queue: any) => {
-  const start = queue.overdue_days_start === null ? '-∞' : queue.overdue_days_start
-  const end = queue.overdue_days_end === null ? '+∞' : queue.overdue_days_end
+  // 处理null或undefined的情况（都表示无穷大）
+  const start = (queue.overdue_days_start === null || queue.overdue_days_start === undefined) 
+    ? '-∞' 
+    : queue.overdue_days_start
+  const end = (queue.overdue_days_end === null || queue.overdue_days_end === undefined) 
+    ? '+∞' 
+    : queue.overdue_days_end
   return `${start} ~ ${end} 天`
 }
 

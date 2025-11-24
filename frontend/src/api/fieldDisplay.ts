@@ -7,16 +7,18 @@ import type { FieldDisplayConfig } from '@/types/fieldDisplay'
 /**
  * 获取字段展示配置列表
  */
-export function getFieldDisplayConfigs(params: {
+export async function getFieldDisplayConfigs(params: {
   tenant_id?: number | string
   scene_type?: string
   field_key?: string
-}) {
-  return request({
-    url: '/field-display-configs',
+}): Promise<FieldDisplayConfig[]> {
+  const response = await request({
+    url: '/api/v1/field-display-configs',
     method: 'get',
     params
   })
+  // 兼容Java后端格式（ResponseData）和直接数组格式
+  return Array.isArray(response) ? response : (response.data || [])
 }
 
 /**
@@ -27,7 +29,7 @@ export async function getSceneFieldDisplayConfigs(
   sceneType: 'admin_case_list' | 'collector_case_list' | 'collector_case_detail'
 ): Promise<FieldDisplayConfig[]> {
   const response = await request({
-    url: '/field-display-configs',
+    url: '/api/v1/field-display-configs',
     method: 'get',
     params: {
       tenant_id: tenantId,
@@ -42,7 +44,7 @@ export async function getSceneFieldDisplayConfigs(
  */
 export function createFieldDisplayConfig(data: any) {
   return request({
-    url: '/field-display-configs',
+    url: '/api/v1/field-display-configs',
     method: 'post',
     data
   })
@@ -53,7 +55,7 @@ export function createFieldDisplayConfig(data: any) {
  */
 export function updateFieldDisplayConfig(id: number, data: any) {
   return request({
-    url: `/field-display-configs/${id}`,
+    url: `/api/v1/field-display-configs/${id}`,
     method: 'put',
     data
   })
@@ -66,7 +68,7 @@ export function batchUpdateFieldDisplayConfigs(data: {
   configs: Array<{ id: number; [key: string]: any }>
 }) {
   return request({
-    url: '/field-display-configs/batch',
+    url: '/api/v1/field-display-configs/batch',
     method: 'put',
     data
   })
@@ -77,7 +79,7 @@ export function batchUpdateFieldDisplayConfigs(data: {
  */
 export function deleteFieldDisplayConfig(id: number) {
   return request({
-    url: `/field-display-configs/${id}`,
+    url: `/api/v1/field-display-configs/${id}`,
     method: 'delete'
   })
 }
@@ -87,7 +89,7 @@ export function deleteFieldDisplayConfig(id: number) {
  */
 export function getSceneTypes() {
   return request({
-    url: '/field-display-configs/scene-types',
+    url: '/api/v1/field-display-configs/scene-types',
     method: 'get'
   })
 }
@@ -97,8 +99,46 @@ export function getSceneTypes() {
  */
 export function getAvailableFields(tenantId?: number) {
   return request({
-    url: '/field-display-configs/available-fields',
+    url: '/api/v1/field-display-configs/available-fields',
     method: 'get',
     params: tenantId ? { tenant_id: tenantId } : undefined
+  })
+}
+
+/**
+ * 批量创建或更新字段展示配置
+ */
+export function batchCreateOrUpdateConfigs(
+  tenantId: number | string,
+  sceneType: string,
+  configs: any[]
+) {
+  return request({
+    url: '/api/v1/field-display-configs/batch',
+    method: 'post',
+    data: {
+      tenant_id: tenantId,
+      scene_type: sceneType,
+      configs: configs
+    }
+  })
+}
+
+/**
+ * 复制场景配置
+ */
+export function copySceneConfig(
+  fromScene: string,
+  toScene: string,
+  tenantId: number | string
+) {
+  return request({
+    url: '/api/v1/field-display-configs/copy-scene',
+    method: 'post',
+    data: {
+      from_scene: fromScene,
+      to_scene: toScene,
+      tenant_id: tenantId
+    }
   })
 }

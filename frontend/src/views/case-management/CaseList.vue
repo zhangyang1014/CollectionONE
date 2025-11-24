@@ -12,7 +12,6 @@
             >
               筛选器配置
             </el-button>
-            <el-button type="primary" @click="handleAdd">添加案件</el-button>
           </el-space>
         </div>
       </template>
@@ -735,11 +734,17 @@ const loadCases = async () => {
   }
   
   const res = await getCases(params)
-  // 如果响应是数组，直接使用；否则使用res.data
-  // 确保始终是数组
+  // 处理不同的响应格式
+  // Java后端格式: { items: [...], total: 100 } (request.ts已经提取了data)
+  // Python后端格式: 直接返回数组
   if (Array.isArray(res)) {
+    // 直接返回数组（Python后端格式）
     cases.value = res
+  } else if (res && Array.isArray(res.items)) {
+    // Java后端格式：{ items: [...], total: 100 }
+    cases.value = res.items
   } else if (res && Array.isArray(res.data)) {
+    // 兼容其他可能的格式
     cases.value = res.data
   } else {
     cases.value = []
@@ -852,10 +857,6 @@ const formatAmount = (amount: any) => {
 const formatDateTime = (datetime: string) => {
   if (!datetime) return '-'
   return datetime.replace('T', ' ').substring(0, 19)
-}
-
-const handleAdd = () => {
-  ElMessage.info('添加功能待实现')
 }
 
 const handleView = (row: any) => {
@@ -1077,7 +1078,10 @@ const handleFilterConfig = async () => {
 const loadFilterGroups = async () => {
   try {
     const res = await getFieldGroups()
-    const allGroups = res.data || []
+    // 处理不同的响应格式
+    // Java后端格式: request.ts已经提取了data，所以res是数组
+    // Python后端格式: 直接返回数组
+    const allGroups = Array.isArray(res) ? res : (res.data || [])
     filterGroupTreeData.value = buildFilterGroupTree(allGroups)
   } catch (error) {
     console.error('加载字段分组失败：', error)
