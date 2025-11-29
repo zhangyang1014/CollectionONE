@@ -140,8 +140,9 @@ const loginRules = {
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
   ],
   captcha: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 4, message: '验证码为4位', trigger: 'blur' }
+    // 暂时禁用验证码校验，允许为空（测试模式）
+    // { required: true, message: '请输入验证码', trigger: 'blur' },
+    // { len: 4, message: '验证码为4位', trigger: 'blur' }
   ]
 }
 
@@ -224,13 +225,13 @@ const handleLogin = async () => {
   try {
     await loginFormRef.value.validate()
     
-    // 验证码校验
-    if (loginForm.captcha.toUpperCase() !== captchaText.toUpperCase()) {
-      ElMessage.error('验证码错误')
-      refreshCaptcha()
-      loginForm.captcha = ''
-      return
-    }
+    // 暂时禁用验证码校验（测试模式）
+    // if (loginForm.captcha.toUpperCase() !== captchaText.toUpperCase()) {
+    //   ElMessage.error('验证码错误')
+    //   refreshCaptcha()
+    //   loginForm.captcha = ''
+    //   return
+    // }
 
     loading.value = true
 

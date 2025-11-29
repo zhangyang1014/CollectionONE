@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "sync_time": "2025-11-25T10:30:00Z",
+  "fields": [
+    {
+      "field_key": "test_field",
+      "field_name": "测试字段",
+      "field_type": "InvalidType",
+      "updated_at": "2025-11-25T10:30:00Z"
+    }
+  ]
+}
+

@@ -98,13 +98,6 @@ export function useFieldDisplayConfig(options: UseFieldDisplayConfigOptions) {
   })
 
   /**
-   * 可搜索的字段(文本类型)
-   */
-  const searchableFields = computed(() => {
-    return visibleConfigs.value.filter(c => c.is_searchable)
-  })
-
-  /**
    * 可筛选的字段(枚举类型)
    */
   const filterableFields = computed(() => {
@@ -278,7 +271,6 @@ export function useFieldDisplayConfig(options: UseFieldDisplayConfigOptions) {
     loading,
     configs,
     visibleConfigs,
-    searchableFields,
     filterableFields,
     rangeSearchableFields,
     loadConfigs,

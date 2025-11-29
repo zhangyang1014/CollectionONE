@@ -3,6 +3,7 @@ package com.cco;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * CCO 催收系统主应用入口
@@ -11,7 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @version 1.0.0
  */
 @SpringBootApplication
-@MapperScan("com.cco.mapper")
+@EnableScheduling
 public class CcoApplication {
 
     public static void main(String[] args) {

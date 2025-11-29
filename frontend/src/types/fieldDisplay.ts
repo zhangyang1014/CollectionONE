@@ -27,7 +27,7 @@ export interface FieldDisplayConfig {
   field_key: string // 字段标识
   field_name: string // 字段名称
   field_data_type?: string // 字段数据类型：String/Integer/Boolean/Enum等
-  field_source?: string // 字段来源：standard/extended/custom/system
+  field_source?: string // 字段来源：standard/custom/system
   sort_order: number // 排序顺序
   display_width: number // 显示宽度（像素），0表示自动
   color_type: string // 颜色类型：normal/red/yellow/green
@@ -37,7 +37,6 @@ export interface FieldDisplayConfig {
   hide_for_agencies?: string[] // 对哪些机构隐藏
   hide_for_teams?: string[] // 对哪些小组隐藏
   format_rule?: FormatRule // 格式化规则
-  is_searchable: boolean // 是否可搜索（针对文本字段）
   is_filterable: boolean // 是否可筛选（针对枚举字段）
   is_range_searchable: boolean // 是否支持范围检索（针对数字和时间字段）
   created_at: string
@@ -63,7 +62,6 @@ export interface FieldDisplayConfigCreate {
   hide_for_agencies?: string[]
   hide_for_teams?: string[]
   format_rule?: FormatRule
-  is_searchable?: boolean
   is_filterable?: boolean
   is_range_searchable?: boolean
   created_by?: string
@@ -83,7 +81,6 @@ export interface FieldDisplayConfigUpdate {
   hide_for_agencies?: string[]
   hide_for_teams?: string[]
   format_rule?: FormatRule
-  is_searchable?: boolean
   is_filterable?: boolean
   is_range_searchable?: boolean
   updated_by?: string
@@ -106,7 +103,7 @@ export interface AvailableFieldOption {
   field_key: string // 字段标识
   field_name: string // 字段名称
   field_type: string // 字段数据类型
-  field_source: string // 字段来源：standard/extended/custom/system
+  field_source: string // 字段来源：standard/custom/system
   field_group_name?: string // 字段分组名称
   is_extended: boolean // 是否为扩展字段
   is_required: boolean // 是否必填

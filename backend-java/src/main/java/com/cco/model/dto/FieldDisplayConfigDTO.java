@@ -88,7 +88,7 @@ public class FieldDisplayConfigDTO {
         @Schema(description = "字段数据类型")
         private String fieldDataType;
         
-        @Schema(description = "字段来源: standard/extended/custom")
+        @Schema(description = "字段来源: standard/custom")
         private String fieldSource;
         
         @Schema(description = "排序顺序", example = "0")
@@ -221,6 +221,22 @@ public class FieldDisplayConfigDTO {
         private Boolean isRangeSearchable;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

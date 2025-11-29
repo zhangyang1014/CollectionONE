@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS `tenant_field_display_configs` (
     `field_key` VARCHAR(100) NOT NULL COMMENT '字段标识',
     `field_name` VARCHAR(200) NOT NULL COMMENT '字段名称',
     `field_data_type` VARCHAR(50) COMMENT '字段数据类型',
-    `field_source` VARCHAR(20) COMMENT '字段来源：standard/extended/custom',
+    `field_source` VARCHAR(20) COMMENT '字段来源：standard/custom',
     `sort_order` INT NOT NULL DEFAULT 0 COMMENT '排序顺序',
     `display_width` INT NOT NULL DEFAULT 0 COMMENT '显示宽度（像素），0表示自动',
     `color_type` VARCHAR(20) NOT NULL DEFAULT 'normal' COMMENT '颜色类型',

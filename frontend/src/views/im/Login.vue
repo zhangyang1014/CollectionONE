@@ -183,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -227,21 +227,96 @@ const loginForm = reactive({
   captcha: ''
 })
 
+// 监听collectorId变化，确保始终是字符串类型
+watch(() => loginForm.collectorId, (newVal) => {
+  if (Array.isArray(newVal)) {
+    const firstItem = newVal[0]
+    if (typeof firstItem === 'string') {
+      loginForm.collectorId = firstItem
+    } else if (firstItem && typeof firstItem === 'object' && 'fieldValue' in firstItem) {
+      loginForm.collectorId = String(firstItem.fieldValue || '')
+    } else {
+      loginForm.collectorId = ''
+    }
+  } else if (typeof newVal !== 'string' && newVal !== null && newVal !== undefined) {
+    if (typeof newVal === 'object' && 'fieldValue' in newVal) {
+      loginForm.collectorId = String((newVal as any).fieldValue || '')
+    } else {
+      loginForm.collectorId = String(newVal || '')
+    }
+  }
+}, { immediate: true })
+
 // 表单验证规则
 const loginRules = {
   tenantId: [
-    { required: true, message: '请输入机构ID', trigger: 'blur' }
+    { required: true, message: '请输入机构ID', trigger: 'blur' },
+    { 
+      validator: (rule: any, value: any, callback: any) => {
+        // 确保值是字符串，不是数组
+        if (Array.isArray(value)) {
+          callback(new Error('机构ID不能是数组'))
+        } else if (typeof value !== 'string' && value !== '') {
+          callback(new Error('机构ID格式错误'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   collectorId: [
-    { required: true, message: '请输入催员ID', trigger: 'blur' }
+    { required: true, message: '请输入催员ID', trigger: 'blur' },
+    { 
+      validator: (rule: any, value: any, callback: any) => {
+        // 处理数组类型（可能是URL参数或验证错误对象）
+        if (Array.isArray(value)) {
+          const firstItem = value[0]
+          if (typeof firstItem === 'string' && firstItem.trim()) {
+            // 字符串数组，使用第一个元素
+            callback()
+          } else if (firstItem && typeof firstItem === 'object' && 'fieldValue' in firstItem) {
+            // 验证错误对象数组，检查fieldValue
+            if (firstItem.fieldValue && String(firstItem.fieldValue).trim()) {
+              callback()
+            } else {
+              callback(new Error('请输入催员ID'))
+            }
+          } else {
+            callback(new Error('请输入催员ID'))
+          }
+        } else if (typeof value !== 'string') {
+          // 非字符串类型，尝试转换
+          if (value && typeof value === 'object' && 'fieldValue' in value) {
+            // 验证错误对象
+            if (value.fieldValue && String(value.fieldValue).trim()) {
+              callback()
+            } else {
+              callback(new Error('请输入催员ID'))
+            }
+          } else if (!value || String(value).trim() === '') {
+            callback(new Error('请输入催员ID'))
+          } else {
+            // 其他类型，尝试转换为字符串
+            callback()
+          }
+        } else if (!value || value.trim() === '') {
+          callback(new Error('请输入催员ID'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
   ],
   captcha: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 4, message: '验证码为4位', trigger: 'blur' }
+    // 暂时禁用验证码校验，允许为空（测试模式）
+    // { required: true, message: '请输入验证码', trigger: 'blur' },
+    // { len: 4, message: '验证码为4位', trigger: 'blur' }
   ]
 }
 
@@ -471,15 +546,49 @@ const handleLogin = async () => {
   if (!loginFormRef.value) return
 
   try {
+    // 确保表单值是字符串，不是数组（防止URL参数导致的问题）
+    // 同时处理可能的验证错误对象被错误赋值的情况
+    if (Array.isArray(loginForm.tenantId)) {
+      loginForm.tenantId = (typeof loginForm.tenantId[0] === 'string' ? loginForm.tenantId[0] : '') || ''
+    } else if (typeof loginForm.tenantId !== 'string') {
+      loginForm.tenantId = String(loginForm.tenantId || '')
+    }
+    
+    if (Array.isArray(loginForm.collectorId)) {
+      // 如果数组元素是对象（验证错误对象），忽略它
+      const firstItem = loginForm.collectorId[0]
+      if (typeof firstItem === 'string') {
+        loginForm.collectorId = firstItem
+      } else if (firstItem && typeof firstItem === 'object' && firstItem.fieldValue !== undefined) {
+        // 如果是验证错误对象，使用fieldValue或清空
+        loginForm.collectorId = String(firstItem.fieldValue || '')
+      } else {
+        loginForm.collectorId = ''
+      }
+    } else if (typeof loginForm.collectorId !== 'string') {
+      // 如果不是字符串也不是数组，转换为字符串
+      if (loginForm.collectorId && typeof loginForm.collectorId === 'object' && 'fieldValue' in loginForm.collectorId) {
+        loginForm.collectorId = String((loginForm.collectorId as any).fieldValue || '')
+      } else {
+        loginForm.collectorId = String(loginForm.collectorId || '')
+      }
+    }
+    
+    if (Array.isArray(loginForm.password)) {
+      loginForm.password = (typeof loginForm.password[0] === 'string' ? loginForm.password[0] : '') || ''
+    } else if (typeof loginForm.password !== 'string') {
+      loginForm.password = String(loginForm.password || '')
+    }
+    
     await loginFormRef.value.validate()
     
-    // 验证码校验
-    if (loginForm.captcha.toUpperCase() !== captchaText.toUpperCase()) {
-      ElMessage.error('验证码错误')
-      refreshCaptcha()
-      loginForm.captcha = ''
-      return
-    }
+    // 暂时禁用验证码校验（测试模式）
+    // if (loginForm.captcha.toUpperCase() !== captchaText.toUpperCase()) {
+    //   ElMessage.error('验证码错误')
+    //   refreshCaptcha()
+    //   loginForm.captcha = ''
+    //   return
+    // }
 
     // 人脸识别为可选项（开发测试模式）
     // 如果没有人脸识别，给出提示但仍允许登录
@@ -489,11 +598,16 @@ const handleLogin = async () => {
 
     loading.value = true
 
+    // 确保传递给API的值是字符串
+    const tenantId = Array.isArray(loginForm.tenantId) ? loginForm.tenantId[0] : String(loginForm.tenantId || '')
+    const collectorId = Array.isArray(loginForm.collectorId) ? loginForm.collectorId[0] : String(loginForm.collectorId || '')
+    const password = Array.isArray(loginForm.password) ? loginForm.password[0] : String(loginForm.password || '')
+
     // 调用登录API
     await imUserStore.login({
-      tenantId: loginForm.tenantId,
-      collectorId: loginForm.collectorId,
-      password: loginForm.password
+      tenantId: tenantId,
+      collectorId: collectorId,
+      password: password
     })
 
     // 登录成功后上传人脸记录（如果有的话）
@@ -525,29 +639,48 @@ const handleLogin = async () => {
       imUserStore.initFromStorage()
     }
     
+    // 再次等待一个tick，确保状态完全同步
+    await nextTick()
+    
+    // 验证状态是否已正确设置
+    const storedToken = localStorage.getItem('im_token')
+    const storedUser = localStorage.getItem('im_user')
+    
     console.log('[Login] 登录成功，准备跳转，当前状态:', {
       isLoggedIn: imUserStore.isLoggedIn,
       hasToken: !!imUserStore.token,
       hasUser: !!imUserStore.user,
       token: imUserStore.token?.substring(0, 20) + '...',
-      user: imUserStore.user
-    })
-    
-    // 再次检查 localStorage
-    const storedToken = localStorage.getItem('im_token')
-    const storedUser = localStorage.getItem('im_user')
-    console.log('[Login] localStorage 检查:', {
-      hasStoredToken: !!storedToken,
-      hasStoredUser: !!storedUser,
+      user: imUserStore.user,
+      localStorageToken: !!storedToken,
+      localStorageUser: !!storedUser,
       storedTokenLength: storedToken?.length || 0
     })
     
-    // 跳转到工作台
+    // 如果状态未正确设置，再次尝试同步
+    if (!imUserStore.isLoggedIn && storedToken && storedUser) {
+      console.warn('[Login] ⚠️ 状态未同步，再次尝试恢复')
+      if (typeof imUserStore.initFromStorage === 'function') {
+        imUserStore.initFromStorage()
+        await nextTick()
+      }
+    }
+    
+    // 最终验证：确保localStorage有数据
+    if (!storedToken || !storedUser) {
+      console.error('[Login] ❌ localStorage数据丢失，无法跳转')
+      ElMessage.error('登录状态保存失败，请重新登录')
+      return
+    }
+    
+    // 跳转到工作台（使用replace避免返回登录页）
     console.log('[Login] 开始跳转到 /im/workspace')
-    router.push('/im/workspace').then(() => {
+    router.replace('/im/workspace').then(() => {
       console.log('[Login] 路由跳转成功')
     }).catch((error) => {
       console.error('[Login] 路由跳转失败:', error)
+      // 如果跳转失败，尝试使用push
+      router.push('/im/workspace')
     })
   } catch (error: any) {
     console.error('登录失败:', error)
@@ -565,9 +698,18 @@ onMounted(() => {
   drawCaptcha()
   
   // 检测URL参数，如果是模拟登录，自动填充表单并登录
-  const collectorId = route.query.collectorId as string
-  const tenantId = route.query.tenantId as string
-  const simulate = route.query.simulate as string
+  // 处理URL参数可能是数组的情况（Vue Router会将同名参数转为数组）
+  const getQueryParam = (param: string | string[] | undefined): string => {
+    if (!param) return ''
+    if (Array.isArray(param)) {
+      return param[0] || ''
+    }
+    return param
+  }
+  
+  const collectorId = getQueryParam(route.query.collectorId)
+  const tenantId = getQueryParam(route.query.tenantId)
+  const simulate = getQueryParam(route.query.simulate)
   
   if (simulate === 'true' && collectorId && tenantId) {
     // 自动填充表单

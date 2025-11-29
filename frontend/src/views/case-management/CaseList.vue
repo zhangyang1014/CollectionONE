@@ -114,24 +114,6 @@
 
           <!-- 动态筛选器 - 基于字段展示配置自动生成 -->
           
-          <!-- 可搜索字段（文本） -->
-          <el-col 
-            v-for="field in searchableFields.slice(0, 2)" 
-            :key="`search-${field.field_key}`" 
-            :span="6"
-          >
-            <el-form-item :label="field.field_name">
-              <el-input
-                v-model="dynamicFilterValues[field.field_key]"
-                placeholder="搜索"
-                clearable
-                style="width: 100%"
-                @blur="handleQuery"
-                @clear="handleQuery"
-              />
-            </el-form-item>
-          </el-col>
-
           <!-- 可筛选字段（枚举） -->
           <el-col 
             v-for="field in filterableFields.slice(0, 2)" 
@@ -231,7 +213,7 @@
       <div v-if="currentTenantId" class="search-area">
         <el-input
           v-model="searchKeyword"
-          placeholder="输入精准用户编号、贷款编号、手机号进行搜索"
+          placeholder="搜索案件编号、客户姓名、客户ID、手机号码"
           class="search-input"
           clearable
           @keyup.enter="handleSearch"
@@ -243,28 +225,66 @@
         <el-button type="primary" @click="handleSearch">搜索</el-button>
       </div>
 
+      <!-- 批量操作工具栏 -->
+      <div v-if="currentTenantId && selectedCases.length > 0" class="batch-toolbar">
+        <el-alert
+          :title="`已选择 ${selectedCases.length} 个案件`"
+          type="info"
+          :closable="false"
+        >
+          <template #default>
+            <div class="batch-actions">
+              <el-button type="primary" size="small" @click="handleBatchAssign">
+                <el-icon><Operation /></el-icon>
+                批量分案
+              </el-button>
+              <el-button type="warning" size="small" @click="handleBatchStay">
+                <el-icon><Lock /></el-icon>
+                标记停留
+              </el-button>
+              <el-button size="small" @click="clearSelection">
+                取消选择
+              </el-button>
+            </div>
+          </template>
+        </el-alert>
+      </div>
+
       <!-- 案件列表表格 - 使用动态字段展示配置 -->
       <DynamicCaseTable
         v-if="currentTenantId"
+        ref="tableRef"
         :data="displayCases"
         :columns="getTableColumns()"
         :loading="configLoading"
         border
+        show-selection
+        :selectable="canSelectCase"
         show-actions
         :actions-width="200"
+        :row-class-name="getRowClassName"
+        @selection-change="handleSelectionChange"
         @sort-change="handleSortChange"
       >
+        <!-- 自定义客户姓名显示 -->
+        <template #cell-user_name="{ row, value }">
+          <div class="user-name-cell">
+            <span class="user-name">{{ value || row.userName || row.user_name || row['userName'] || row['user_name'] || '-' }}</span>
+            <span v-if="(row.userId || row.user_id || row['userId'] || row['user_id'])" class="user-id-text">{{ row.userId || row.user_id || row['userId'] || row['user_id'] }}</span>
+          </div>
+        </template>
+
         <!-- 自定义逾期天数显示 -->
-        <template #cell-overdue_days="{ row }">
-          <el-tag :type="getOverdueTagType(row.overdue_days)" effect="dark">
-            {{ row.overdue_days }} 天
+        <template #cell-overdue_days="{ row, value }">
+          <el-tag :type="getOverdueTagType(value || row.overdueDays || row.overdue_days || 0)" effect="dark">
+            {{ value || row.overdueDays || row.overdue_days || 0 }} 天
           </el-tag>
         </template>
 
         <!-- 自定义案件状态显示 -->
-        <template #cell-case_status="{ row }">
-          <el-tag :type="getCaseStatusType(row.case_status)">
-            {{ getCaseStatusText(row.case_status) }}
+        <template #cell-case_status="{ row, value }">
+          <el-tag :type="getCaseStatusType(value || row.caseStatus || row.case_status)">
+            {{ getCaseStatusText(value || row.caseStatus || row.case_status) }}
           </el-tag>
         </template>
 
@@ -418,6 +438,13 @@
         </div>
       </el-dialog>
 
+      <!-- 批量分案弹窗 -->
+      <BatchAssignDialog
+        v-model="showBatchAssignDialog"
+        :selected-case-ids="selectedCases.map(c => c.id)"
+        @success="handleAssignSuccess"
+      />
+
       <!-- 筛选器配置对话框 -->
       <el-dialog 
         v-model="filterConfigDialogVisible" 
@@ -497,8 +524,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
-import { getCases } from '@/api/case'
+import { Search, Operation, Lock } from '@element-plus/icons-vue'
+import { getCases, batchStayCases } from '@/api/case'
 import { getFieldGroups } from '@/api/field'
 import { getTenantQueues } from '@/api/queue'
 import { getTenantAgencies, getAgencyTeams, getTeamCollectors } from '@/api/organization'
@@ -506,6 +533,7 @@ import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 import { useFieldDisplayConfig } from '@/composables/useFieldDisplayConfig'
 import DynamicCaseTable from '@/components/DynamicCaseTable.vue'
+import BatchAssignDialog from '@/components/BatchAssignDialog.vue'
 import dayjs from 'dayjs'
 import { getApiUrl } from '@/config/api'
 
@@ -518,7 +546,6 @@ const currentTenantId = computed(() => tenantStore.currentTenantId)
 const {
   loading: configLoading,
   visibleConfigs,
-  searchableFields,
   filterableFields,
   rangeSearchableFields,
   getTableColumns,
@@ -544,6 +571,9 @@ const teams = ref<any[]>([])
 const collectors = ref<any[]>([])
 const searchKeyword = ref('')
 const sortConfig = ref({ prop: 'overdue_days', order: 'descending' })
+const selectedCases = ref<any[]>([])
+const showBatchAssignDialog = ref(false)
+const tableRef = ref()
 
 const filters = ref<{
   case_status?: string
@@ -584,24 +614,13 @@ const pagination = ref({
   total: 0,
 })
 
-// 搜索过滤
+// 搜索过滤 - 现在由后端处理，这里直接返回cases
 const searchedCases = computed(() => {
   // 确保 cases.value 是数组
   if (!Array.isArray(cases.value)) {
     return []
   }
-  
-  if (!searchKeyword.value) {
-    return cases.value
-  }
-  const keyword = searchKeyword.value.trim().toLowerCase()
-  return cases.value.filter((c: any) => {
-    return (
-      c.user_id?.toLowerCase().includes(keyword) ||
-      c.loan_id?.toLowerCase().includes(keyword) ||
-      c.mobile_number?.toLowerCase().includes(keyword)
-    )
-  })
+  return cases.value
 })
 
 // 排序后的数据
@@ -637,9 +656,13 @@ const displayCases = computed(() => {
   return sortedCases.value.slice(start, end)
 })
 
-// 更新总数
+// 更新总数（现在由后端返回，此函数保留用于兼容）
 const updateTotal = () => {
-  pagination.value.total = searchedCases.value.length
+  // 总数现在由后端返回，这里不再需要计算
+  // 如果cases.value有数据但没有设置total，则使用cases长度作为fallback
+  if (pagination.value.total === 0 && cases.value.length > 0) {
+    pagination.value.total = cases.value.length
+  }
 }
 
 // 加载案件队列
@@ -733,6 +756,11 @@ const loadCases = async () => {
     params.settlement_date_end = filters.value.settlement_date_range[1]
   }
   
+  // 添加搜索关键词参数
+  if (searchKeyword.value && searchKeyword.value.trim()) {
+    params.search_keyword = searchKeyword.value.trim()
+  }
+  
   const res = await getCases(params)
   // 处理不同的响应格式
   // Java后端格式: { items: [...], total: 100 } (request.ts已经提取了data)
@@ -778,7 +806,7 @@ const handleQuery = () => {
 
 const handleSearch = () => {
   pagination.value.page = 1
-  updateTotal()
+  loadCases()
 }
 
 const resetFilters = () => {
@@ -800,6 +828,168 @@ const resetFilters = () => {
 
 const handleSortChange = ({ prop, order }: any) => {
   sortConfig.value = { prop, order }
+}
+
+// 批量分案相关方法
+/**
+ * 判断案件是否可选择（只有未结清的案件可以选择）
+ */
+const canSelectCase = (row: any) => {
+  const status = row.caseStatus || row.case_status
+  return status !== 'normal_settlement' && status !== 'extension_settlement'
+}
+
+/**
+ * 获取行className（用于禁用已结清案件的选择）
+ */
+const getRowClassName = ({ row }: { row: any }) => {
+  if (!canSelectCase(row)) {
+    return 'case-row-disabled'
+  }
+  return ''
+}
+
+/**
+ * 处理表格选择变化
+ */
+const handleSelectionChange = (selection: any[]) => {
+  // 过滤掉已结清的案件
+  selectedCases.value = selection.filter(c => canSelectCase(c))
+  
+  // 如果选择了已结清的案件，需要清除它们的选择状态
+  const disabledCases = selection.filter(c => !canSelectCase(c))
+  if (disabledCases.length > 0 && tableRef.value) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CaseList.vue:handleSelectionChange',message:'clearing disabled cases',data:{disabledCount:disabledCases.length,hasToggleRowSelection:typeof tableRef.value?.toggleRowSelection === 'function'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    // 清除已结清案件的选择状态
+    disabledCases.forEach(c => {
+      if (tableRef.value && typeof tableRef.value.toggleRowSelection === 'function') {
+        tableRef.value.toggleRowSelection(c, false)
+      }
+    })
+  }
+}
+
+/**
+ * 清除选择
+ */
+const clearSelection = () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CaseList.vue:clearSelection',message:'clearSelection called',data:{tableRefExists:!!tableRef.value,tableRefType:tableRef.value?.constructor?.name,hasClearSelection:typeof tableRef.value?.clearSelection === 'function',exposedMethods:tableRef.value ? Object.keys(tableRef.value).filter(k => typeof tableRef.value[k] === 'function') : []},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+  if (!tableRef.value) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CaseList.vue:clearSelection',message:'tableRef is null',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    console.warn('tableRef is not available')
+    return
+  }
+  
+  if (typeof tableRef.value.clearSelection === 'function') {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CaseList.vue:clearSelection',message:'calling clearSelection',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    tableRef.value.clearSelection()
+  } else {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CaseList.vue:clearSelection',message:'clearSelection method not available',data:{tableRefValue:tableRef.value,availableMethods:Object.keys(tableRef.value),allKeys:Object.keys(tableRef.value)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    console.error('tableRef.clearSelection is not a function', {
+      tableRef: tableRef.value,
+      availableMethods: Object.keys(tableRef.value),
+      type: typeof tableRef.value.clearSelection
+    })
+  }
+}
+
+/**
+ * 打开批量分案弹窗
+ */
+const handleBatchAssign = () => {
+  if (selectedCases.value.length === 0) {
+    ElMessage.warning('请先选择案件')
+    return
+  }
+  showBatchAssignDialog.value = true
+}
+
+/**
+ * 分案成功回调
+ */
+const handleAssignSuccess = () => {
+  clearSelection()
+  loadCases()
+  ElMessage.success('分案成功')
+}
+
+/**
+ * 批量标记停留
+ */
+const handleBatchStay = async () => {
+  if (selectedCases.value.length === 0) {
+    ElMessage.warning('请先选择案件')
+    return
+  }
+
+  try {
+    const { ElMessageBox } = await import('element-plus')
+    await ElMessageBox.confirm(
+      `确定要将选中的 ${selectedCases.value.length} 个案件标记为停留吗？停留后案件将从催员侧收回，管理端不可再分案。`,
+      '标记停留确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+
+    const caseIds = selectedCases.value.map(c => c.id)
+    console.log('========== 开始批量标记停留 ==========')
+    console.log('案件ID列表:', caseIds)
+    
+    const response = await batchStayCases(caseIds)
+    console.log('========== 批量停留响应 ==========')
+    console.log('完整响应:', JSON.stringify(response, null, 2))
+    
+    // request拦截器已经处理了响应，response就是data部分
+    // 但为了兼容，也检查response.data
+    const data = response?.data || response || {}
+    console.log('处理后的数据:', data)
+    console.log('successCount:', data.successCount)
+    console.log('failureCount:', data.failureCount)
+
+    // 兼容两种字段名：successCount (Java驼峰) 和 success_count (下划线)
+    const successCount = data.successCount ?? data.success_count ?? 0
+    const failureCount = data.failureCount ?? data.failure_count ?? 0
+    const failures = data.failures || []
+
+    console.log('解析结果 - 成功:', successCount, '失败:', failureCount)
+
+    if (successCount > 0) {
+      ElMessage.success(`成功标记 ${successCount} 个案件为停留`)
+      clearSelection()
+      loadCases()
+    } else if (failureCount > 0) {
+      ElMessage.warning(`有 ${failureCount} 个案件标记停留失败`)
+      if (failures.length > 0) {
+        console.error('停留失败详情:', failures)
+        const errorMsg = failures.map((f: any) => `案件${f.caseId || f.case_id}: ${f.errorMessage || f.error_message || '未知错误'}`).join('; ')
+        ElMessage.error(`失败详情: ${errorMsg}`)
+      }
+    } else {
+      // 如果既没有成功也没有失败，可能是所有案件都已经停留了（幂等性）
+      ElMessage.info('所选案件可能已经是停留状态，或没有符合条件的案件')
+      clearSelection()
+      loadCases()
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('批量标记停留失败:', error)
+      const errorMsg = error.response?.data?.message || error.message || '批量标记停留失败'
+      ElMessage.error(errorMsg)
+    }
+  }
 }
 
 const handleSizeChange = (size: number) => {
@@ -1270,13 +1460,30 @@ onMounted(async () => {
   max-width: 600px;
 }
 
-.user-name {
-  font-weight: 500;
-  color: #303133;
+.user-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.user-id-text {
+.user-name-cell .user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-name-cell .user-id-text {
+  font-size: 12px;
   color: #606266;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .amount {
@@ -1348,6 +1555,33 @@ onMounted(async () => {
 
 .history-notes-list :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
   background: #fafafa;
+}
+
+/* 批量操作工具栏 */
+.batch-toolbar {
+  margin-bottom: 16px;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* 已结清案件行样式（禁用选择） */
+:deep(.case-row-disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:deep(.case-row-disabled .el-checkbox) {
+  cursor: not-allowed;
+}
+
+:deep(.case-row-disabled .el-checkbox__input) {
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>
 

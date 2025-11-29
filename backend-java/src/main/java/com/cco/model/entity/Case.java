@@ -75,6 +75,16 @@ public class Case extends BaseEntity {
     private String caseStatus;
 
     /**
+     * 产品名称
+     */
+    private String productName;
+
+    /**
+     * App名称
+     */
+    private String appName;
+
+    /**
      * 逾期天数（用于自动分配队列）
      */
     private Integer overdueDays;
@@ -123,6 +133,33 @@ public class Case extends BaseEntity {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime nextFollowUpAt;
+
+    /**
+     * 是否停留（独立状态字段，与case_status分离）
+     */
+    private Boolean isStay;
+
+    /**
+     * 停留时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime stayAt;
+
+    /**
+     * 停留操作人ID
+     */
+    private Long stayBy;
+
+    /**
+     * 解放停留时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime stayReleasedAt;
+
+    /**
+     * 解放停留操作人ID
+     */
+    private Long stayReleasedBy;
 
 }
 

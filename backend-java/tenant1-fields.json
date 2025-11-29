@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "sync_time": "2025-11-28T23:24:10Z",
+  "fields": [
+    {
+      "field_key": "case_number",
+      "field_name": "案件编号",
+      "field_type": "String",
+      "field_group_id": 1,
+      "is_required": true,
+      "updated_at": "2025-11-28T23:24:10Z",
+      "description": "案件编号",
+      "tenant_field_key": "CASE_NUMBER"
+    },
+    {
+      "field_key": "debtor_name",
+      "field_name": "债务人姓名",
+      "field_type": "String",
+      "field_group_id": 1,
+      "is_required": true,
+      "updated_at": "2025-11-28T23:24:10Z",
+      "description": "债务人姓名",
+      "tenant_field_key": "DEBTOR_NAME"
+    },
+    {
+      "field_key": "mobile",
+      "field_name": "手机号",
+      "field_type": "String",
+      "field_group_id": 2,
+      "is_required": false,
+      "updated_at": "2025-11-28T23:24:10Z",
+      "description": "手机号",
+      "tenant_field_key": "MOBILE"
+    },
+    {
+      "field_key": "email",
+      "field_name": "邮箱",
+      "field_type": "String",
+      "field_group_id": 2,
+      "is_required": false,
+      "updated_at": "2025-11-28T23:24:10Z",
+      "description": "邮箱",
+      "tenant_field_key": "EMAIL"
+    },
+    {
+      "field_key": "loan_amount",
+      "field_name": "贷款金额",
+      "field_type": "Decimal",
+      "field_group_id": 3,
+      "is_required": true,
+      "updated_at": "2025-11-28T23:24:10Z",
+      "description": "贷款金额",
+      "tenant_field_key": "LOAN_AMOUNT"
+    },
+    {
+      "field_key": "outstanding_amount",
+      "field_name": "未还金额",
+      "field_type": "Decimal",
+      "field_group_id": 3,
+      "is_required": true,
+      "updated_at": "2025-11-28T23:24:10Z",
+      "description": "未还金额",
+      "tenant_field_key": "OUTSTANDING_AMOUNT"
+    }
+  ]
+}
+

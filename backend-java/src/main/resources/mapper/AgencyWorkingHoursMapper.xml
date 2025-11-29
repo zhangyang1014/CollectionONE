@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cco.mapper.AgencyWorkingHoursMapper">
+    
+    <!-- 根据机构ID查询作息时间（返回7天的数据，按day_of_week排序） -->
+    <select id="selectByAgencyId" resultType="com.cco.model.entity.AgencyWorkingHours">
+        SELECT * FROM agency_working_hours
+        WHERE agency_id = #{agencyId}
+        ORDER BY day_of_week ASC
+    </select>
+    
+    <!-- 根据机构ID和星期几查询作息时间 -->
+    <select id="selectByAgencyIdAndDay" resultType="com.cco.model.entity.AgencyWorkingHours">
+        SELECT * FROM agency_working_hours
+        WHERE agency_id = #{agencyId}
+        AND day_of_week = #{dayOfWeek}
+        LIMIT 1
+    </select>
+    
+    <!-- 删除机构的所有作息时间 -->
+    <delete id="deleteByAgencyId">
+        DELETE FROM agency_working_hours
+        WHERE agency_id = #{agencyId}
+    </delete>
+    
+</mapper>
+

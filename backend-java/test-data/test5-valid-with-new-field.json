@@ -1,0 +1,23 @@
+{
+  "version": "1.1",
+  "sync_time": "2025-11-26T10:30:00Z",
+  "fields": [
+    {
+      "field_key": "user_id",
+      "field_name": "用户ID",
+      "field_type": "String",
+      "field_group_id": 1,
+      "is_required": true,
+      "updated_at": "2025-11-26T10:30:00Z"
+    },
+    {
+      "field_key": "new_field",
+      "field_name": "新字段",
+      "field_type": "String",
+      "field_group_id": 1,
+      "is_required": false,
+      "updated_at": "2025-11-26T10:30:00Z"
+    }
+  ]
+}
+

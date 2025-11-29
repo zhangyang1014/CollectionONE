@@ -56,7 +56,9 @@ public class TenantFieldDisplayConfig extends BaseEntity {
     private String fieldDataType;
 
     /**
-     * 字段来源：standard/extended/custom
+     * 字段来源：standard/custom
+     * standard: 标准字段（已映射到标准字段）
+     * custom: 自定义字段（不映射到标准字段，存储在custom_fields表）
      */
     private String fieldSource;
 

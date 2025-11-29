@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "sync_time": "2025-11-25T10:30:00Z",
+  "fields": [
+    {
+      "field_key": "status",
+      "field_name": "状态",
+      "field_type": "Enum",
+      "updated_at": "2025-11-25T10:30:00Z"
+    }
+  ]
+}
+

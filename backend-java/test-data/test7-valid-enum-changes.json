@@ -1,0 +1,29 @@
+{
+  "version": "1.3",
+  "sync_time": "2025-11-28T10:30:00Z",
+  "fields": [
+    {
+      "field_key": "case_status",
+      "field_name": "案件状态",
+      "field_type": "Enum",
+      "field_group_id": 1,
+      "is_required": true,
+      "updated_at": "2025-11-28T10:30:00Z",
+      "enum_values": [
+        {
+          "value": "PENDING",
+          "label": "待处理"
+        },
+        {
+          "value": "SETTLED",
+          "label": "已结清"
+        },
+        {
+          "value": "CANCELLED",
+          "label": "已取消"
+        }
+      ]
+    }
+  ]
+}
+

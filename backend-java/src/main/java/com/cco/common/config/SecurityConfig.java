@@ -60,10 +60,13 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 
-                // 配置授权规则 - 临时允许所有请求（Mock模式）
+                // 配置授权规则
                 .authorizeHttpRequests(authorize -> authorize
                         .anyRequest().permitAll()
-                );
+                )
+                
+                // 添加JWT认证过滤器
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

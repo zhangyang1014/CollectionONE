@@ -103,8 +103,46 @@
         </el-form-item>
 
         <el-form-item label="支付图标" prop="channel_icon">
-          <el-input v-model="formData.channel_icon" placeholder="图标URL" />
-          <el-text type="info" size="small">建议尺寸：64x64px</el-text>
+          <div class="icon-upload-container">
+            <!-- 图片预览 -->
+            <div v-if="formData.channel_icon" class="icon-preview">
+              <img :src="formData.channel_icon" alt="图标预览" />
+              <el-button
+                type="danger"
+                size="small"
+                text
+                @click="handleRemoveIcon"
+                class="remove-icon-btn"
+              >
+                删除
+              </el-button>
+            </div>
+            <!-- 上传组件 -->
+            <el-upload
+              v-if="!formData.channel_icon"
+              :auto-upload="false"
+              :show-file-list="false"
+              accept="image/*"
+              :on-change="handleIconChange"
+              :before-upload="beforeIconUpload"
+            >
+              <el-button type="primary">
+                <el-icon><Upload /></el-icon>
+                上传图标
+              </el-button>
+              <template #tip>
+                <el-text type="info" size="small">支持jpg/png格式，建议尺寸：64x64px，文件大小不超过2MB</el-text>
+              </template>
+            </el-upload>
+            <!-- 或者输入URL -->
+            <div class="icon-url-input" style="margin-top: 10px">
+              <el-input
+                v-model="formData.channel_icon"
+                placeholder="或直接输入图标URL"
+                clearable
+              />
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item label="支付类型" prop="channel_type">
@@ -200,7 +238,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Plus, Rank } from '@element-plus/icons-vue'
+import { Plus, Rank, Upload } from '@element-plus/icons-vue'
 import Sortable from 'sortablejs'
 import {
   getPaymentChannels,
@@ -276,9 +314,23 @@ const loadChannels = async () => {
     }
 
     const res = await getPaymentChannels(params)
-    if (res.code === 0) {
-      channels.value = res.data.list
-      // 初始化拖拽排序
+    // 兼容不同的响应格式：request拦截器会返回res.data，所以这里res已经是data对象
+    let channelList: PaymentChannel[] = []
+    if (res && res.list) {
+      channelList = res.list
+    } else if (Array.isArray(res)) {
+      // 如果直接返回数组
+      channelList = res
+    }
+    
+    // 转换is_enabled类型：后端返回0/1，前端需要true/false
+    channels.value = channelList.map(channel => ({
+      ...channel,
+      is_enabled: channel.is_enabled === 1 || channel.is_enabled === true
+    }))
+    
+    // 初始化拖拽排序
+    if (channels.value.length > 0) {
       initSortable()
     }
   } catch (error) {
@@ -363,12 +415,30 @@ const handleEdit = (row: PaymentChannel) => {
 
 // 切换状态
 const handleToggle = async (row: PaymentChannel) => {
+  // v-model已经改变了row.is_enabled的值，所以这里保存的是新值
+  const newStatus = row.is_enabled
+  const oldStatus = !newStatus
+  
   try {
-    await togglePaymentChannel(row.id)
+    const res = await togglePaymentChannel(row.id)
+    // 如果后端返回了更新后的数据，使用后端数据确保同步
+    // 后端返回的is_enabled可能是0/1（Integer），需要转换为boolean
+    if (res && typeof res === 'object') {
+      let updatedStatus = res.is_enabled
+      if (updatedStatus === undefined && res.data) {
+        updatedStatus = res.data.is_enabled
+      }
+      if (updatedStatus !== undefined) {
+        // 转换为boolean：1 -> true, 0 -> false
+        row.is_enabled = updatedStatus === 1 || updatedStatus === true
+      }
+    }
     ElMessage.success(row.is_enabled ? '已启用' : '已禁用')
+    // 重新加载列表以确保数据同步
+    await loadChannels()
   } catch (error) {
     // 恢复原状态
-    row.is_enabled = !row.is_enabled
+    row.is_enabled = oldStatus
     ElMessage.error('操作失败')
   }
 }
@@ -388,6 +458,60 @@ const handleDelete = async (row: PaymentChannel) => {
       ElMessage.error('删除失败')
     }
   }
+}
+
+// 处理图标上传
+const handleIconChange = (file: any) => {
+  const rawFile = file.raw || file
+  if (!rawFile) return
+  
+  // 检查文件类型
+  const isImage = rawFile.type.startsWith('image/')
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+    return
+  }
+  
+  // 检查文件大小（2MB）
+  const isLt2M = rawFile.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过2MB')
+    return
+  }
+  
+  // 读取文件并转换为base64
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const result = e.target?.result
+    if (typeof result === 'string') {
+      formData.channel_icon = result
+    }
+  }
+  reader.onerror = () => {
+    ElMessage.error('图片读取失败')
+  }
+  reader.readAsDataURL(rawFile)
+}
+
+// 上传前验证
+const beforeIconUpload = (file: File) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+  
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+    return false
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过2MB')
+    return false
+  }
+  return false // 返回false阻止自动上传，我们手动处理
+}
+
+// 删除图标
+const handleRemoveIcon = () => {
+  formData.channel_icon = ''
 }
 
 // 提交表单
@@ -498,6 +622,43 @@ onMounted(() => {
         }
       }
     }
+  }
+}
+
+.icon-upload-container {
+  .icon-preview {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 10px;
+    
+    img {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      border: 1px solid #dcdfe6;
+      border-radius: 4px;
+      padding: 4px;
+      background: #f5f7fa;
+    }
+    
+    .remove-icon-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #f56c6c;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+  
+  .icon-url-input {
+    margin-top: 10px;
   }
 }
 </style>

@@ -272,8 +272,8 @@ const loadQueues = async () => {
     
     if (queueData.length > 0 || Array.isArray(queueData)) {
       queues.value = queueData
-      // 生成配置数据
-      generateConfigs()
+      // 加载配置数据
+      await loadConfigs()
     } else {
       queues.value = []
       ElMessage.warning('暂无队列数据')
@@ -282,6 +282,52 @@ const loadQueues = async () => {
     console.error('加载队列失败：', error)
     ElMessage.error('加载队列失败：' + (error.message || '未知错误'))
     queues.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载配置数据
+const loadConfigs = async () => {
+  if (!tenantStore.currentTenantId) {
+    return
+  }
+
+  try {
+    loading.value = true
+    // 调用后端API获取配置数据
+    const response: any = await request({
+      url: `/api/v1/channel-limit-configs/tenants/${tenantStore.currentTenantId}`,
+      method: 'get'
+    })
+    
+    // 处理响应数据
+    const configData = Array.isArray(response) ? response : (response.data || [])
+    
+    if (configData.length > 0) {
+      // 如果后端有数据，使用后端数据
+      configs.value = configData.map((config: any) => ({
+        ...config,
+        // 确保所有字段都存在
+        daily_limit_per_case: config.daily_limit_per_case ?? null,
+        daily_limit_per_case_unlimited: config.daily_limit_per_case_unlimited ?? (config.daily_limit_per_case == null),
+        daily_limit_per_contact: config.daily_limit_per_contact ?? null,
+        daily_limit_per_contact_unlimited: config.daily_limit_per_contact_unlimited ?? (config.daily_limit_per_contact == null),
+        send_interval: config.send_interval ?? null,
+        send_interval_unlimited: config.send_interval_unlimited ?? (config.send_interval == null),
+        enabled: config.enabled ?? true
+      }))
+    } else {
+      // 如果后端没有数据，根据队列生成默认配置
+      generateConfigs()
+    }
+    
+    // 保存原始配置用于比较
+    originalConfigs.value = JSON.parse(JSON.stringify(configs.value))
+  } catch (error: any) {
+    console.error('加载配置失败：', error)
+    // 如果API调用失败，使用前端生成的方式
+    generateConfigs()
   } finally {
     loading.value = false
   }
@@ -358,19 +404,73 @@ const handleSaveRow = async (row: any) => {
     return
   }
 
+  if (!tenantStore.currentTenantId) {
+    ElMessage.warning('请先选择甲方')
+    return
+  }
+
   try {
     loading.value = true
     
-    // 这里调用API保存单行配置
-    // await saveChannelLimit(row)
+    // 准备保存的数据
+    const saveData: any = {
+      tenant_id: tenantStore.currentTenantId,
+      channel: row.channel,
+      queue_id: row.queue_id,
+      queue_code: row.queue_code,
+      queue_name: row.queue_name,
+      daily_limit_per_case: row.daily_limit_per_case_unlimited ? null : row.daily_limit_per_case,
+      daily_limit_per_case_unlimited: row.daily_limit_per_case_unlimited,
+      daily_limit_per_contact: row.daily_limit_per_contact_unlimited ? null : row.daily_limit_per_contact,
+      daily_limit_per_contact_unlimited: row.daily_limit_per_contact_unlimited,
+      send_interval: row.send_interval_unlimited ? null : row.send_interval,
+      send_interval_unlimited: row.send_interval_unlimited,
+      enabled: row.enabled
+    }
     
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 300))
+    // 调用后端API保存配置
+    let savedConfig: any
+    if (row.id) {
+      // 更新现有配置
+      const response: any = await request({
+        url: `/api/v1/channel-limit-configs/${row.id}`,
+        method: 'put',
+        data: saveData
+      })
+      savedConfig = Array.isArray(response) ? response : (response.data || response)
+    } else {
+      // 创建新配置
+      const response: any = await request({
+        url: `/api/v1/channel-limit-configs`,
+        method: 'post',
+        data: saveData
+      })
+      savedConfig = Array.isArray(response) ? response : (response.data || response)
+    }
+    
+    // 更新本地数据
+    const index = configs.value.findIndex(c => c.id === row.id || 
+      (c.channel === row.channel && c.queue_code === row.queue_code))
+    if (index !== -1) {
+      configs.value[index] = {
+        ...savedConfig,
+        daily_limit_per_case: savedConfig.daily_limit_per_case ?? null,
+        daily_limit_per_case_unlimited: savedConfig.daily_limit_per_case_unlimited ?? (savedConfig.daily_limit_per_case == null),
+        daily_limit_per_contact: savedConfig.daily_limit_per_contact ?? null,
+        daily_limit_per_contact_unlimited: savedConfig.daily_limit_per_contact_unlimited ?? (savedConfig.daily_limit_per_contact == null),
+        send_interval: savedConfig.send_interval ?? null,
+        send_interval_unlimited: savedConfig.send_interval_unlimited ?? (savedConfig.send_interval == null),
+        enabled: savedConfig.enabled ?? true
+      }
+    }
     
     // 更新该行的原始配置
-    const originalIndex = originalConfigs.value.findIndex(orig => orig.id === row.id)
+    const originalIndex = originalConfigs.value.findIndex(orig => orig.id === row.id || 
+      (orig.channel === row.channel && orig.queue_code === row.queue_code))
     if (originalIndex !== -1) {
-      originalConfigs.value[originalIndex] = JSON.parse(JSON.stringify(row))
+      originalConfigs.value[originalIndex] = JSON.parse(JSON.stringify(configs.value[index]))
+    } else if (index !== -1) {
+      originalConfigs.value.push(JSON.parse(JSON.stringify(configs.value[index])))
     }
     
     ElMessage.success('保存成功')

@@ -1,5 +1,6 @@
 <template>
   <el-table
+    ref="elTableRef"
     :data="data"
     v-bind="$attrs"
     :row-class-name="rowClassName"
@@ -11,6 +12,7 @@
       type="selection" 
       width="55" 
       fixed="left"
+      :selectable="selectable"
     />
 
     <!-- 前置自定义列 -->
@@ -36,14 +38,14 @@
             :name="`cell-${column.prop}`" 
             :row="row" 
             :column="column"
-            :value="row[column.prop]"
-            :formatted-value="formatValue(column, row[column.prop])"
+            :value="getFieldValue(row, column.prop)"
+            :formatted-value="formatValue(column, getFieldValue(row, column.prop))"
           >
             <!-- 默认渲染 -->
             <component 
               :is="getCellComponent(column)" 
               :column="column" 
-              :value="row[column.prop]" 
+              :value="getFieldValue(row, column.prop)" 
               :row="row"
             />
           </slot>
@@ -66,9 +68,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue'
+import { computed, h, ref, nextTick } from 'vue'
 import { ElTag } from 'element-plus'
 import type { FieldDisplayConfig } from '@/types/fieldDisplay'
+
+// #region agent log
+// 内部el-table的ref
+const elTableRef = ref<InstanceType<typeof import('element-plus').ElTable>>()
+// #endregion
 
 /**
  * Props
@@ -92,6 +99,8 @@ interface Props {
   }>
   /** 是否显示选择框 */
   showSelection?: boolean
+  /** 行是否可选择函数 */
+  selectable?: (row: any, index: number) => boolean
   /** 是否显示操作列 */
   showActions?: boolean
   /** 操作列宽度 */
@@ -120,14 +129,83 @@ const effectiveColumns = computed(() => {
 })
 
 /**
+ * 获取字段值（支持snake_case和camelCase映射）
+ * 前端配置使用snake_case（case_code），后端返回camelCase（caseCode）
+ */
+const getFieldValue = (row: any, fieldKey: string): any => {
+  if (!row || !fieldKey) {
+    return undefined
+  }
+  
+  // 先尝试直接获取
+  if (fieldKey in row) {
+    const val = row[fieldKey]
+    if (val !== undefined && val !== null && val !== '') {
+      return val
+    }
+  }
+  
+  // 如果fieldKey是snake_case，尝试转换为camelCase
+  if (fieldKey.includes('_')) {
+    const camelCase = snakeToCamel(fieldKey)
+    if (camelCase in row) {
+      const val = row[camelCase]
+      if (val !== undefined && val !== null && val !== '') {
+        return val
+      }
+    }
+  }
+  
+  // 如果fieldKey是camelCase，尝试转换为snake_case
+  const snakeCase = camelToSnake(fieldKey)
+  if (snakeCase in row) {
+    const val = row[snakeCase]
+    if (val !== undefined && val !== null && val !== '') {
+      return val
+    }
+  }
+  
+  return undefined
+}
+
+/**
+ * snake_case转camelCase
+ */
+const snakeToCamel = (str: string): string => {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+}
+
+/**
+ * camelCase转snake_case
+ */
+const camelToSnake = (str: string): string => {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+}
+
+/**
  * 格式化值
  */
 const formatValue = (column: any, value: any): string => {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || value === '') {
     return '-'
   }
 
-  const { formatRule } = column
+  const { formatRule, fieldDataType } = column
+  
+  // 枚举类型特殊处理
+  if (fieldDataType === 'Enum') {
+    // 案件状态映射
+    if (column.prop === 'case_status' || column.prop === 'caseStatus') {
+      const statusMap: Record<string, string> = {
+        'pending_repayment': '待还款',
+        'partial_repayment': '部分还款',
+        'normal_settlement': '正常结清',
+        'extension_settlement': '展期结清'
+      }
+      return statusMap[String(value)] || String(value)
+    }
+    return String(value)
+  }
   
   // 货币格式化
   if (formatRule?.format_type === 'currency') {
@@ -146,8 +224,13 @@ const formatValue = (column: any, value: any): string => {
   }
 
   // 日期格式化
-  if (column.fieldDataType === 'Date' && value) {
+  if (fieldDataType === 'Date' && value) {
     return String(value).replace('T', ' ').substring(0, 19)
+  }
+
+  // 整数格式化（逾期天数）
+  if (fieldDataType === 'Integer' && value !== null && value !== undefined) {
+    return String(value)
   }
 
   return String(value)
@@ -193,6 +276,40 @@ const getCellComponent = (column: any) => {
     return h('span', formatValue(col, value))
   }
 }
+
+// #region agent log
+// 暴露方法给父组件使用
+defineExpose({
+  clearSelection() {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DynamicCaseTable.vue:clearSelection',message:'clearSelection called',data:{elTableRefExists:!!elTableRef.value,elTableRefType:elTableRef.value?.constructor?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    if (elTableRef.value && typeof elTableRef.value.clearSelection === 'function') {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DynamicCaseTable.vue:clearSelection',message:'calling elTableRef.clearSelection',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      elTableRef.value.clearSelection()
+    } else {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DynamicCaseTable.vue:clearSelection',message:'elTableRef invalid',data:{elTableRefExists:!!elTableRef.value,hasMethod:typeof elTableRef.value?.clearSelection},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      console.warn('elTableRef.clearSelection is not available', elTableRef.value)
+    }
+  },
+  toggleRowSelection(row: any, selected?: boolean) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5212b1a1-7708-4d23-a17a-19c9629d5189',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DynamicCaseTable.vue:toggleRowSelection',message:'toggleRowSelection called',data:{elTableRefExists:!!elTableRef.value},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    if (elTableRef.value && typeof elTableRef.value.toggleRowSelection === 'function') {
+      elTableRef.value.toggleRowSelection(row, selected)
+    }
+  },
+  // 暴露el-table的其他常用方法
+  getSelectionRows() {
+    return elTableRef.value?.getSelectionRows() || []
+  }
+})
+// #endregion
 </script>
 
 <style scoped>

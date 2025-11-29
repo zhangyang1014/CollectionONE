@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "sync_time": "2025-11-25T10:30:00Z",
+  "fields": [
+    {
+      "field_key": "user_id",
+      "field_name": "用户ID",
+      "field_type": "String",
+      "field_group_id": 1,
+      "is_required": true,
+      "updated_at": "2025-11-25T10:30:00Z"
+    },
+    {
+      "field_key": "case_status",
+      "field_name": "案件状态",
+      "field_type": "Enum",
+      "field_group_id": 1,
+      "is_required": true,
+      "updated_at": "2025-11-25T10:30:00Z",
+      "enum_values": [
+        {
+          "value": "PENDING",
+          "label": "待还款"
+        },
+        {
+          "value": "SETTLED",
+          "label": "已结清"
+        }
+      ]
+    }
+  ]
+}
+

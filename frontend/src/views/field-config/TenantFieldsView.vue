@@ -4,6 +4,14 @@
       <template #header>
         <div class="card-header">
           <span>甲方字段查看</span>
+          <el-button 
+            type="primary" 
+            @click="handleUploadClick"
+            :disabled="!currentTenantId"
+          >
+            <el-icon><Upload /></el-icon>
+            上传JSON文件
+          </el-button>
         </div>
       </template>
 
@@ -91,16 +99,135 @@
         </el-col>
       </el-row>
     </el-card>
+
+    <!-- JSON上传弹窗 -->
+    <el-dialog
+      v-model="uploadDialogVisible"
+      title="上传JSON文件"
+      width="800px"
+      :close-on-click-modal="false"
+    >
+      <div v-loading="uploadLoading">
+        <!-- 文件选择 -->
+        <div style="margin-bottom: 20px">
+          <el-upload
+            :auto-upload="false"
+            :on-change="handleFileChange"
+            accept=".json"
+            :limit="1"
+            :file-list="uploadFile ? [{ name: uploadFile.name }] : []"
+          >
+            <template #trigger>
+              <el-button type="primary">选择文件</el-button>
+            </template>
+            <template #tip>
+              <div class="el-upload__tip">只能上传.json文件，且不超过10MB</div>
+            </template>
+          </el-upload>
+        </div>
+
+        <!-- 校验结果 -->
+        <div v-if="validateResult">
+          <div v-if="!validateResult.valid" style="margin-bottom: 20px">
+            <el-alert
+              title="JSON格式校验失败"
+              type="error"
+              :closable="false"
+              show-icon
+            >
+              <div style="margin-top: 10px">
+                <div v-for="(error, index) in validateResult.errors" :key="index" style="margin-bottom: 5px">
+                  <strong>{{ error.path }}:</strong> {{ error.message }}
+                </div>
+              </div>
+            </el-alert>
+          </div>
+          
+          <div v-if="validateResult.valid && compareResult" style="margin-bottom: 20px">
+            <el-alert
+              title="版本对比结果"
+              type="info"
+              :closable="false"
+              show-icon
+            >
+              <div style="margin-top: 10px">
+                <div style="margin-bottom: 10px">
+                  <strong>统计信息：</strong>
+                  <ul style="margin: 5px 0; padding-left: 20px">
+                    <li>新增字段：{{ compareResult.addedFields?.length || 0 }}个</li>
+                    <li>删除字段：{{ compareResult.deletedFields?.length || 0 }}个</li>
+                    <li>修改字段：{{ compareResult.modifiedFields?.length || 0 }}个</li>
+                  </ul>
+                </div>
+                
+                <!-- 新增字段 -->
+                <div v-if="compareResult.addedFields?.length > 0" style="margin-bottom: 10px">
+                  <el-tag type="success" style="margin-bottom: 5px">新增字段（{{ compareResult.addedFields.length }}个）：</el-tag>
+                  <div v-for="(field, index) in compareResult.addedFields" :key="index" style="margin-left: 20px; margin-bottom: 3px">
+                    • {{ field.field_key }} - {{ field.field_name }} ({{ field.field_type }})
+                  </div>
+                </div>
+                
+                <!-- 删除字段 -->
+                <div v-if="compareResult.deletedFields?.length > 0" style="margin-bottom: 10px">
+                  <el-tag type="danger" style="margin-bottom: 5px">删除字段（{{ compareResult.deletedFields.length }}个）：</el-tag>
+                  <div v-for="(field, index) in compareResult.deletedFields" :key="index" style="margin-left: 20px; margin-bottom: 3px; text-decoration: line-through">
+                    • {{ field.field_key }} - {{ field.field_name }} (已删除)
+                  </div>
+                </div>
+                
+                <!-- 修改字段 -->
+                <div v-if="compareResult.modifiedFields?.length > 0" style="margin-bottom: 10px">
+                  <el-tag type="warning" style="margin-bottom: 5px">修改字段（{{ compareResult.modifiedFields.length }}个）：</el-tag>
+                  <div v-for="(field, index) in compareResult.modifiedFields" :key="index" style="margin-left: 20px; margin-bottom: 5px">
+                    <div><strong>{{ field.field_key }}</strong></div>
+                    <div v-for="(change, key) in field.changes" :key="key" style="margin-left: 20px; margin-top: 3px">
+                      <span v-if="key !== 'enum_values'">
+                        - {{ key }}: "{{ change.old }}" → "{{ change.new_ }}"
+                      </span>
+                      <span v-else>
+                        - 枚举值变化：
+                        <span v-if="change.added?.length > 0">
+                          <span style="color: green">+ 新增: {{ change.added.map((e: any) => e.label || e.value).join(', ') }}</span>
+                        </span>
+                        <span v-if="change.deleted?.length > 0">
+                          <span style="color: red">- 删除: {{ change.deleted.map((e: any) => e.label || e.value).join(', ') }}</span>
+                        </span>
+                        <span v-if="change.modified?.length > 0">
+                          <span style="color: orange">~ 修改: {{ change.modified.map((e: any) => `${e.old?.label || e.old?.value} → ${e.new_?.label || e.new_?.value}`).join(', ') }}</span>
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-alert>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="handleCancelUpload">取消</el-button>
+        <el-button 
+          type="primary" 
+          @click="handleConfirmSave"
+          :disabled="!validateResult?.valid || uploadLoading"
+        >
+          确认保存
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Rank } from '@element-plus/icons-vue'
+import { ElMessage, ElDialog, ElButton, ElUpload } from 'element-plus'
+import { Rank, Upload } from '@element-plus/icons-vue'
 import { getFieldGroups } from '@/api/field'
 import { useTenantStore } from '@/stores/tenant'
 import request from '@/utils/request'
+import axios from 'axios'
 
 const tenantStore = useTenantStore()
 const currentTenantId = computed(() => tenantStore.currentTenantId)
@@ -111,6 +238,14 @@ const treeData = ref<any[]>([])
 const currentGroupId = ref<number>()
 const loading = ref(false)
 const lastFetchTime = ref<string>('')
+
+// JSON上传相关
+const uploadDialogVisible = ref(false)
+const uploadFile = ref<File | null>(null)
+const validateResult = ref<any>(null)
+const compareResult = ref<any>(null)
+const uploadLoading = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 // 加载字段分组
 const loadGroups = async () => {
@@ -262,6 +397,152 @@ watch(currentTenantId, (newTenantId) => {
     lastFetchTime.value = ''
   }
 })
+
+// 处理上传按钮点击
+const handleUploadClick = () => {
+  if (!currentTenantId.value) {
+    ElMessage.warning('请先选择甲方')
+    return
+  }
+  uploadDialogVisible.value = true
+  uploadFile.value = null
+  validateResult.value = null
+  compareResult.value = null
+}
+
+// 处理文件选择（el-upload组件的on-change事件）
+const handleFileChange = (file: any) => {
+  const rawFile = file.raw || file
+  if (!rawFile) return
+  
+  // 检查文件格式
+  if (!rawFile.name.endsWith('.json')) {
+    ElMessage.error('只能上传.json格式的文件')
+    return
+  }
+  
+  // 检查文件大小（10MB）
+  if (rawFile.size > 10 * 1024 * 1024) {
+    ElMessage.error('文件大小不能超过10MB')
+    return
+  }
+  
+  uploadFile.value = rawFile
+  validateAndCompare()
+}
+
+// 校验并对比
+const validateAndCompare = async () => {
+  if (!uploadFile.value || !currentTenantId.value) return
+  
+  uploadLoading.value = true
+  try {
+    // 1. 读取文件内容
+    const content = await uploadFile.value.text()
+    
+    // 2. 前端基础格式校验
+    let jsonData: any
+    try {
+      jsonData = JSON.parse(content)
+    } catch (e: any) {
+      ElMessage.error(`JSON格式错误：${e.message}`)
+      uploadLoading.value = false
+      return
+    }
+    
+    // 3. 发送到后端进行详细校验
+    const formData = new FormData()
+    formData.append('file', uploadFile.value)
+    
+    const validateResponse = await axios.post(
+      `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/tenants/${currentTenantId.value}/fields-json/validate`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    )
+    
+    if (validateResponse.data.code !== 200 || !validateResponse.data.data.valid) {
+      validateResult.value = {
+        valid: false,
+        errors: validateResponse.data.data.errors || []
+      }
+      uploadLoading.value = false
+      return
+    }
+    
+    validateResult.value = validateResponse.data.data
+    
+    // 4. 版本对比
+    const compareResponse = await request({
+      url: `/api/v1/tenants/${currentTenantId.value}/fields-json/compare`,
+      method: 'post',
+      data: {
+        fieldsJson: jsonData
+      }
+    })
+    
+    compareResult.value = compareResponse
+    
+  } catch (error: any) {
+    console.error('校验或对比失败：', error)
+    ElMessage.error(error.response?.data?.message || error.message || '校验失败')
+  } finally {
+    uploadLoading.value = false
+  }
+}
+
+// 确认保存
+const handleConfirmSave = async () => {
+  if (!uploadFile.value || !currentTenantId.value || !validateResult.value?.valid) return
+  
+  uploadLoading.value = true
+  try {
+    // 读取文件内容
+    const content = await uploadFile.value.text()
+    const jsonData = JSON.parse(content)
+    
+    // 上传并保存
+    await request({
+      url: `/api/v1/tenants/${currentTenantId.value}/fields-json/upload`,
+      method: 'post',
+      data: {
+        version: jsonData.version,
+        syncTime: jsonData.sync_time,
+        fields: jsonData.fields
+      }
+    })
+    
+    ElMessage.success('保存成功')
+    uploadDialogVisible.value = false
+    uploadFile.value = null
+    validateResult.value = null
+    compareResult.value = null
+    
+    // 重新加载字段数据
+    loadTenantFields()
+    
+  } catch (error: any) {
+    console.error('保存失败：', error)
+    ElMessage.error(error.response?.data?.message || error.message || '保存失败')
+  } finally {
+    uploadLoading.value = false
+  }
+}
+
+// 取消上传
+const handleCancelUpload = () => {
+  uploadDialogVisible.value = false
+  uploadFile.value = null
+  validateResult.value = null
+  compareResult.value = null
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
 </script>
 
 <style scoped>

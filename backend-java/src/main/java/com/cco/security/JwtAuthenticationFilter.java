@@ -8,6 +8,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -42,29 +43,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt)) {
-                // Mock模式：如果是Mock Token，直接放行（不验证JWT）
-                if (jwt.startsWith("MOCK_")) {
-                    log.debug("Mock Token detected, skipping JWT validation for request: {}", request.getRequestURI());
-                    // Mock模式下，直接放行，不设置认证信息
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-                
                 // 验证Token
                 if (tokenProvider.validateToken(jwt)) {
                     String loginId = tokenProvider.getSubjectFromToken(jwt);
 
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(loginId);
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    try {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(loginId);
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    log.debug("Set authentication for user: {}", loginId);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        log.debug("Set authentication for user: {}", loginId);
+                    } catch (UsernameNotFoundException e) {
+                        // 用户不存在，记录日志但允许继续（Mock模式）
+                        log.warn("User not found: {}, but allowing request to continue (Mock mode)", loginId);
+                        // 不设置认证信息，但允许请求继续
+                    }
                 } else {
                     // Token无效或过期，返回401
                     log.warn("Invalid or expired JWT token for request: {}", request.getRequestURI());

@@ -1,0 +1,61 @@
+package com.cco.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cco.mapper.StandardFieldMapper;
+import com.cco.model.entity.StandardField;
+import com.cco.service.IStandardFieldService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * 标准字段服务实现
+ * 
+ * @author CCO Team
+ * @since 2025-11-22
+ */
+@Slf4j
+// @Service  // 暂时禁用，避免Mapper扫描问题
+public class StandardFieldServiceImpl extends ServiceImpl<StandardFieldMapper, StandardField> implements IStandardFieldService {
+
+    @Override
+    public List<StandardField> listActiveFields() {
+        LambdaQueryWrapper<StandardField> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StandardField::getIsActive, true)
+               .eq(StandardField::getIsDeleted, false)
+               .orderByAsc(StandardField::getSortOrder);
+        return list(wrapper);
+    }
+
+    @Override
+    public List<StandardField> listByGroupId(Long groupId) {
+        LambdaQueryWrapper<StandardField> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StandardField::getFieldGroupId, groupId)
+               .eq(StandardField::getIsActive, true)
+               .eq(StandardField::getIsDeleted, false)
+               .orderByAsc(StandardField::getSortOrder);
+        return list(wrapper);
+    }
+
+    @Override
+    public boolean updateFieldOrder(List<Long> fieldIds) {
+        if (fieldIds == null || fieldIds.isEmpty()) {
+            return false;
+        }
+        
+        for (int i = 0; i < fieldIds.size(); i++) {
+            StandardField field = new StandardField();
+            field.setId(fieldIds.get(i));
+            field.setSortOrder(i + 1);
+            updateById(field);
+        }
+        
+        return true;
+    }
+}
+
+
+
+

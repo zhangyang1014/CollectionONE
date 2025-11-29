@@ -37,7 +37,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + Constants.Role.TENANT_ADMIN));
             password = passwordEncoder.encode("admin123");
         } else {
-            throw new UsernameNotFoundException("User not found: " + username);
+            // 支持催员用户（IM端登录时使用催员ID作为username）
+            // 催员ID格式通常是：BTQ001, BTSK001 等
+            // 为催员分配基本权限
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + Constants.Role.COLLECTOR));
+            password = passwordEncoder.encode("123456"); // Mock密码，实际不会使用
         }
 
         return new User(username, password, true, true, true, true, authorities);

@@ -60,6 +60,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '案件列表', requiresAuth: true },
       },
       {
+        path: 'cases/stay',
+        name: 'StayCaseList',
+        component: () => import('@/views/case-management/StayCaseList.vue'),
+        meta: { title: '停留案件', requiresAuth: true },
+      },
+      {
         path: 'cases/:id',
         name: 'CaseDetail',
         component: () => import('@/views/case-management/CaseDetail.vue'),
@@ -70,6 +76,12 @@ const routes: RouteRecordRaw[] = [
         name: 'AutoAssignment',
         component: () => import('@/views/case-management/AutoAssignment.vue'),
         meta: { title: '自动化分案', requiresAuth: true },
+      },
+      {
+        path: 'cases/reassign-config',
+        name: 'CaseReassignConfig',
+        component: () => import('@/views/case-management/CaseReassignConfig.vue'),
+        meta: { title: '案件重新分案配置', requiresAuth: true },
       },
       {
         path: 'field-config/standard',
@@ -166,6 +178,12 @@ const routes: RouteRecordRaw[] = [
         name: 'TenantChannelManagement',
         component: () => import('@/views/channel-config/TenantChannelManagement.vue'),
         meta: { title: '甲方渠道管理', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'super_admin', 'tenant_admin'] },
+      },
+      {
+        path: 'channel-config/payment-channels',
+        name: 'PaymentChannelManagement',
+        component: () => import('@/views/payment/PaymentChannelManagement.vue'),
+        meta: { title: '还款渠道管理', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'super_admin', 'tenant_admin'] },
       },
       {
         path: 'system/permissions',
@@ -287,11 +305,40 @@ router.beforeEach((to, _from, next) => {
       }
     }
     
-    // 如果需要认证但未登录
-    if (to.meta.requiresAuth && !imUserStore.isLoggedIn) {
-      console.log('[IM路由守卫] 需要认证但未登录，重定向到登录页')
-      next('/im/login')
-      return
+    // 如果需要认证，优先检查localStorage（确保刚登录后能正确识别）
+    if (to.meta.requiresAuth) {
+      // 优先使用localStorage检查（最可靠，特别是刚登录后）
+      const hasValidToken = storedToken && storedToken.length > 0
+      const hasValidUser = storedUser && storedUser.length > 0
+      const isAuthenticated = hasValidToken && hasValidUser && imUserStore.isLoggedIn
+      
+      // 如果localStorage有数据但store状态未同步，再次尝试同步
+      if (hasValidToken && hasValidUser && !imUserStore.isLoggedIn) {
+        console.warn('[IM路由守卫] ⚠️ localStorage有数据但store未同步，再次强制同步')
+        if (typeof imUserStore.initFromStorage === 'function') {
+          imUserStore.initFromStorage()
+          // 同步后再次检查
+          if (imUserStore.isLoggedIn) {
+            console.log('[IM路由守卫] 同步成功，允许访问')
+            next()
+            return
+          }
+        }
+      }
+      
+      // 如果localStorage有有效数据，即使store状态未同步，也允许访问（刚登录后的情况）
+      if (hasValidToken && hasValidUser) {
+        console.log('[IM路由守卫] localStorage有有效数据，允许访问（即使store状态未完全同步）')
+        next()
+        return
+      }
+      
+      // 如果确实未登录，重定向到登录页
+      if (!isAuthenticated && (!hasValidToken || !hasValidUser)) {
+        console.log('[IM路由守卫] 需要认证但未登录，重定向到登录页')
+        next('/im/login')
+        return
+      }
     }
     
     // 如果已登录但访问登录页

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cco.mapper.CollectorMapper">
+
+    <!-- 获取催员列表（用于分案弹窗） -->
+    <select id="selectCollectorListForAssign" resultType="com.cco.model.dto.CollectorListDTO">
+        SELECT 
+            c.id,
+            c.collector_name AS collectorName,
+            c.collector_code AS collectorCode,
+            c.agency_id AS agencyId,
+            ca.agency_name AS agencyName,
+            c.team_id AS teamId,
+            ct.team_name AS teamName,
+            ct.queue_id AS queueId,
+            cq.queue_name AS queueName,
+            c.status,
+            COALESCE(
+                (SELECT COUNT(*) 
+                 FROM cases cs 
+                 WHERE cs.collector_id = c.id 
+                   AND cs.case_status NOT IN ('normal_settlement', 'extension_settlement')
+                   AND cs.assigned_at IS NOT NULL
+                   AND DATE(cs.assigned_at) = CURDATE()
+                ), 0
+            ) AS currentCaseCount
+        FROM collectors c
+        LEFT JOIN collection_agencies ca ON c.agency_id = ca.id
+        LEFT JOIN collection_teams ct ON c.team_id = ct.id
+        LEFT JOIN case_queues cq ON ct.queue_id = cq.id
+        <where>
+            <if test="true">
+                c.is_active = 1
+                <!-- 暂时注释status条件，先确保能返回数据 -->
+                <!-- AND c.status = 'active' -->
+            </if>
+            <if test="agencyId != null">
+                AND c.agency_id = #{agencyId}
+            </if>
+            <if test="teamId != null">
+                AND c.team_id = #{teamId}
+            </if>
+            <if test="queueId != null">
+                AND ct.queue_id = #{queueId}
+            </if>
+            <if test="searchKeyword != null and searchKeyword != ''">
+                AND (
+                    c.collector_name LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR c.collector_code LIKE CONCAT('%', #{searchKeyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY c.id ASC
+    </select>
+
+</mapper>
+

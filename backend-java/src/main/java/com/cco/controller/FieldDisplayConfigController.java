@@ -9,13 +9,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
- * 字段展示配置Controller - 从数据库读取真实数据
+ * 字段展示配置Controller - 使用文件存储（持久化）
  * 
  * @author CCO Team
  * @since 2025-11-22
@@ -29,12 +36,69 @@ public class FieldDisplayConfigController {
     private FieldDisplayConfigService fieldDisplayConfigService;
 
     /**
-     * Mock模式下的内存存储：key = "tenantId_sceneType", value = 配置列表
+     * 文件存储路径
      */
-    private static final Map<String, List<Map<String, Object>>> MOCK_STORAGE = new HashMap<>();
+    private static final String STORAGE_DIR = System.getProperty("user.home") + "/.cco-storage";
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * 获取字段展示配置列表 - 从数据库读取
+     * 获取存储文件路径
+     */
+    private String getStorageFilePath(Long tenantId, String sceneType) {
+        return STORAGE_DIR + "/field-display-configs_" + tenantId + "_" + sceneType + ".json";
+    }
+
+    /**
+     * 从文件读取配置
+     */
+    private List<Map<String, Object>> loadFromFile(Long tenantId, String sceneType) {
+        try {
+            String filePath = getStorageFilePath(tenantId, sceneType);
+            File file = new File(filePath);
+            
+            if (!file.exists()) {
+                return null;
+            }
+            
+            String content = new String(Files.readAllBytes(Paths.get(filePath)));
+            List<Map<String, Object>> configs = objectMapper.readValue(content, new TypeReference<List<Map<String, Object>>>() {});
+            
+            log.info("从文件加载配置，tenantId={}, sceneType={}, 共{}条", tenantId, sceneType, configs.size());
+            return configs;
+        } catch (Exception e) {
+            log.warn("从文件加载配置失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 保存配置到文件
+     */
+    private void saveToFile(Long tenantId, String sceneType, List<Map<String, Object>> configs) {
+        try {
+            // 确保目录存在
+            File dir = new File(STORAGE_DIR);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            
+            String filePath = getStorageFilePath(tenantId, sceneType);
+            String content = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(configs);
+            
+            try (FileWriter writer = new FileWriter(filePath)) {
+                writer.write(content);
+            }
+            
+            log.info("配置已保存到文件，tenantId={}, sceneType={}, 共{}条，文件路径={}", 
+                tenantId, sceneType, configs.size(), filePath);
+        } catch (Exception e) {
+            log.error("保存配置到文件失败: {}", e.getMessage(), e);
+            throw new RuntimeException("保存配置失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取字段展示配置列表
      */
     @GetMapping
     public ResponseData<List<Map<String, Object>>> getFieldDisplayConfigs(
@@ -44,85 +108,39 @@ public class FieldDisplayConfigController {
     ) {
         log.info("========== 获取字段展示配置列表，tenantId={}, sceneType={}, fieldKey={} ==========", tenantId, sceneType, fieldKey);
         
-        // 简化逻辑：在Mock模式下，直接返回Mock数据
         Long finalTenantId = tenantId != null ? tenantId : 1L;
         String finalSceneType = sceneType != null ? sceneType : "admin_case_list";
         
         try {
-            List<TenantFieldDisplayConfig> configs = null;
+            // 优先从文件读取
+            List<Map<String, Object>> configs = loadFromFile(finalTenantId, finalSceneType);
             
-            // 尝试从数据库获取
-            if (fieldDisplayConfigService != null) {
-                try {
-                    configs = fieldDisplayConfigService.list(finalTenantId, finalSceneType, fieldKey);
-                    log.info("数据库查询结果：{}条", configs != null ? configs.size() : 0);
-                } catch (Exception e) {
-                    log.warn("数据库查询失败（Mock模式）: {}", e.getMessage());
-                }
-            } else {
-                log.info("FieldDisplayConfigService未注入（Mock模式）");
-            }
-            
-            // 如果数据库没有数据，使用Mock数据
             if (configs == null || configs.isEmpty()) {
-                log.info("========== 使用Mock数据，tenantId={}, sceneType={} ==========", finalTenantId, finalSceneType);
+                // 如果文件不存在，生成Mock数据
+                log.info("========== 文件不存在，生成Mock数据，tenantId={}, sceneType={} ==========", finalTenantId, finalSceneType);
+                configs = generateMockConfigs(finalTenantId, finalSceneType);
                 
-                // 优先从内存存储中读取（如果之前保存过）
-                // 确保storageKey格式一致（使用Long类型的字符串表示）
-                String storageKey = String.valueOf(finalTenantId) + "_" + finalSceneType;
-                log.info("========== 查找内存存储，tenantId={}, sceneType={}, key={} ==========", 
-                    finalTenantId, finalSceneType, storageKey);
-                log.info("========== 当前内存存储的所有keys: {} ==========", MOCK_STORAGE.keySet());
-                List<Map<String, Object>> mockConfigs = MOCK_STORAGE.get(storageKey);
-                
-                if (mockConfigs == null || mockConfigs.isEmpty()) {
-                    // 如果内存中没有，则生成新的Mock数据
-                    mockConfigs = generateMockConfigs(finalTenantId, finalSceneType);
-                    log.info("========== Mock数据生成完成，共{}条 ==========", mockConfigs.size());
-                } else {
-                    log.info("========== 从内存存储读取Mock数据，storageKey={}, 共{}条 ==========", storageKey, mockConfigs.size());
-                    // 确保数据按sort_order排序
-                    mockConfigs.sort((a, b) -> {
-                        Integer orderA = getSortOrder(a);
-                        Integer orderB = getSortOrder(b);
-                        return Integer.compare(orderA, orderB);
-                    });
-                    log.info("========== 排序后的顺序 ==========");
-                    for (Map<String, Object> config : mockConfigs) {
-                        log.info("  - {} (sort_order={})", config.get("field_key"), config.get("sort_order"));
-                    }
-                }
-                
-                return ResponseData.success(mockConfigs);
+                // 保存到文件
+                saveToFile(finalTenantId, finalSceneType, configs);
+            } else {
+                log.info("========== 从文件读取配置，tenantId={}, sceneType={}, 共{}条 ==========", 
+                    finalTenantId, finalSceneType, configs.size());
+                // 确保数据按sort_order排序
+                configs.sort((a, b) -> {
+                    Integer orderA = getSortOrder(a);
+                    Integer orderB = getSortOrder(b);
+                    return Integer.compare(orderA, orderB);
+                });
             }
             
-            // 转换为前端需要的格式
-            List<Map<String, Object>> result = new ArrayList<>();
-            for (TenantFieldDisplayConfig config : configs) {
-                try {
-                    Map<String, Object> map = convertToMap(config);
-                    result.add(map);
-                } catch (Exception e) {
-                    log.warn("转换配置对象失败，跳过: {}", e.getMessage());
-                }
-            }
-            
-            log.info("成功获取{}条字段展示配置", result.size());
-            return ResponseData.success(result);
+            log.info("成功获取{}条字段展示配置", configs.size());
+            return ResponseData.success(configs);
         } catch (Exception e) {
-            log.error("获取字段展示配置失败，使用Mock数据", e);
+            log.error("获取字段展示配置失败", e);
             e.printStackTrace();
             // 即使出错也返回Mock数据
             try {
-                // 优先从内存存储中读取
-                String storageKey = finalTenantId + "_" + finalSceneType;
-                List<Map<String, Object>> mockConfigs = MOCK_STORAGE.get(storageKey);
-                
-                if (mockConfigs == null || mockConfigs.isEmpty()) {
-                    mockConfigs = generateMockConfigs(finalTenantId, finalSceneType);
-                }
-                
-                log.info("异常情况下生成Mock数据，共{}条", mockConfigs.size());
+                List<Map<String, Object>> mockConfigs = generateMockConfigs(finalTenantId, finalSceneType);
                 return ResponseData.success(mockConfigs);
             } catch (Exception mockError) {
                 log.error("生成Mock数据也失败", mockError);
@@ -165,7 +183,6 @@ public class FieldDisplayConfigController {
         } catch (Exception e) {
             log.error("获取场景类型列表失败", e);
             e.printStackTrace();
-            // 即使出错也返回默认的场景类型
             List<Map<String, String>> defaultSceneTypes = new ArrayList<>();
             Map<String, String> type1 = new HashMap<>();
             type1.put("key", "admin_case_list");
@@ -209,158 +226,51 @@ public class FieldDisplayConfigController {
                 return ResponseData.success("批量保存成功（无配置需要保存）");
             }
             
-            // 检查是否应该使用Mock模式（Service未注入或mapper为null）
-            boolean useMockMode = false;
-            if (fieldDisplayConfigService == null) {
-                useMockMode = true;
-                log.warn("FieldDisplayConfigService未注入，使用Mock模式");
-            } else {
-                // 尝试查询一次，如果失败则使用Mock模式
-                try {
-                    fieldDisplayConfigService.list(tenantId, sceneType, null);
-                    // 如果能查询到数据或没有异常，说明数据库可用
-                    log.info("数据库可用，使用数据库模式");
-                } catch (Exception e) {
-                    useMockMode = true;
-                    log.warn("数据库不可用（Mock模式），使用内存存储: {}", e.getMessage());
-                }
-            }
+            // 使用文件存储（持久化）
+            log.info("批量保存 - 文件存储模式，tenantId={}, sceneType={}, 收到{}条配置", 
+                tenantId, sceneType, configsList.size());
             
-            // Mock模式：保存到内存存储
-            if (useMockMode) {
-                // 确保storageKey格式一致（使用Long类型的字符串表示）
-                String storageKey = String.valueOf(tenantId) + "_" + sceneType;
-                log.info("批量保存 - Mock模式，tenantId={}, sceneType={}, storageKey={}, 收到{}条配置", 
-                    tenantId, sceneType, storageKey, configsList.size());
-                
-                // 深拷贝配置列表，避免引用问题
-                List<Map<String, Object>> savedConfigs = new ArrayList<>();
-                for (Map<String, Object> configMap : configsList) {
-                    Map<String, Object> savedConfig = new HashMap<>();
-                    // 复制所有字段
-                    savedConfig.putAll(configMap);
-                    // 确保sort_order是Integer类型
-                    if (savedConfig.containsKey("sort_order")) {
-                        Object sortOrderObj = savedConfig.get("sort_order");
-                        if (sortOrderObj instanceof Number) {
-                            savedConfig.put("sort_order", ((Number) sortOrderObj).intValue());
-                        } else if (sortOrderObj != null) {
-                            try {
-                                savedConfig.put("sort_order", Integer.valueOf(sortOrderObj.toString()));
-                            } catch (Exception e) {
-                                log.warn("无法转换sort_order: {}", sortOrderObj);
-                                savedConfig.put("sort_order", 0);
-                            }
-                        }
-                    }
-                    savedConfigs.add(savedConfig);
-                    log.info("保存配置: field_key={}, sort_order={}", 
-                        savedConfig.get("field_key"), savedConfig.get("sort_order"));
-                }
-                
-                // 按sort_order排序（保持用户设置的排序）
-                savedConfigs.sort((a, b) -> {
-                    Integer orderA = getSortOrder(a);
-                    Integer orderB = getSortOrder(b);
-                    return Integer.compare(orderA, orderB);
-                });
-                
-                // 注意：不重新分配序号，保持用户设置的sort_order
-                // 这样用户拖拽后的排序会被正确保存
-                
-                MOCK_STORAGE.put(storageKey, savedConfigs);
-                log.info("已保存到内存存储，key={}, 共{}条配置，排序后的顺序:", storageKey, savedConfigs.size());
-                for (Map<String, Object> config : savedConfigs) {
-                    log.info("  - {} (sort_order={})", config.get("field_key"), config.get("sort_order"));
-                }
-                return ResponseData.success("批量保存成功（Mock模式）");
-            }
-            
-            // 数据库模式：处理每个配置项
-            int successCount = 0;
-            int failCount = 0;
+            // 深拷贝配置列表，避免引用问题
+            List<Map<String, Object>> savedConfigs = new ArrayList<>();
             for (Map<String, Object> configMap : configsList) {
-                try {
-                    Object idObj = configMap.get("id");
-                    if (idObj != null && !idObj.toString().isEmpty()) {
-                        // 更新现有配置
-                        Long id = null;
-                        if (idObj instanceof Number) {
-                            id = ((Number) idObj).longValue();
-                        } else {
-                            id = Long.valueOf(idObj.toString());
+                Map<String, Object> savedConfig = new HashMap<>();
+                // 复制所有字段
+                savedConfig.putAll(configMap);
+                // 确保sort_order是Integer类型
+                if (savedConfig.containsKey("sort_order")) {
+                    Object sortOrderObj = savedConfig.get("sort_order");
+                    if (sortOrderObj instanceof Number) {
+                        savedConfig.put("sort_order", ((Number) sortOrderObj).intValue());
+                    } else if (sortOrderObj != null) {
+                        try {
+                            savedConfig.put("sort_order", Integer.valueOf(sortOrderObj.toString()));
+                        } catch (Exception e) {
+                            log.warn("无法转换sort_order: {}", sortOrderObj);
+                            savedConfig.put("sort_order", 0);
                         }
-                        
-                        FieldDisplayConfigDTO.Update updateDto = new FieldDisplayConfigDTO.Update();
-                        if (configMap.get("sort_order") != null) {
-                            updateDto.setSortOrder(Integer.valueOf(configMap.get("sort_order").toString()));
-                        }
-                        if (configMap.get("display_width") != null) {
-                            updateDto.setDisplayWidth(Integer.valueOf(configMap.get("display_width").toString()));
-                        }
-                        if (configMap.get("color_type") != null) {
-                            updateDto.setColorType(configMap.get("color_type").toString());
-                        }
-                        if (configMap.get("is_searchable") != null) {
-                            updateDto.setIsSearchable(Boolean.valueOf(configMap.get("is_searchable").toString()));
-                        }
-                        if (configMap.get("is_filterable") != null) {
-                            updateDto.setIsFilterable(Boolean.valueOf(configMap.get("is_filterable").toString()));
-                        }
-                        if (configMap.get("is_range_searchable") != null) {
-                            updateDto.setIsRangeSearchable(Boolean.valueOf(configMap.get("is_range_searchable").toString()));
-                        }
-                        
-                        fieldDisplayConfigService.update(id, updateDto);
-                        successCount++;
-                    } else {
-                        // 创建新配置
-                        FieldDisplayConfigDTO.Create createDto = new FieldDisplayConfigDTO.Create();
-                        createDto.setTenantId(tenantId);
-                        createDto.setSceneType(sceneType);
-                        createDto.setSceneName((String) configMap.get("scene_name"));
-                        createDto.setFieldKey((String) configMap.get("field_key"));
-                        createDto.setFieldName((String) configMap.get("field_name"));
-                        if (configMap.get("field_data_type") != null) {
-                            createDto.setFieldDataType(configMap.get("field_data_type").toString());
-                        }
-                        if (configMap.get("field_source") != null) {
-                            createDto.setFieldSource(configMap.get("field_source").toString());
-                        }
-                        if (configMap.get("sort_order") != null) {
-                            createDto.setSortOrder(Integer.valueOf(configMap.get("sort_order").toString()));
-                        }
-                        if (configMap.get("display_width") != null) {
-                            createDto.setDisplayWidth(Integer.valueOf(configMap.get("display_width").toString()));
-                        }
-                        if (configMap.get("color_type") != null) {
-                            createDto.setColorType(configMap.get("color_type").toString());
-                        }
-                        if (configMap.get("is_searchable") != null) {
-                            createDto.setIsSearchable(Boolean.valueOf(configMap.get("is_searchable").toString()));
-                        }
-                        if (configMap.get("is_filterable") != null) {
-                            createDto.setIsFilterable(Boolean.valueOf(configMap.get("is_filterable").toString()));
-                        }
-                        if (configMap.get("is_range_searchable") != null) {
-                            createDto.setIsRangeSearchable(Boolean.valueOf(configMap.get("is_range_searchable").toString()));
-                        }
-                        
-                        fieldDisplayConfigService.create(createDto);
-                        successCount++;
                     }
-                } catch (Exception e) {
-                    log.error("处理配置项失败: {}", configMap, e);
-                    failCount++;
                 }
+                savedConfigs.add(savedConfig);
+                log.info("保存配置: field_key={}, sort_order={}", 
+                    savedConfig.get("field_key"), savedConfig.get("sort_order"));
             }
             
-            if (failCount > 0) {
-                log.warn("批量保存完成，成功{}条，失败{}条", successCount, failCount);
-                return ResponseData.success(String.format("批量保存完成，成功%d条，失败%d条", successCount, failCount));
+            // 按sort_order排序（保持用户设置的排序）
+            savedConfigs.sort((a, b) -> {
+                Integer orderA = getSortOrder(a);
+                Integer orderB = getSortOrder(b);
+                return Integer.compare(orderA, orderB);
+            });
+            
+            // 保存到文件
+            saveToFile(tenantId, sceneType, savedConfigs);
+            
+            log.info("批量保存成功，tenantId={}, sceneType={}, 共{}条配置，排序后的顺序:", 
+                tenantId, sceneType, savedConfigs.size());
+            for (Map<String, Object> config : savedConfigs) {
+                log.info("  - {} (sort_order={})", config.get("field_key"), config.get("sort_order"));
             }
             
-            log.info("批量保存成功，共{}条", successCount);
             return ResponseData.success("批量保存成功");
         } catch (Exception e) {
             log.error("批量保存失败", e);
@@ -377,10 +287,6 @@ public class FieldDisplayConfigController {
         log.info("复制场景配置，request={}", request);
         
         try {
-            if (fieldDisplayConfigService == null) {
-                log.warn("FieldDisplayConfigService未注入，返回成功（Mock模式）");
-                return ResponseData.success("复制成功（Mock模式）");
-            }
             String fromScene = (String) request.get("from_scene");
             String toScene = (String) request.get("to_scene");
             Long tenantId = request.get("tenant_id") != null ? 
@@ -390,37 +296,23 @@ public class FieldDisplayConfigController {
                 return ResponseData.error("参数不完整");
             }
             
-            // 获取源场景的配置
-            List<TenantFieldDisplayConfig> sourceConfigs = fieldDisplayConfigService.list(tenantId, fromScene, null);
-            
-            // 获取目标场景名称
-            String toSceneName = getSceneName(toScene);
-            
-            // 复制每个配置
-            for (TenantFieldDisplayConfig sourceConfig : sourceConfigs) {
-                FieldDisplayConfigDTO.Create createDto = new FieldDisplayConfigDTO.Create();
-                createDto.setTenantId(tenantId);
-                createDto.setSceneType(toScene);
-                createDto.setSceneName(toSceneName);
-                createDto.setFieldKey(sourceConfig.getFieldKey());
-                createDto.setFieldName(sourceConfig.getFieldName());
-                createDto.setFieldDataType(sourceConfig.getFieldDataType());
-                createDto.setFieldSource(sourceConfig.getFieldSource());
-                createDto.setSortOrder(sourceConfig.getSortOrder());
-                createDto.setDisplayWidth(sourceConfig.getDisplayWidth());
-                createDto.setColorType(sourceConfig.getColorType());
-                createDto.setColorRule(sourceConfig.getColorRule());
-                createDto.setHideRule(sourceConfig.getHideRule());
-                createDto.setHideForQueues(sourceConfig.getHideForQueues());
-                createDto.setHideForAgencies(sourceConfig.getHideForAgencies());
-                createDto.setHideForTeams(sourceConfig.getHideForTeams());
-                createDto.setFormatRule(sourceConfig.getFormatRule());
-                createDto.setIsSearchable(sourceConfig.getIsSearchable());
-                createDto.setIsFilterable(sourceConfig.getIsFilterable());
-                createDto.setIsRangeSearchable(sourceConfig.getIsRangeSearchable());
-                
-                fieldDisplayConfigService.create(createDto);
+            // 从文件读取源场景配置
+            List<Map<String, Object>> sourceConfigs = loadFromFile(tenantId, fromScene);
+            if (sourceConfigs == null || sourceConfigs.isEmpty()) {
+                return ResponseData.error("源场景配置不存在");
             }
+            
+            // 复制到目标场景
+            List<Map<String, Object>> targetConfigs = new ArrayList<>();
+            for (Map<String, Object> sourceConfig : sourceConfigs) {
+                Map<String, Object> targetConfig = new HashMap<>(sourceConfig);
+                targetConfig.put("scene_type", toScene);
+                targetConfig.put("scene_name", getSceneName(toScene));
+                targetConfigs.add(targetConfig);
+            }
+            
+            // 保存到文件
+            saveToFile(tenantId, toScene, targetConfigs);
             
             log.info("复制场景配置成功，从{}复制到{}", fromScene, toScene);
             return ResponseData.success("复制成功");
@@ -431,7 +323,7 @@ public class FieldDisplayConfigController {
     }
 
     /**
-     * 获取可用字段选项 - 从数据库读取标准字段和自定义字段
+     * 获取可用字段选项
      */
     @GetMapping("/available-fields")
     public ResponseData<List<Map<String, Object>>> getAvailableFields(
@@ -440,104 +332,33 @@ public class FieldDisplayConfigController {
         log.info("获取可用字段选项，tenantId={}", tenantId);
         
         try {
-            if (fieldDisplayConfigService == null) {
-                log.warn("FieldDisplayConfigService未注入，返回空列表（Mock模式）");
-                return ResponseData.success(new ArrayList<>());
+            // 返回Mock数据
+            List<Map<String, Object>> fields = new ArrayList<>();
+            
+            // 标准字段
+            String[] standardKeys = {"case_code", "user_name", "mobile", "loan_amount", "outstanding_amount", 
+                                     "overdue_days", "case_status", "product_name", "app_name", "due_date"};
+            String[] standardNames = {"案件编号", "客户姓名", "手机号码", "贷款金额", "未还金额", 
+                                      "逾期天数", "案件状态", "产品名称", "App名称", "到期日期"};
+            String[] standardTypes = {"String", "String", "String", "Decimal", "Decimal", 
+                                      "Integer", "Enum", "String", "String", "Date"};
+            
+            for (int i = 0; i < standardKeys.length; i++) {
+                Map<String, Object> field = new HashMap<>();
+                field.put("field_key", standardKeys[i]);
+                field.put("field_name", standardNames[i]);
+                field.put("field_data_type", standardTypes[i]);
+                field.put("field_type", standardTypes[i]);
+                field.put("field_source", "standard");
+                field.put("field_group_name", "基础信息");
+                fields.add(field);
             }
             
-            List<FieldDisplayConfigDTO.AvailableField> fields = fieldDisplayConfigService.getAvailableFields(tenantId);
-            
-            // 转换为前端需要的格式
-            List<Map<String, Object>> result = new ArrayList<>();
-            for (FieldDisplayConfigDTO.AvailableField field : fields) {
-                Map<String, Object> map = new HashMap<>();
-                map.put("field_key", field.getFieldKey());
-                map.put("field_name", field.getFieldName());
-                map.put("field_data_type", field.getFieldType());
-                map.put("field_source", field.getFieldSource());
-                map.put("group", field.getFieldGroupId() != null ? field.getFieldGroupId().toString() : "其他");
-                map.put("is_extended", field.getIsExtended() != null ? field.getIsExtended() : false);
-                map.put("description", field.getDescription());
-                result.add(map);
-            }
-            
-            log.info("成功获取{}个可用字段", result.size());
-            return ResponseData.success(result);
+            log.info("成功获取{}个可用字段", fields.size());
+            return ResponseData.success(fields);
         } catch (Exception e) {
             log.error("获取可用字段失败", e);
             return ResponseData.error("获取可用字段失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 将实体转换为Map（前端格式）
-     */
-    private Map<String, Object> convertToMap(TenantFieldDisplayConfig config) {
-        Map<String, Object> map = new HashMap<>();
-        map.put("id", config.getId());
-        map.put("tenant_id", String.valueOf(config.getTenantId()));
-        map.put("scene_type", config.getSceneType());
-        map.put("scene_name", config.getSceneName());
-        map.put("field_key", config.getFieldKey());
-        map.put("field_name", config.getFieldName());
-        map.put("field_data_type", config.getFieldDataType());
-        map.put("field_source", config.getFieldSource());
-        map.put("sort_order", config.getSortOrder());
-        map.put("display_width", config.getDisplayWidth());
-        map.put("color_type", config.getColorType());
-        map.put("color_rule", config.getColorRule());
-        map.put("hide_rule", config.getHideRule());
-        
-        // 转换List<Long>为List<String>（前端期望字符串数组）
-        if (config.getHideForQueues() != null) {
-            map.put("hide_for_queues", config.getHideForQueues().stream()
-                .map(String::valueOf).collect(java.util.stream.Collectors.toList()));
-        } else {
-            map.put("hide_for_queues", new ArrayList<>());
-        }
-        
-        if (config.getHideForAgencies() != null) {
-            map.put("hide_for_agencies", config.getHideForAgencies().stream()
-                .map(String::valueOf).collect(java.util.stream.Collectors.toList()));
-        } else {
-            map.put("hide_for_agencies", new ArrayList<>());
-        }
-        
-        if (config.getHideForTeams() != null) {
-            map.put("hide_for_teams", config.getHideForTeams().stream()
-                .map(String::valueOf).collect(java.util.stream.Collectors.toList()));
-        } else {
-            map.put("hide_for_teams", new ArrayList<>());
-        }
-        
-        map.put("format_rule", config.getFormatRule());
-        map.put("is_searchable", config.getIsSearchable() != null ? config.getIsSearchable() : false);
-        map.put("is_filterable", config.getIsFilterable() != null ? config.getIsFilterable() : false);
-        map.put("is_range_searchable", config.getIsRangeSearchable() != null ? config.getIsRangeSearchable() : false);
-        map.put("created_at", config.getCreatedAt() != null ? config.getCreatedAt().toString() : "");
-        map.put("updated_at", config.getUpdatedAt() != null ? config.getUpdatedAt().toString() : "");
-        map.put("created_by", config.getCreatedBy());
-        map.put("updated_by", config.getUpdatedBy());
-        
-        return map;
-    }
-
-    /**
-     * 获取场景名称
-     */
-    private String getSceneName(String sceneType) {
-        if (sceneType == null || sceneType.isEmpty()) {
-            return "未知场景";
-        }
-        switch (sceneType) {
-            case "admin_case_list":
-                return "控台案件管理列表";
-            case "collector_case_list":
-                return "催员案件列表";
-            case "collector_case_detail":
-                return "催员案件详情";
-            default:
-                return sceneType;
         }
     }
 
@@ -560,16 +381,14 @@ public class FieldDisplayConfigController {
     }
 
     /**
-     * 生成Mock字段展示配置数据（当数据库为空时使用）
+     * 生成Mock字段展示配置数据（当文件不存在时使用）
      */
     private List<Map<String, Object>> generateMockConfigs(Long tenantId, String sceneType) {
         List<Map<String, Object>> configs = new ArrayList<>();
         
-        // 根据场景类型生成不同的配置
         String sceneName = getSceneName(sceneType);
         
         if ("admin_case_list".equals(sceneType)) {
-            // 控台案件管理列表
             String[] fieldKeys = {"case_code", "user_name", "mobile", "loan_amount", "outstanding_amount", 
                                  "overdue_days", "case_status", "product_name", "app_name", "due_date"};
             String[] fieldNames = {"案件编号", "客户姓名", "手机号码", "贷款金额", "未还金额", 
@@ -601,7 +420,6 @@ public class FieldDisplayConfigController {
                 config.put("hide_for_agencies", new ArrayList<>());
                 config.put("hide_for_teams", new ArrayList<>());
                 
-                // 格式化规则
                 if ("Decimal".equals(fieldTypes[i]) && (fieldKeys[i].equals("loan_amount") || fieldKeys[i].equals("outstanding_amount"))) {
                     Map<String, Object> formatRule = new HashMap<>();
                     formatRule.put("format_type", "currency");
@@ -615,113 +433,6 @@ public class FieldDisplayConfigController {
                 config.put("is_searchable", isSearchable[i]);
                 config.put("is_filterable", isFilterable[i]);
                 config.put("is_range_searchable", isRangeSearchable[i]);
-                config.put("created_at", java.time.LocalDateTime.now().toString());
-                config.put("updated_at", java.time.LocalDateTime.now().toString());
-                config.put("created_by", "system");
-                config.put("updated_by", null);
-                
-                configs.add(config);
-            }
-        } else if ("collector_case_list".equals(sceneType)) {
-            // 催员案件列表
-            String[] fieldKeys = {"case_code", "user_name", "mobile", "outstanding_amount", 
-                                 "overdue_days", "case_status", "queue_name", "product_name"};
-            String[] fieldNames = {"案件编号", "客户姓名", "手机号码", "应还金额", 
-                                  "逾期天数", "案件状态", "队列", "产品"};
-            String[] fieldTypes = {"String", "String", "String", "Decimal", 
-                                  "Integer", "Enum", "String", "String"};
-            boolean[] isSearchable = {true, true, true, false, false, false, false, true};
-            boolean[] isFilterable = {false, false, false, false, false, true, true, false};
-            boolean[] isRangeSearchable = {false, false, false, true, true, false, false, false};
-            String[] colorTypes = {"normal", "normal", "normal", "normal", "red", "normal", "normal", "normal"};
-            int[] widths = {160, 100, 130, 120, 100, 90, 80, 110};
-            
-            for (int i = 0; i < fieldKeys.length; i++) {
-                Map<String, Object> config = new HashMap<>();
-                config.put("id", (long) (i + 1));
-                config.put("tenant_id", String.valueOf(tenantId));
-                config.put("scene_type", sceneType);
-                config.put("scene_name", sceneName);
-                config.put("field_key", fieldKeys[i]);
-                config.put("field_name", fieldNames[i]);
-                config.put("field_data_type", fieldTypes[i]);
-                config.put("field_source", "standard");
-                config.put("sort_order", i + 1);
-                config.put("display_width", widths[i]);
-                config.put("color_type", colorTypes[i]);
-                config.put("color_rule", null);
-                config.put("hide_rule", null);
-                config.put("hide_for_queues", new ArrayList<>());
-                config.put("hide_for_agencies", new ArrayList<>());
-                config.put("hide_for_teams", new ArrayList<>());
-                
-                if ("Decimal".equals(fieldTypes[i]) && fieldKeys[i].equals("outstanding_amount")) {
-                    Map<String, Object> formatRule = new HashMap<>();
-                    formatRule.put("format_type", "currency");
-                    formatRule.put("prefix", "¥");
-                    formatRule.put("suffix", "");
-                    config.put("format_rule", formatRule);
-                } else {
-                    config.put("format_rule", null);
-                }
-                
-                config.put("is_searchable", isSearchable[i]);
-                config.put("is_filterable", isFilterable[i]);
-                config.put("is_range_searchable", isRangeSearchable[i]);
-                config.put("created_at", java.time.LocalDateTime.now().toString());
-                config.put("updated_at", java.time.LocalDateTime.now().toString());
-                config.put("created_by", "system");
-                config.put("updated_by", null);
-                
-                configs.add(config);
-            }
-        } else if ("collector_case_detail".equals(sceneType)) {
-            // 催员案件详情
-            String[] fieldKeys = {"user_name", "mobile", "id_number", "email", "address",
-                                 "loan_amount", "outstanding_amount", "overdue_days", "due_date", 
-                                 "loan_date", "product_name", "app_name"};
-            String[] fieldNames = {"客户姓名", "手机号码", "证件号码", "邮箱", "地址",
-                                  "贷款金额", "未还金额", "逾期天数", "到期日期", 
-                                  "放款日期", "产品名称", "App名称"};
-            String[] fieldTypes = {"String", "String", "String", "String", "String",
-                                  "Decimal", "Decimal", "Integer", "Date", 
-                                  "Date", "String", "String"};
-            String[] colorTypes = {"normal", "normal", "normal", "normal", "normal",
-                                  "normal", "red", "red", "normal", 
-                                  "normal", "normal", "normal"};
-            
-            for (int i = 0; i < fieldKeys.length; i++) {
-                Map<String, Object> config = new HashMap<>();
-                config.put("id", (long) (i + 1));
-                config.put("tenant_id", String.valueOf(tenantId));
-                config.put("scene_type", sceneType);
-                config.put("scene_name", sceneName);
-                config.put("field_key", fieldKeys[i]);
-                config.put("field_name", fieldNames[i]);
-                config.put("field_data_type", fieldTypes[i]);
-                config.put("field_source", "standard");
-                config.put("sort_order", i < 5 ? i + 1 : i + 6); // 前5个是客户信息，从11开始是贷款信息
-                config.put("display_width", 0); // 详情页使用自动宽度
-                config.put("color_type", colorTypes[i]);
-                config.put("color_rule", null);
-                config.put("hide_rule", null);
-                config.put("hide_for_queues", new ArrayList<>());
-                config.put("hide_for_agencies", new ArrayList<>());
-                config.put("hide_for_teams", new ArrayList<>());
-                
-                if ("Decimal".equals(fieldTypes[i]) && (fieldKeys[i].equals("loan_amount") || fieldKeys[i].equals("outstanding_amount"))) {
-                    Map<String, Object> formatRule = new HashMap<>();
-                    formatRule.put("format_type", "currency");
-                    formatRule.put("prefix", "¥");
-                    formatRule.put("suffix", "");
-                    config.put("format_rule", formatRule);
-                } else {
-                    config.put("format_rule", null);
-                }
-                
-                config.put("is_searchable", false);
-                config.put("is_filterable", false);
-                config.put("is_range_searchable", false);
                 config.put("created_at", java.time.LocalDateTime.now().toString());
                 config.put("updated_at", java.time.LocalDateTime.now().toString());
                 config.put("created_by", "system");
@@ -733,5 +444,23 @@ public class FieldDisplayConfigController {
         
         return configs;
     }
-}
 
+    /**
+     * 获取场景名称
+     */
+    private String getSceneName(String sceneType) {
+        if (sceneType == null || sceneType.isEmpty()) {
+            return "未知场景";
+        }
+        switch (sceneType) {
+            case "admin_case_list":
+                return "控台案件管理列表";
+            case "collector_case_list":
+                return "催员案件列表";
+            case "collector_case_detail":
+                return "催员案件详情";
+            default:
+                return sceneType;
+        }
+    }
+}

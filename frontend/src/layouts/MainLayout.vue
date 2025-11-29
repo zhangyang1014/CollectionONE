@@ -32,7 +32,9 @@
             <span>{{ $t('menu.caseManagement') }}</span>
           </template>
           <el-menu-item index="/cases">{{ $t('menu.caseList') }}</el-menu-item>
+          <el-menu-item index="/cases/stay">停留案件</el-menu-item>
           <el-menu-item index="/auto-assignment">自动化分案</el-menu-item>
+          <el-menu-item index="/cases/reassign-config">案件重新分案配置</el-menu-item>
           <el-menu-item index="/tenants/queue-management">{{ $t('menu.queueManagement') }}</el-menu-item>
         </el-sub-menu>
 
@@ -68,6 +70,7 @@
           </template>
           <el-menu-item index="/channel-config/limits">渠道发送限制配置</el-menu-item>
           <el-menu-item index="/channel-config/suppliers">甲方渠道管理</el-menu-item>
+          <el-menu-item index="/channel-config/payment-channels">还款渠道管理</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu v-if="isSuperAdmin || isTenantAdmin" index="system">

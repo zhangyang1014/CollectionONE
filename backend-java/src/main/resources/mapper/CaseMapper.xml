@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cco.mapper.CaseMapper">
+
+    <!-- 查询案件列表 -->
+    <select id="selectCaseList" resultType="com.cco.model.entity.Case">
+        SELECT 
+            id,
+            case_code,
+            tenant_id,
+            agency_id,
+            team_id,
+            collector_id,
+            queue_id,
+            user_id,
+            user_name,
+            mobile,
+            case_status,
+            product_name,
+            app_name,
+            overdue_days,
+            loan_amount,
+            repaid_amount,
+            outstanding_amount,
+            due_date,
+            settlement_date,
+            assigned_at,
+            last_contact_at,
+            next_follow_up_at,
+            created_at,
+            updated_at
+        FROM cases
+        <where>
+            <if test="tenantId != null">
+                AND tenant_id = #{tenantId}
+            </if>
+            <if test="collectorId != null">
+                AND collector_id = #{collectorId}
+            </if>
+            <if test="caseStatus != null and caseStatus != ''">
+                AND case_status = #{caseStatus}
+            </if>
+            <if test="queueId != null">
+                AND queue_id = #{queueId}
+            </if>
+            <if test="agencyId != null">
+                AND agency_id = #{agencyId}
+            </if>
+            <if test="teamId != null">
+                AND team_id = #{teamId}
+            </if>
+            <if test="userId != null and userId != ''">
+                AND user_id = #{userId}
+            </if>
+            <!-- 搜索关键词：案件编号、客户姓名、客户ID、手机号码 -->
+            <if test="searchKeyword != null and searchKeyword != ''">
+                AND (
+                    case_code LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_name LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_id LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR mobile LIKE CONCAT('%', #{searchKeyword}, '%')
+                )
+            </if>
+            <if test="dueDateStart != null and dueDateStart != ''">
+                AND due_date >= #{dueDateStart}
+            </if>
+            <if test="dueDateEnd != null and dueDateEnd != ''">
+                AND due_date &lt;= #{dueDateEnd}
+            </if>
+            <if test="settlementDateStart != null and settlementDateStart != ''">
+                AND settlement_date >= #{settlementDateStart}
+            </if>
+            <if test="settlementDateEnd != null and settlementDateEnd != ''">
+                AND settlement_date &lt;= #{settlementDateEnd}
+            </if>
+        </where>
+        <!-- 排序 -->
+        <choose>
+            <when test="sortBy == 'collection_value'">
+                <!-- 催回价值排序：筛选未还案件，按逾期日少的在前，金额大的在前 -->
+                ORDER BY 
+                    CASE 
+                        WHEN case_status NOT IN ('normal_settlement', 'extension_settlement') THEN 0
+                        ELSE 1
+                    END,
+                    overdue_days ASC,
+                    outstanding_amount DESC
+            </when>
+            <otherwise>
+                ORDER BY id DESC
+            </otherwise>
+        </choose>
+        <!-- 分页 -->
+        <if test="skip != null and limit != null">
+            LIMIT #{skip}, #{limit}
+        </if>
+    </select>
+
+    <!-- 统计案件总数 -->
+    <select id="countCases" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM cases
+        <where>
+            <if test="tenantId != null">
+                AND tenant_id = #{tenantId}
+            </if>
+            <if test="collectorId != null">
+                AND collector_id = #{collectorId}
+            </if>
+            <if test="caseStatus != null and caseStatus != ''">
+                AND case_status = #{caseStatus}
+            </if>
+            <if test="queueId != null">
+                AND queue_id = #{queueId}
+            </if>
+            <if test="agencyId != null">
+                AND agency_id = #{agencyId}
+            </if>
+            <if test="teamId != null">
+                AND team_id = #{teamId}
+            </if>
+            <if test="userId != null and userId != ''">
+                AND user_id = #{userId}
+            </if>
+            <!-- 搜索关键词：案件编号、客户姓名、客户ID、手机号码 -->
+            <if test="searchKeyword != null and searchKeyword != ''">
+                AND (
+                    case_code LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_name LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_id LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR mobile LIKE CONCAT('%', #{searchKeyword}, '%')
+                )
+            </if>
+            <if test="dueDateStart != null and dueDateStart != ''">
+                AND due_date >= #{dueDateStart}
+            </if>
+            <if test="dueDateEnd != null and dueDateEnd != ''">
+                AND due_date &lt;= #{dueDateEnd}
+            </if>
+            <if test="settlementDateStart != null and settlementDateStart != ''">
+                AND settlement_date >= #{settlementDateStart}
+            </if>
+            <if test="settlementDateEnd != null and settlementDateEnd != ''">
+                AND settlement_date &lt;= #{settlementDateEnd}
+            </if>
+            <!-- 如果is_stay字段存在，则过滤掉停留案件 -->
+            <!-- 注意：如果字段不存在，此条件会被忽略，不影响查询 -->
+            <!-- 等数据库迁移后，可以取消注释下面的条件 -->
+            <!-- AND (is_stay = 0 OR is_stay IS NULL) -->
+        </where>
+    </select>
+
+    <!-- 查询停留案件列表 -->
+    <select id="selectStayCaseList" resultType="com.cco.model.entity.Case">
+        SELECT 
+            id,
+            case_code,
+            tenant_id,
+            agency_id,
+            team_id,
+            collector_id,
+            queue_id,
+            user_id,
+            user_name,
+            mobile,
+            case_status,
+            product_name,
+            app_name,
+            overdue_days,
+            loan_amount,
+            repaid_amount,
+            outstanding_amount,
+            due_date,
+            settlement_date,
+            assigned_at,
+            last_contact_at,
+            next_follow_up_at,
+            is_stay,
+            stay_at,
+            stay_by,
+            stay_released_at,
+            stay_released_by,
+            created_at,
+            updated_at
+        FROM cases
+        <where>
+            <!-- 只显示停留案件：is_stay = true -->
+            AND is_stay = 1
+            <if test="tenantId != null">
+                AND tenant_id = #{tenantId}
+            </if>
+            <if test="queueId != null">
+                AND queue_id = #{queueId}
+            </if>
+            <if test="agencyId != null">
+                AND agency_id = #{agencyId}
+            </if>
+            <if test="teamId != null">
+                AND team_id = #{teamId}
+            </if>
+            <if test="stayBy != null">
+                AND stay_by = #{stayBy}
+            </if>
+            <if test="stayDateStart != null and stayDateStart != ''">
+                AND stay_at >= #{stayDateStart}
+            </if>
+            <if test="stayDateEnd != null and stayDateEnd != ''">
+                AND stay_at &lt;= #{stayDateEnd}
+            </if>
+            <!-- 搜索关键词：案件编号、客户姓名、客户ID、手机号码 -->
+            <if test="searchKeyword != null and searchKeyword != ''">
+                AND (
+                    case_code LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_name LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_id LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR mobile LIKE CONCAT('%', #{searchKeyword}, '%')
+                )
+            </if>
+        </where>
+        <!-- 排序 -->
+        <choose>
+            <when test="sortBy != null and sortBy != ''">
+                ORDER BY ${sortBy} DESC
+            </when>
+            <otherwise>
+                ORDER BY stay_at DESC, id DESC
+            </otherwise>
+        </choose>
+        <!-- 分页 -->
+        <if test="skip != null and limit != null">
+            LIMIT #{skip}, #{limit}
+        </if>
+    </select>
+
+    <!-- 统计停留案件总数 -->
+    <select id="countStayCases" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM cases
+        <where>
+            <!-- 只统计停留案件：is_stay = true -->
+            AND is_stay = 1
+            <if test="tenantId != null">
+                AND tenant_id = #{tenantId}
+            </if>
+            <if test="queueId != null">
+                AND queue_id = #{queueId}
+            </if>
+            <if test="agencyId != null">
+                AND agency_id = #{agencyId}
+            </if>
+            <if test="teamId != null">
+                AND team_id = #{teamId}
+            </if>
+            <if test="stayBy != null">
+                AND stay_by = #{stayBy}
+            </if>
+            <if test="stayDateStart != null and stayDateStart != ''">
+                AND stay_at >= #{stayDateStart}
+            </if>
+            <if test="stayDateEnd != null and stayDateEnd != ''">
+                AND stay_at &lt;= #{stayDateEnd}
+            </if>
+            <!-- 搜索关键词：案件编号、客户姓名、客户ID、手机号码 -->
+            <if test="searchKeyword != null and searchKeyword != ''">
+                AND (
+                    case_code LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_name LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR user_id LIKE CONCAT('%', #{searchKeyword}, '%')
+                    OR mobile LIKE CONCAT('%', #{searchKeyword}, '%')
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- 查询需要重新分案的案件列表 -->
+    <select id="selectCasesToReassign" resultType="com.cco.model.entity.Case">
+        SELECT 
+            c.id,
+            c.case_code,
+            c.tenant_id,
+            c.agency_id,
+            c.team_id,
+            c.collector_id,
+            c.queue_id,
+            c.user_id,
+            c.user_name,
+            c.mobile,
+            c.case_status,
+            c.product_name,
+            c.app_name,
+            c.overdue_days,
+            c.loan_amount,
+            c.repaid_amount,
+            c.outstanding_amount,
+            c.due_date,
+            c.settlement_date,
+            c.assigned_at,
+            c.last_contact_at,
+            c.next_follow_up_at,
+            c.created_at,
+            c.updated_at
+        FROM cases c
+        LEFT JOIN ptp_records ptp ON c.id = ptp.case_id 
+            AND ptp.status = 'pending' 
+            AND ptp.ptp_date >= CURDATE()
+        WHERE c.tenant_id = #{tenantId}
+        AND c.collector_id IS NOT NULL
+        AND c.assigned_at IS NOT NULL
+        AND c.case_status NOT IN ('normal_settlement', 'extension_settlement')
+        AND ptp.id IS NULL
+        AND DATEDIFF(NOW(), c.assigned_at) >= #{reassignDays}
+        AND c.queue_id = #{targetId}
+        ORDER BY c.assigned_at ASC
+    </select>
+
+</mapper>
+
+
+

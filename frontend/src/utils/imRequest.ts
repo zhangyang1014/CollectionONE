@@ -34,15 +34,43 @@ imService.interceptors.request.use(
 imService.interceptors.response.use(
   (response: AxiosResponse) => {
     const res = response.data
+    const url = response.config.url || ''
+    
+    console.log('[IM Request] 响应拦截器处理:', {
+      url,
+      hasCode: !!res.code,
+      code: res.code,
+      hasData: !!res.data,
+      isArray: Array.isArray(res)
+    })
+    
     // 如果响应是数组，直接返回
     if (Array.isArray(res)) {
+      console.log('[IM Request] 返回数组格式，长度:', res.length)
       return res
     }
+    
     // 如果响应有code字段且不等于200，则报错
     if (res.code && res.code !== 200) {
+      console.error('[IM Request] 响应错误:', res.code, res.message)
       ElMessage.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message || 'Error'))
     }
+    
+    // 特殊处理：登录相关接口需要访问code字段，返回整个响应对象
+    if (url.includes('/im/auth/login') || url.includes('/im/auth/logout') || url.includes('/im/auth/user-info') || url.includes('/im/auth/check-session')) {
+      console.log('[IM Request] 登录相关接口，返回完整响应')
+      return res
+    }
+    
+    // 其他接口：如果响应有data字段，返回data（Java后端格式）
+    if (res.data !== undefined) {
+      console.log('[IM Request] 提取data字段，类型:', typeof res.data, '是否为数组:', Array.isArray(res.data))
+      return res.data
+    }
+    
+    // 否则返回整个响应对象
+    console.log('[IM Request] 返回完整响应对象')
     return res
   },
   (error) => {

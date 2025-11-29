@@ -47,6 +47,9 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+  # 禁用某些自动配置以避免兼容性问题
+  configuration-properties:
+    aggressive-lazy-loading: false
 
 # JWT 配置
 jwt:

@@ -111,17 +111,6 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="可搜索" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch 
-              v-if="isSearchableType(row.field_data_type)"
-              v-model="row.is_searchable" 
-              size="small" 
-            />
-            <span v-else style="color: #c0c4cc;">-</span>
-          </template>
-        </el-table-column>
-        
         <el-table-column label="可筛选" width="100" align="center">
           <template #default="{ row }">
             <el-switch 
@@ -293,14 +282,6 @@
           <!-- 搜索筛选配置 -->
           <el-tab-pane label="搜索筛选" name="search">
             <el-form-item 
-              label="是否可搜索"
-              v-if="isSearchableType(form.field_data_type)"
-            >
-              <el-switch v-model="form.is_searchable" />
-              <span style="margin-left: 10px; color: #909399;">针对文本字段，启用后可在列表中搜索</span>
-            </el-form-item>
-            
-            <el-form-item 
               label="是否可筛选"
               v-if="isFilterableType(form.field_data_type)"
             >
@@ -320,10 +301,9 @@
             
             <!-- 如果没有可配置的搜索筛选项，显示提示 -->
             <el-alert
-              v-if="!isSearchableType(form.field_data_type) && 
-                    !isFilterableType(form.field_data_type) && 
+              v-if="!isFilterableType(form.field_data_type) && 
                     !isRangeSearchableType(form.field_data_type)"
-              title="当前字段类型不支持搜索、筛选或范围检索功能"
+              title="当前字段类型不支持筛选或范围检索功能"
               type="info"
               :closable="false"
             />
@@ -491,7 +471,6 @@ const form = ref<FieldDisplayConfigCreate>({
   sort_order: 0,
   display_width: 0,
   color_type: 'normal',
-  is_searchable: false,
   is_filterable: false,
   hide_for_queues: [],
   hide_for_agencies: [],
@@ -514,7 +493,6 @@ const isCollectorScene = computed(() => {
 const getFieldSourceLabel = (source?: string) => {
   const labels: Record<string, string> = {
     'standard': '标准字段',
-    'extended': '扩展字段',
     'custom': '自定义字段',
     'system': '系统字段'
   }
@@ -525,18 +503,10 @@ const getFieldSourceLabel = (source?: string) => {
 const getFieldSourceType = (source?: string) => {
   const types: Record<string, any> = {
     'standard': 'success',
-    'extended': 'warning',
     'custom': 'info',
     'system': 'danger'
   }
   return types[source || ''] || ''
-}
-
-// 判断是否是可搜索的类型（文本类型）
-const isSearchableType = (fieldType?: string) => {
-  if (!fieldType) return false
-  const searchableTypes = ['String', 'Text']
-  return searchableTypes.includes(fieldType)
 }
 
 // 判断是否是可筛选的类型（枚举类型）
@@ -589,21 +559,14 @@ const handleFieldSelect = (fieldKey: string) => {
     form.value.field_data_type = field.field_type
     form.value.field_source = field.field_source
     
-    // 根据字段类型自动设置搜索、筛选和范围检索选项
-    if (field.field_type === 'String' || field.field_type === 'Text') {
-      form.value.is_searchable = true
-      form.value.is_filterable = false
-      form.value.is_range_searchable = false
-    } else if (field.field_type === 'Enum') {
-      form.value.is_searchable = false
+    // 根据字段类型自动设置筛选和范围检索选项
+    if (field.field_type === 'Enum') {
       form.value.is_filterable = true
       form.value.is_range_searchable = false
     } else if (['Integer', 'Decimal', 'Date', 'Datetime'].includes(field.field_type)) {
-      form.value.is_searchable = false
       form.value.is_filterable = false
       form.value.is_range_searchable = true // 自动开启范围检索
     } else {
-      form.value.is_searchable = false
       form.value.is_filterable = false
       form.value.is_range_searchable = false
     }
@@ -697,7 +660,6 @@ const handleAdd = () => {
     sort_order: configs.value.length,
     display_width: 0,
     color_type: 'normal',
-    is_searchable: false,
     is_filterable: false,
     is_range_searchable: false,
     hide_for_queues: [],

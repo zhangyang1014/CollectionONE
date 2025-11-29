@@ -283,7 +283,7 @@
         <div class="search-box">
           <el-input
             v-model="searchKeyword"
-            placeholder="输入精准用户编号、贷款编号、手机号进行搜索"
+            placeholder="搜索案件编号、客户姓名、客户ID、手机号码"
             clearable
             @blur="handleSearch"
             @keyup.enter="handleSearch"
@@ -395,6 +395,13 @@
                 {{ showMoreFilters ? '收起' : '更多' }}筛选
               </el-button>
               <el-button-group size="small">
+                <el-button 
+                  :type="filters.sortBy === 'collection_value' ? 'primary' : 'default'"
+                  @click="handleCollectionValueSort"
+                >
+                  <el-icon><Sort /></el-icon>
+                  催回价值排序
+                </el-button>
                 <el-button @click="handleSaveView">
                   <el-icon><FolderAdd /></el-icon>
                   保存视图
@@ -590,7 +597,8 @@ import {
   FolderAdd,
   RefreshLeft,
   Phone,
-  DataAnalysis
+  DataAnalysis,
+  Sort
 } from '@element-plus/icons-vue'
 import { useImUserStore } from '@/stores/imUser'
 import { getCases } from '@/api/imCase'
@@ -620,7 +628,6 @@ const tenantIdForConfig = computed(() => user.value?.tenantId ? Number(user.valu
 const {
   loading: configLoading,
   visibleConfigs,
-  searchableFields,
   filterableFields,
   rangeSearchableFields,
   getTableColumns,
@@ -1203,7 +1210,8 @@ const filters = ref({
   app: '',
   borrowType: '',
   recentPayment: '',
-  firstTerm: ''
+  firstTerm: '',
+  sortBy: '' // 排序方式：'collection_value' 表示催回价值排序
 })
 
 const productList = ref(['Préstamo Rápido', 'Cash Express', 'Dinero Ya'])
@@ -1453,6 +1461,7 @@ const viewMoreReports = () => {
 
 const handleSearch = () => {
   pagination.value.page = 1
+  loadCases()
 }
 
 const handleFilterChange = () => {
@@ -1461,6 +1470,19 @@ const handleFilterChange = () => {
 
 const handleSaveView = () => {
   ElMessage.info('保存视图功能开发中')
+}
+
+const handleCollectionValueSort = () => {
+  // 切换催回价值排序
+  if (filters.value.sortBy === 'collection_value') {
+    // 如果已经选中，则取消排序
+    filters.value.sortBy = ''
+  } else {
+    // 否则启用催回价值排序
+    filters.value.sortBy = 'collection_value'
+  }
+  pagination.value.page = 1
+  loadCases()
 }
 
 const handleResetFilters = () => {
@@ -1474,7 +1496,8 @@ const handleResetFilters = () => {
     app: '',
     borrowType: '',
     recentPayment: '',
-    firstTerm: ''
+    firstTerm: '',
+    sortBy: ''
   }
   searchKeyword.value = ''
   handleFilterChange()
@@ -2032,26 +2055,62 @@ const loadCases = async () => {
       collector_id: collectorIdNum  // 使用数字ID
     }
     
+    // 如果启用了催回价值排序，添加sort_by参数
+    if (filters.value.sortBy === 'collection_value') {
+      params.sort_by = 'collection_value'
+    }
+    
+    // 添加搜索关键词参数
+    if (searchKeyword.value && searchKeyword.value.trim()) {
+      params.search_keyword = searchKeyword.value.trim()
+    }
+    
     const res: any = await getCases(params)
     console.log('案件加载响应:', res)
+    console.log('响应类型:', typeof res, '是否为数组:', Array.isArray(res))
     
     // 处理不同的响应格式
+    let caseList: any[] = []
+    
     if (Array.isArray(res)) {
       // 直接返回数组
-      cases.value = res
-    } else if (res.data && Array.isArray(res.data)) {
-      // 包装在data中的数组
-      cases.value = res.data
-    } else if (res.data && res.data.items && Array.isArray(res.data.items)) {
-      // 包装在data.items中的数组（Java后端格式）
-      cases.value = res.data.items
-    } else if (res.items && Array.isArray(res.items)) {
-      // 直接在items中的数组
-      cases.value = res.items
-    } else {
-      console.error('未知的响应格式:', res)
-      cases.value = []
+      caseList = res
+    } else if (res && typeof res === 'object') {
+      // 如果是对象，尝试多种格式
+      if (Array.isArray(res.items)) {
+        // 格式：{ items: [...], total: 50 }
+        caseList = res.items
+        console.log('匹配格式: res.items, 数量:', caseList.length)
+      } else if (Array.isArray(res.data)) {
+        // 格式：{ data: [...] }
+        caseList = res.data
+        console.log('匹配格式: res.data, 数量:', caseList.length)
+      } else if (res.data && Array.isArray(res.data.items)) {
+        // 格式：{ data: { items: [...] } }
+        caseList = res.data.items
+        console.log('匹配格式: res.data.items, 数量:', caseList.length)
+      } else if (res.data && Array.isArray(res.data)) {
+        // 格式：{ data: [...] }
+        caseList = res.data
+        console.log('匹配格式: res.data (数组), 数量:', caseList.length)
+      } else {
+        console.warn('未知的响应格式，尝试提取所有可能的数组字段:', res)
+        // 尝试查找任何数组字段
+        for (const key in res) {
+          if (Array.isArray(res[key])) {
+            console.log(`找到数组字段: ${key}, 数量: ${res[key].length}`)
+            caseList = res[key]
+            break
+          }
+        }
+      }
     }
+    
+    if (caseList.length === 0 && res && typeof res === 'object') {
+      console.error('无法从响应中提取案件列表，完整响应:', JSON.stringify(res, null, 2))
+    }
+    
+    cases.value = caseList
     
     console.log('加载的案件数量:', cases.value.length)
     

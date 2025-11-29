@@ -94,7 +94,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ResponseData<?> handleException(Exception e, HttpServletRequest request) {
-        log.error("❌ 系统异常: {} - 路径: {}", e.getMessage(), request.getRequestURI());
+        String requestUri = request.getRequestURI();
+        
+        // 特殊处理：获取催员列表接口，返回空列表而不是500错误
+        if (requestUri != null && requestUri.contains("/collectors-for-assign")) {
+            log.warn("⚠️ 获取催员列表接口异常，返回空列表: {} - 路径: {}", e.getMessage(), requestUri);
+            log.warn("详细错误信息: ", e);
+            return ResponseData.success(new java.util.ArrayList<>());
+        }
+        
+        log.error("❌ 系统异常: {} - 路径: {}", e.getMessage(), requestUri);
         log.error("详细错误信息: ", e);
         return ResponseData.error(500, "系统内部错误: " + e.getMessage());
     }

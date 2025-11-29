@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cco.mapper.CaseReassignConfigMapper">
+
+    <!-- 查询已生效的配置列表 -->
+    <select id="selectEffectiveConfigs" resultType="com.cco.model.entity.CaseReassignConfig">
+        SELECT 
+            id,
+            tenant_id,
+            config_type,
+            target_id,
+            reassign_days,
+            is_active,
+            effective_date,
+            created_at,
+            updated_at
+        FROM case_reassign_configs
+        WHERE is_active = 1
+        AND effective_date &lt;= #{effectiveDate}
+        <if test="tenantId != null">
+            AND tenant_id = #{tenantId}
+        </if>
+        ORDER BY config_type, target_id
+    </select>
+
+</mapper>
+
