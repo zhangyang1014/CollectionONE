@@ -251,20 +251,12 @@
             <el-dropdown-menu>
               <el-dropdown-item disabled>
                 <div class="account-details">
-                  <div><strong>{{ user?.collectorName }}</strong></div>
-                  <div class="text-secondary">{{ user?.tenantName }}</div>
-                  <div class="text-secondary">{{ user?.team }}</div>
+                  <div class="text-secondary">催员ID: {{ user?.collectorId }}</div>
+                  <div class="text-secondary">企业名: {{ user?.tenantName }}</div>
+                  <div class="text-secondary">机构名: {{ user?.team }}</div>
                 </div>
               </el-dropdown-item>
-              <el-dropdown-item divided>
-                <el-icon><Connection /></el-icon>
-                WhatsApp: {{ user?.whatsappConnected ? '已连接' : '未连接' }}
-              </el-dropdown-item>
-              <el-dropdown-item divided command="logout-whatsapp" v-if="user?.whatsappConnected">
-                <el-icon><SwitchButton /></el-icon>
-                登出 WhatsApp 账号
-              </el-dropdown-item>
-              <el-dropdown-item command="logout-all">
+              <el-dropdown-item divided command="logout-all">
                 <el-icon style="color: #F56C6C"><SwitchButton /></el-icon>
                 <span style="color: #F56C6C">登出催收账号</span>
               </el-dropdown-item>
@@ -589,7 +581,6 @@ import {
   Grid,
   ArrowDown,
   ArrowUp,
-  Connection,
   SwitchButton,
   Refresh,
   Right,
@@ -1431,16 +1422,9 @@ const handleLanguageChange = (lang: string) => {
 }
 
 const handleAccountCommand = async (command: string) => {
-  if (command === 'logout-whatsapp') {
-    await ElMessageBox.confirm('确定要登出 WhatsApp 账号吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    ElMessage.success('已登出 WhatsApp 账号')
-  } else if (command === 'logout-all') {
+  if (command === 'logout-all') {
     await ElMessageBox.confirm(
-      '登出催收账号将同时登出 WhatsApp 账号，确定要继续吗？',
+      '确定要退出登录吗？',
       '提示',
       {
         confirmButtonText: '确定',
@@ -1450,7 +1434,7 @@ const handleAccountCommand = async (command: string) => {
     )
     await imUserStore.logout()
     router.push('/im/login')
-    ElMessage.success('已登出所有账号')
+    ElMessage.success('已退出登录')
   }
 }
 

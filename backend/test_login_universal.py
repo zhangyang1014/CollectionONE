@@ -56,6 +56,7 @@ def detect_backend():
         try:
             # 尝试多个健康检查端点
             endpoints_to_try = [
+                f"{url}/api/v1/admin/auth/login",  # 尝试登录接口（POST会返回错误但说明服务在运行）
                 f"{url}/",
                 f"{url}/health",
                 f"{url}/api/v1/health",
@@ -64,13 +65,23 @@ def detect_backend():
             
             for endpoint in endpoints_to_try:
                 try:
-                    response = requests.get(endpoint, timeout=2)
-                    if response.status_code in [200, 404]:  # 404也说明服务在运行
+                    if "login" in endpoint:
+                        # 对于登录接口，使用POST请求
+                        response = requests.post(endpoint, json={}, timeout=2)
+                    else:
+                        response = requests.get(endpoint, timeout=2)
+                    # 任何响应（包括400/404/500）都说明服务在运行
+                    if response.status_code is not None:
                         print(f"✅ {name} 后端运行中: {url}")
                         available.append((name, url))
                         break
-                except:
+                except requests.exceptions.ConnectionError:
                     continue
+                except:
+                    # 其他异常也说明服务可能在运行
+                    print(f"✅ {name} 后端运行中: {url}")
+                    available.append((name, url))
+                    break
             else:
                 print(f"❌ {name} 后端未运行: {url}")
         except Exception as e:

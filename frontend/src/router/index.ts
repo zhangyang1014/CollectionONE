@@ -132,6 +132,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '甲方案件队列管理', requiresAuth: true },
       },
       {
+        path: 'tenants/collector-login-whitelist',
+        name: 'CollectorLoginWhitelist',
+        component: () => import('@/views/tenant-management/CollectorLoginWhitelist.vue'),
+        meta: { title: '催员登录白名单IP管理', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'super_admin', 'tenant_admin'] },
+      },
+      {
         path: 'organization/agencies',
         name: 'AgencyManagement',
         component: () => import('@/views/organization/AgencyManagement.vue'),
@@ -184,6 +190,12 @@ const routes: RouteRecordRaw[] = [
         name: 'PaymentChannelManagement',
         component: () => import('@/views/payment/PaymentChannelManagement.vue'),
         meta: { title: '还款渠道管理', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'super_admin', 'tenant_admin'] },
+      },
+      {
+        path: 'console/message-templates',
+        name: 'MessageTemplateList',
+        component: () => import('@/views/console/MessageTemplateList.vue'),
+        meta: { title: '消息模板配置管理', requiresAuth: true },
       },
       {
         path: 'system/permissions',

@@ -11,6 +11,7 @@ import com.cco.mapper.TenantAdminMapper;
 import com.cco.mapper.TeamAdminAccountMapper;
 import com.cco.mapper.AgencyWorkingHoursMapper;
 import com.cco.mapper.CaseReassignConfigMapper;
+import com.cco.mapper.CollectorLoginWhitelistMapper;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.mapper.MapperFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -144,6 +145,17 @@ public class MapperConfig {
     public MapperFactoryBean<CaseReassignConfigMapper> caseReassignConfigMapper() {
         MapperFactoryBean<CaseReassignConfigMapper> factoryBean = new MapperFactoryBean<>();
         factoryBean.setMapperInterface(CaseReassignConfigMapper.class);
+        factoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return factoryBean;
+    }
+    
+    /**
+     * 手动注册CollectorLoginWhitelistMapper
+     */
+    @Bean
+    public MapperFactoryBean<CollectorLoginWhitelistMapper> collectorLoginWhitelistMapper() {
+        MapperFactoryBean<CollectorLoginWhitelistMapper> factoryBean = new MapperFactoryBean<>();
+        factoryBean.setMapperInterface(CollectorLoginWhitelistMapper.class);
         factoryBean.setSqlSessionFactory(sqlSessionFactory);
         return factoryBean;
     }

@@ -2,7 +2,6 @@ import imRequest from '@/utils/imRequest'
 
 // 登录
 export const imLogin = (data: {
-  tenantId: string
   collectorId: string
   password: string
 }) => {
@@ -59,7 +58,6 @@ export const detectFace = (imageBase64: string) => {
 // 上传登录人脸记录
 export const uploadLoginFace = (data: {
   collector_id: string
-  tenant_id: string
   face_image: string // base64 图片
   face_id: string
   login_time: string

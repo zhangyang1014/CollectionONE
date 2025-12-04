@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * MyBatis Plus 配置
  * 注意：分页插件暂时注释，避免编译错误
+ * 使用MapperConfig手动注册的Mapper，不在此处配置自动扫描
  */
 @Configuration
 public class MyBatisConfig {

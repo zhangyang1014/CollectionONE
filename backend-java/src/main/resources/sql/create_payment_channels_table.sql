@@ -27,3 +27,9 @@ CREATE TABLE IF NOT EXISTS `payment_channels` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='还款渠道配置表';
 
 
+
+
+
+
+
+

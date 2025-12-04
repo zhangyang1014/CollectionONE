@@ -18,19 +18,6 @@
         class="login-form"
         @submit.prevent="handleLogin"
       >
-        <el-form-item prop="tenantId" label="">
-          <el-input
-            v-model="loginForm.tenantId"
-            placeholder="请输入机构ID"
-            size="large"
-            clearable
-          >
-            <template #prefix>
-              <el-icon><OfficeBuilding /></el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
-
         <el-form-item prop="collectorId" label="">
           <el-input
             v-model="loginForm.collectorId"
@@ -188,7 +175,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   ChatDotRound,
-  OfficeBuilding,
   User,
   Lock,
   PictureFilled,
@@ -221,7 +207,6 @@ let stream: MediaStream | null = null
 
 // 登录表单
 const loginForm = reactive({
-  tenantId: '',
   collectorId: '',
   password: '',
   captcha: ''
@@ -249,22 +234,6 @@ watch(() => loginForm.collectorId, (newVal) => {
 
 // 表单验证规则
 const loginRules = {
-  tenantId: [
-    { required: true, message: '请输入机构ID', trigger: 'blur' },
-    { 
-      validator: (rule: any, value: any, callback: any) => {
-        // 确保值是字符串，不是数组
-        if (Array.isArray(value)) {
-          callback(new Error('机构ID不能是数组'))
-        } else if (typeof value !== 'string' && value !== '') {
-          callback(new Error('机构ID格式错误'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur'
-    }
-  ],
   collectorId: [
     { required: true, message: '请输入催员ID', trigger: 'blur' },
     { 
@@ -548,12 +517,6 @@ const handleLogin = async () => {
   try {
     // 确保表单值是字符串，不是数组（防止URL参数导致的问题）
     // 同时处理可能的验证错误对象被错误赋值的情况
-    if (Array.isArray(loginForm.tenantId)) {
-      loginForm.tenantId = (typeof loginForm.tenantId[0] === 'string' ? loginForm.tenantId[0] : '') || ''
-    } else if (typeof loginForm.tenantId !== 'string') {
-      loginForm.tenantId = String(loginForm.tenantId || '')
-    }
-    
     if (Array.isArray(loginForm.collectorId)) {
       // 如果数组元素是对象（验证错误对象），忽略它
       const firstItem = loginForm.collectorId[0]
@@ -599,13 +562,11 @@ const handleLogin = async () => {
     loading.value = true
 
     // 确保传递给API的值是字符串
-    const tenantId = Array.isArray(loginForm.tenantId) ? loginForm.tenantId[0] : String(loginForm.tenantId || '')
     const collectorId = Array.isArray(loginForm.collectorId) ? loginForm.collectorId[0] : String(loginForm.collectorId || '')
     const password = Array.isArray(loginForm.password) ? loginForm.password[0] : String(loginForm.password || '')
 
     // 调用登录API
     await imUserStore.login({
-      tenantId: tenantId,
       collectorId: collectorId,
       password: password
     })
@@ -615,7 +576,6 @@ const handleLogin = async () => {
       try {
         await uploadLoginFace({
           collector_id: loginForm.collectorId,
-          tenant_id: loginForm.tenantId,
           face_image: capturedImage.value,
           face_id: faceId.value,
           login_time: new Date().toISOString()
@@ -708,13 +668,11 @@ onMounted(() => {
   }
   
   const collectorId = getQueryParam(route.query.collectorId)
-  const tenantId = getQueryParam(route.query.tenantId)
   const simulate = getQueryParam(route.query.simulate)
   
-  if (simulate === 'true' && collectorId && tenantId) {
+  if (simulate === 'true' && collectorId) {
     // 自动填充表单
     loginForm.collectorId = collectorId
-    loginForm.tenantId = tenantId
     // 使用默认密码（模拟登录）
     loginForm.password = '123456'
     
@@ -746,7 +704,6 @@ const handleSimulateLogin = async () => {
 
     // 调用登录API
     await imUserStore.login({
-      tenantId: loginForm.tenantId,
       collectorId: loginForm.collectorId,
       password: loginForm.password
     })

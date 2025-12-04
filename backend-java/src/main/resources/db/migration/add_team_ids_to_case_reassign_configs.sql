@@ -6,3 +6,4 @@ ADD COLUMN `team_ids` JSON COMMENT '小组ID列表（JSON数组），为空表�
 ALTER TABLE `case_reassign_configs`
 ADD INDEX `idx_queue_team` (`target_id`, `config_type`);
 
+

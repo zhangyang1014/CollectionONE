@@ -130,8 +130,8 @@
       <div v-if="selectedContact" class="chat-container">
         <!-- 渠道Tab -->
         <el-tabs v-model="activeChannel" class="channel-tabs">
-          <!-- 会话聚合 -->
-          <el-tab-pane name="aggregated">
+          <!-- 会话聚合 - 暂时隐藏 -->
+          <el-tab-pane v-if="false" name="aggregated">
             <template #label>
               <span class="tab-label">
                 <el-icon><ChatLineRound /></el-icon>
@@ -186,25 +186,102 @@
                 <div :class="['message-item', message.sender_type === 'collector' ? 'message-sent' : 'message-received']">
                   
                   <div class="message-bubble">
+                    <!-- 文本消息 -->
                     <div v-if="message.type === 'text'" class="message-content">
                       {{ message.content }}
                     </div>
-                    <div v-else-if="message.type === 'image'" class="message-image">
-                      <el-image :src="message.content" fit="cover" style="max-width: 200px; max-height: 200px;" />
+                    
+                    <!-- 图片消息 -->
+                    <div v-else-if="message.type === 'image'" class="message-image" @click="showImagePreview(message.content)">
+                      <el-image 
+                        :src="message.content" 
+                        fit="cover" 
+                        style="max-width: 200px; max-height: 200px; border-radius: 8px; cursor: pointer;"
+                        :preview-teleported="true"
+                        @error="handleImageError"
+                      />
                     </div>
-                    <div v-else-if="message.type === 'voice'" class="message-voice">
-                      <el-icon><Microphone /></el-icon>
-                      <span>语音消息</span>
+                    
+                    <!-- 视频消息 -->
+                    <div v-else-if="message.type === 'video'" class="message-video">
+                      <video 
+                        :src="message.content" 
+                        controls
+                        style="max-width: 300px; border-radius: 8px;"
+                        @error="handleVideoError"
+                      >
+                        您的浏览器不支持视频播放
+                      </video>
+                    </div>
+                    
+                    <!-- 音频消息（语音） -->
+                    <div v-else-if="message.type === 'voice' || message.type === 'audio'" class="message-audio">
+                      <audio 
+                        :src="message.content" 
+                        controls
+                        :data-message-id="message.id"
+                        style="width: 300px;"
+                        @error="handleAudioError"
+                      />
+                      <div class="audio-speed-control">
+                        <el-button 
+                          size="small" 
+                          :type="getAudioSpeed(message.id) === 1 ? 'primary' : ''"
+                          @click="changeAudioSpeed(message.id, 1)"
+                          text
+                        >
+                          1x
+                        </el-button>
+                        <el-button 
+                          size="small" 
+                          :type="getAudioSpeed(message.id) === 1.5 ? 'primary' : ''"
+                          @click="changeAudioSpeed(message.id, 1.5)"
+                          text
+                        >
+                          1.5x
+                        </el-button>
+                        <el-button 
+                          size="small" 
+                          :type="getAudioSpeed(message.id) === 2 ? 'primary' : ''"
+                          @click="changeAudioSpeed(message.id, 2)"
+                          text
+                        >
+                          2x
+                        </el-button>
+                      </div>
                     </div>
                     
                     <div class="message-meta">
+                      <!-- 发送催员ID（仅显示催员发送的消息） -->
+                      <span v-if="message.sender_type === 'collector' && message.sender_id" class="message-sender">
+                        {{ message.sender_id }}
+                      </span>
                       <span class="message-tool">{{ message.tool }}</span>
                       <span class="message-time">{{ formatMessageTime(message.sent_at) }}</span>
-                      <el-icon v-if="message.sender_type === 'collector'" class="message-status">
-                        <Select v-if="message.status === 'read'" style="color: #25D366;" />
-                        <CircleCheck v-else-if="message.status === 'delivered'" style="color: #8696a0;" />
-                        <Clock v-else style="color: #8696a0;" />
-                      </el-icon>
+                      <!-- 消息状态图标（仅显示催员发送的消息） -->
+                      <el-tooltip 
+                        v-if="message.sender_type === 'collector'" 
+                        :content="getStatusIcon(message.status).tooltip"
+                        placement="top"
+                        :show-after="500"
+                      >
+                        <el-icon 
+                          class="message-status" 
+                          :class="{ 
+                            'status-animate-spin': message.status === 'sending',
+                            'status-clickable': message.status === 'failed'
+                          }"
+                          :style="{ color: getStatusIcon(message.status).color }"
+                          @click="message.status === 'failed' ? retryFailedMessage(message) : null"
+                        >
+                          <Clock v-if="message.status === 'sending'" />
+                          <Select v-else-if="message.status === 'sent'" />
+                          <CircleCheck v-else-if="message.status === 'delivered'" />
+                          <Select v-else-if="message.status === 'read'" />
+                          <Warning v-else-if="message.status === 'failed'" />
+                          <Clock v-else />
+                        </el-icon>
+                      </el-tooltip>
                     </div>
                   </div>
                 </div>
@@ -496,29 +573,57 @@
             <div class="wa-account-group">
               <div class="wa-group-header">
                 <span class="wa-group-title">个人WA</span>
-                <span class="wa-group-count">{{ personalWAAccounts.available }}/{{ personalWAAccounts.total }}</span>
+                <span class="wa-group-count">
+                  {{ personalWAAccounts.filter(a => a.status === 'paired').length }} / {{ maxPersonalWACount }}
+                </span>
                 <el-tooltip 
-                  content="前面的数字是当前可用的，后面的是今日绑定的wa的总数字"
+                  content="前面的数字是当前可用的账号数，后面的是最大可绑定数"
                   placement="top"
                 >
                   <el-icon class="wa-help-icon"><InfoFilled /></el-icon>
                 </el-tooltip>
               </div>
               <div class="wa-avatars">
+                <!-- 个人WA账号列表 -->
                 <div 
-                  v-for="account in personalWAAccounts.accounts" 
-                  :key="account.id"
+                  v-for="account in personalWAAccounts" 
+                  :key="account.deviceId"
                   class="wa-avatar-item"
-                  :class="{ active: selectedWAAccount?.id === account.id && selectedWAAccount?.type === 'personal' }"
-                  @click="selectWAAccount(account, 'personal')"
+                  :class="{ 
+                    active: selectedWAAccount?.id === account.deviceId && selectedWAAccount?.type === 'personal',
+                    offline: account.status === 'unpaired'
+                  }"
+                  @click="handleWAAccountClick(account)"
                 >
-                  <el-avatar :size="36" :src="account.avatar">
-                    <el-icon><User /></el-icon>
-                  </el-avatar>
+                  <div class="wa-avatar-wrapper">
+                    <el-avatar :size="36">
+                      <el-icon><UserFilled /></el-icon>
+                    </el-avatar>
+                    
+                    <!-- 掉线状态遮罩 -->
+                    <div v-if="account.status === 'unpaired'" class="offline-overlay">
+                      <el-icon class="offline-icon" :size="14"><WarningFilled /></el-icon>
+                    </div>
+                    
+                    <!-- 在线状态标识 -->
+                    <div v-if="account.status === 'paired'" class="online-dot"></div>
+                  </div>
+                  
+                  <!-- 悬停提示 -->
+                  <el-tooltip 
+                    v-if="account.status === 'unpaired'" 
+                    content="账号已经掉线，点击后重新绑定或绑定新账号"
+                    placement="top"
+                  />
                 </div>
-                <!-- 添加按钮 -->
-                <div class="wa-avatar-item wa-add-btn" @click="showQRCodeDialog">
-                  <el-icon><Plus /></el-icon>
+                
+                <!-- 添加按钮（未达上限时显示） -->
+                <div 
+                  v-if="personalWAAccounts.length < maxPersonalWACount"
+                  class="wa-avatar-item wa-add-btn" 
+                  @click="addPersonalWA"
+                >
+                  <el-icon :size="20"><Plus /></el-icon>
                 </div>
               </div>
             </div>
@@ -532,9 +637,15 @@
               v-model="messageInput"
               type="textarea"
               :rows="2"
+              :maxlength="1000"
               placeholder="输入消息..."
               @keydown.enter.ctrl="sendMessage"
             />
+            <div class="char-count">
+              <span :class="{ 'char-count-warning': messageInput.length > 900 }">
+                {{ messageInput.length }} / 1000
+              </span>
+            </div>
           </div>
           
           <div class="input-toolbar-bottom">
@@ -962,27 +1073,32 @@
       </div>
     </el-dialog>
 
-    <!-- 扫码绑定WA对话框 -->
+    <!-- 图片预览对话框 -->
     <el-dialog 
-      v-model="qrCodeDialogVisible" 
-      title="扫码绑定WhatsApp账号" 
-      width="400px"
-      center
+      v-model="imagePreviewVisible" 
+      :show-close="true"
+      width="80%"
+      top="5vh"
+      class="image-preview-dialog"
+      @close="currentPreviewImage = ''"
     >
-      <div class="qr-code-content">
-        <div class="qr-code-placeholder">
-          <div class="qr-code-icon-placeholder">
-            <div class="qr-code-grid">
-              <div v-for="(filled, index) in qrCodePattern" :key="index" class="qr-code-cell" :class="{ filled }"></div>
-            </div>
+      <template #header>
+        <div class="image-preview-header">
+          <span>图片预览</span>
+          <div class="image-preview-actions">
+            <el-button :icon="Download" @click="downloadImage" text>下载</el-button>
           </div>
-          <p>请使用WhatsApp扫描二维码</p>
-          <p class="qr-tip">打开WhatsApp → 设置 → 已连接的设备 → 连接设备</p>
         </div>
-        <el-button type="primary" style="width: 100%; margin-top: 20px;" @click="refreshQRCode">
-          <el-icon><Refresh /></el-icon>
-          刷新二维码
-        </el-button>
+      </template>
+      <div class="image-preview-container">
+        <el-image 
+          :src="currentPreviewImage" 
+          fit="contain"
+          style="width: 100%; max-height: 70vh;"
+          :preview-src-list="[currentPreviewImage]"
+          :initial-index="0"
+          hide-on-click-modal
+        />
       </div>
     </el-dialog>
 
@@ -1108,22 +1224,162 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 二维码绑定弹窗 -->
+    <el-dialog 
+      v-model="qrCodeDialogVisible" 
+      width="480px"
+      :close-on-click-modal="false"
+      @close="stopBindingStatusPolling"
+      class="qr-code-dialog"
+      :show-close="true"
+    >
+      <template #header>
+        <div class="dialog-header-content">
+          <div class="header-title">
+            <el-icon class="header-icon"><Connection /></el-icon>
+            <span>绑定个人WhatsApp账号</span>
+          </div>
+          <div class="header-subtitle">请使用WhatsApp扫描下方二维码完成绑定</div>
+        </div>
+      </template>
+      <div class="qr-code-container">
+        <!-- 二维码图片 -->
+        <div class="qr-code-image">
+          <div class="qr-code-wrapper">
+            <img v-if="qrCodeData" :src="qrCodeData" alt="QR Code" />
+            <div v-if="qrCodeCountdown === 0" class="qr-expired-mask">
+              <el-icon class="expired-icon"><WarningFilled /></el-icon>
+              <p>二维码已过期</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 状态和倒计时 -->
+        <div class="qr-code-status-bar">
+          <div class="status-left">
+            <el-icon class="status-icon" :class="{ spinning: qrCodeCountdown > 0 }">
+              <Loading v-if="qrCodeCountdown > 0" />
+              <WarningFilled v-else />
+            </el-icon>
+            <span class="status-text">
+              {{ qrCodeCountdown > 0 ? '等待扫码绑定...' : '二维码已过期' }}
+            </span>
+          </div>
+          <div class="countdown-display" :class="{ expired: qrCodeCountdown === 0 }">
+            <el-icon class="clock-icon"><Clock /></el-icon>
+            <span v-if="qrCodeCountdown > 0" :style="{ color: getCountdownColor(qrCodeCountdown) }">
+              {{ formatCountdown(qrCodeCountdown) }}
+            </span>
+            <span v-else style="color: #F56C6C;">00:00</span>
+          </div>
+        </div>
+        
+        <!-- 操作说明 -->
+        <div class="qr-code-instructions">
+          <div class="instruction-title">
+            <el-icon><InfoFilled /></el-icon>
+            <span>操作步骤</span>
+          </div>
+          <div class="instruction-steps">
+            <div class="step-item">
+              <span class="step-number">1</span>
+              <span class="step-text">打开WhatsApp → 设置 → 已连接的设备</span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">2</span>
+              <span class="step-text">点击"连接设备"</span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">3</span>
+              <span class="step-text">扫描上方二维码</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 刷新按钮（仅过期后显示） -->
+        <div v-if="qrCodeCountdown === 0" class="qr-code-actions">
+          <el-button @click="refreshQRCode" type="primary" size="large">
+            <el-icon><Refresh /></el-icon>
+            <span>刷新二维码</span>
+          </el-button>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="qrCodeDialogVisible = false">取消</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 掉线重新绑定对话框 -->
+    <el-dialog 
+      v-model="rebindDialogVisible" 
+      title="WhatsApp账号已掉线"
+      width="400px"
+    >
+      <div class="rebind-dialog-content">
+        <p v-if="currentOfflineAccount" class="offline-account-info">
+          账号：{{ currentOfflineAccount.phoneNumber || '未知' }} 已断开连接
+        </p>
+        <p class="offline-prompt">请选择操作：</p>
+      </div>
+      
+      <template #footer>
+        <div class="rebind-dialog-footer">
+          <el-button @click="rebindDialogVisible = false">取消</el-button>
+          <el-button @click="bindNewAccount">绑定新账号</el-button>
+          <el-button type="primary" @click="rebindThisAccount">
+            <el-icon style="margin-right: 4px;"><Refresh /></el-icon>
+            重新绑定此账号
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { makeCall } from '@/api/infinity'
 import { getContactPhoneStatus } from '@/api/case'
-import { useUserStore } from '@/stores/user'
+import { useImUserStore } from '@/stores/imUser'
 import { 
   User, Plus, Document, Picture, Orange, Promotion, ChatDotRound, 
   Microphone, Select, CircleCheck, Clock, Connection, ChatLineRound, Message, Phone,
-  Search, InfoFilled, OfficeBuilding as OfficeBuildingIcon, Refresh, VideoPlay, CircleCloseFilled, StarFilled
+  Search, InfoFilled, OfficeBuilding as OfficeBuildingIcon, Refresh, VideoPlay, CircleCloseFilled, StarFilled,
+  Download, Warning, UserFilled, WarningFilled, Loading
 } from '@element-plus/icons-vue'
-import { ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import { 
+  sendMessage as sendMessageAPI, 
+  uploadImage, 
+  getChannelLimitInfo,
+  getNewMessages,
+  markMessagesAsRead,
+  getUnreadCount,
+  getMessageStatus,
+  type SendMessageRequest,
+  type ChannelLimitInfo
+} from '@/api/im-messages'
+import { 
+  createWADevice, 
+  getDeviceStatus, 
+  rebindWADevice, 
+  getPersonalWAAccounts,
+  type WAAccount,
+  type WAAccountStatus
+} from '@/api/wa-accounts'
+
+// ========== 类型定义 ==========
+
+/**
+ * WA账号选择接口
+ */
+interface WAAccountSelection {
+  id: string
+  name?: string
+}
 
 // Props
 const props = defineProps<{
@@ -1200,7 +1456,8 @@ const selectedContactId = ref<number | null>(null)
 const selectedContact = computed(() => contacts.value.find(c => c.id === selectedContactId.value))
 
 // 渠道Tab
-const activeChannel = ref('aggregated')
+// 默认激活WhatsApp渠道（会话聚合已暂时隐藏）
+const activeChannel = ref('whatsapp')
 
 // 渠道限制信息
 const channelLimits = ref([
@@ -1234,35 +1491,7 @@ const channelLimits = ref([
   }
 ])
 
-// 格式化下一条发送时间
-const formatNextSendTime = (time: Date | null) => {
-  if (!time) return ''
-  const now = new Date()
-  const diff = time.getTime() - now.getTime()
-  if (diff <= 0) return '可立即发送'
-  
-  const minutes = Math.floor(diff / 60000)
-  const seconds = Math.floor((diff % 60000) / 1000)
-  
-  if (minutes > 0) {
-    return `${minutes}分${seconds}秒后`
-  } else {
-    return `${seconds}秒后`
-  }
-}
-
 // 当前渠道的限制信息
-const currentChannelLimit = computed(() => {
-  // 根据当前激活的渠道获取限制信息
-  let channel = activeChannel.value
-  // 如果是会话聚合，默认使用WhatsApp的限制
-  if (channel === 'aggregated') {
-    channel = 'whatsapp'
-  }
-  
-  return channelLimits.value.find(limit => limit.channel === channel) || null
-})
-
 // Mock消息数据
 const mockMessages = ref([
   {
@@ -1272,7 +1501,7 @@ const mockMessages = ref([
     content: '您好，请问您什么时候可以还款？',
     sender_type: 'collector',
     sender_name: '催员小王',
-    sender_id: 'collector001',
+    sender_id: '1', // 催员ID
     tool: '公司WA',
     channel: 'whatsapp',
     status: 'read',
@@ -1296,7 +1525,7 @@ const mockMessages = ref([
     content: '好的，请您尽快还款，避免影响信用记录',
     sender_type: 'collector',
     sender_name: '催员小王',
-    sender_id: 'collector001',
+    sender_id: '1', // 催员ID
     tool: '公司WA',
     channel: 'whatsapp',
     status: 'delivered',
@@ -1309,7 +1538,7 @@ const mockMessages = ref([
     content: '请问您认识Sanjay Patel吗？',
     sender_type: 'collector',
     sender_name: '催员小王',
-    sender_id: 'collector001',
+    sender_id: '1', // 催员ID
     tool: '个人WA（edisonzh）',
     channel: 'whatsapp',
     status: 'read',
@@ -1323,7 +1552,7 @@ const mockMessages = ref([
     content: '您好Sanjay Patel，您的贷款BTSK-200100已逾期23天，应还金额10,529。请尽快安排还款，避免影响信用记录。',
     sender_type: 'collector',
     sender_name: '催员小王',
-    sender_id: 'collector001',
+    sender_id: '1', // 催员ID
     channel: 'sms',
     status: 'delivered',
     from_template: true,
@@ -1348,7 +1577,7 @@ const mockMessages = ref([
     content: '感谢您的还款！我们已收到您的款项5,000。',
     sender_type: 'collector',
     sender_name: '催员小李',
-    sender_id: 'collector002',
+    sender_id: '2', // 催员ID
     channel: 'sms',
     status: 'delivered',
     from_template: false,
@@ -1362,7 +1591,7 @@ const mockMessages = ref([
     content: '【BTSK】您好，您的贷款BTSK-200100已逾期23天，未还金额10,529。请尽快安排还款，避免影响信用记录。',
     sender_type: 'collector',
     sender_name: '催员小王',
-    sender_id: 'collector001',
+    sender_id: '1', // 催员ID
     channel: 'rcs',
     status: 'delivered',
     from_template: true,
@@ -1375,7 +1604,7 @@ const mockMessages = ref([
     content: '感谢您的配合！如已还款，请忽略此消息。',
     sender_type: 'collector',
     sender_name: '催员小李',
-    sender_id: 'collector002',
+    sender_id: '2', // 催员ID
     channel: 'rcs',
     status: 'read',
     from_template: false,
@@ -1515,61 +1744,8 @@ const rcsMessages = computed(() => {
   })
 })
 
-// 检查联系人是否有未读消息（客户消息后没有催员回复）
-const hasUnreadMessagesForContact = (contactId: number) => {
-  const contactMessages = mockMessages.value
-    .filter(m => m.contact_id === contactId)
-    .sort((a, b) => dayjs(a.sent_at).valueOf() - dayjs(b.sent_at).valueOf())
-  
-  // 找到最后一条客户消息
-  let lastCustomerMessageIndex = -1
-  for (let i = contactMessages.length - 1; i >= 0; i--) {
-    if (contactMessages[i].sender_type === 'customer') {
-      lastCustomerMessageIndex = i
-      break
-    }
-  }
-  
-  // 如果没有客户消息，返回false
-  if (lastCustomerMessageIndex === -1) return false
-  
-  // 检查最后一条客户消息之后是否有催员回复
-  for (let i = lastCustomerMessageIndex + 1; i < contactMessages.length; i++) {
-    if (contactMessages[i].sender_type === 'collector' || contactMessages[i].sender_type === 'ai') {
-      return false // 有催员回复，不是未读
-    }
-  }
-  
-  return true // 最后一条是客户消息且之后没有催员回复
-}
-
-// 检查渠道是否有未读消息
-const hasUnreadMessagesForChannel = (contactId: number, channel: string) => {
-  const channelMessages = mockMessages.value
-    .filter(m => m.contact_id === contactId && m.channel === channel)
-    .sort((a, b) => dayjs(a.sent_at).valueOf() - dayjs(b.sent_at).valueOf())
-  
-  // 找到最后一条客户消息
-  let lastCustomerMessageIndex = -1
-  for (let i = channelMessages.length - 1; i >= 0; i--) {
-    if (channelMessages[i].sender_type === 'customer') {
-      lastCustomerMessageIndex = i
-      break
-    }
-  }
-  
-  // 如果没有客户消息，返回false
-  if (lastCustomerMessageIndex === -1) return false
-  
-  // 检查最后一条客户消息之后是否有催员回复
-  for (let i = lastCustomerMessageIndex + 1; i < channelMessages.length; i++) {
-    if (channelMessages[i].sender_type === 'collector' || channelMessages[i].sender_type === 'ai') {
-      return false // 有催员回复，不是未读
-    }
-  }
-  
-  return true // 最后一条是客户消息且之后没有催员回复
-}
+// 注：hasUnreadMessagesForContact 和 hasUnreadMessagesForChannel 函数
+// 已在后面的"消息接收相关功能"部分实现
 
 // 检查案件是否有未读消息（所有联系人中是否有未读）
 const hasUnreadMessagesForCase = computed(() => {
@@ -1643,6 +1819,8 @@ const addContactDialogVisible = ref(false)
 const templateDialogVisible = ref(false)
 const aiCallDialogVisible = ref(false)
 const qrCodeDialogVisible = ref(false)
+const imagePreviewVisible = ref(false)
+const currentPreviewImage = ref('')
 
 // WA账号相关
 const platformWAAccounts = ref({
@@ -1653,14 +1831,25 @@ const platformWAAccounts = ref({
   ]
 })
 
-const personalWAAccounts = ref({
-  available: 2,
-  total: 3,
-  accounts: [
-    { id: 'personal_1', name: '个人WA1', avatar: 'https://via.placeholder.com/32' },
-    { id: 'personal_2', name: '个人WA2', avatar: 'https://via.placeholder.com/32' }
-  ]
-})
+// 个人WA账号列表（真实数据）
+const personalWAAccounts = ref<WAAccount[]>([])
+const maxPersonalWACount = ref(3)
+
+// 二维码绑定相关
+const currentDeviceId = ref('')
+const qrCodeData = ref('')
+const qrCodeExpiresAt = ref('')
+const qrCodeCountdown = ref(0)
+let qrCodeCountdownTimer: NodeJS.Timeout | null = null
+
+// 绑定状态轮询相关
+let bindingStatusPollingTimer: NodeJS.Timeout | null = null
+let bindingPollingCount = 0
+const MAX_BINDING_POLLING_COUNT = 60 // 120秒
+
+// 重新绑定对话框
+const rebindDialogVisible = ref(false)
+const currentOfflineAccount = ref<WAAccount | null>(null)
 
 // 当前选中的WA账号
 const selectedWAAccount = ref<{ id: string, type: 'platform' | 'personal' } | null>({
@@ -2276,21 +2465,1115 @@ const insertEmoji = (emoji: string) => {
   messageInput.value += emoji
 }
 
-// 处理图片选择
-const handleImageSelect = (file: any) => {
-  ElMessage.info('图片发送功能开发中...')
-  console.log('Selected image:', file)
-}
-
-// 发送消息
-const sendMessage = () => {
-  if (!messageInput.value.trim()) {
-    ElMessage.warning('请输入消息内容')
+// 错误处理函数
+const handleSendError = (error: any) => {
+  const response = error.response
+  
+  if (!response) {
+    ElMessage.error('Network connection failed. Please check your network and try again.')
     return
   }
   
+  const { status, data } = response
+  const errorCode = data?.errorCode || data?.code
+  const errorMessage = data?.message || data?.errorMessage
+  
+  // 根据PRD定义的错误码显示不同的提示
+  switch (errorCode) {
+    case 'INVALID_CONTENT':
+      ElMessage.error('Message content is invalid')
+      break
+    case 'INVALID_MESSAGE_TYPE':
+      ElMessage.error('Invalid message type')
+      break
+    case 'INVALID_RECIPIENT':
+      ElMessage.error('Recipient phone number is invalid. Please verify the number.')
+      break
+    case 'DAILY_LIMIT_PER_CASE_EXCEEDED':
+      ElMessage.error(errorMessage || 'Daily limit per case exceeded.')
+      break
+    case 'DAILY_LIMIT_PER_CONTACT_EXCEEDED':
+      ElMessage.error(errorMessage || 'Daily limit per contact exceeded.')
+      break
+    case 'SEND_INTERVAL_LIMIT':
+      ElMessage.error(errorMessage || 'Send interval limit. Please wait before sending again.')
+      break
+    case 'WA_ACCOUNT_UNPAIRED':
+      ElMessage.error('WhatsApp online status is abnormal. Please refresh the page.')
+      break
+    case 'NO_AVAILABLE_WA_ACCOUNT':
+      ElMessage.error('No available WhatsApp account. Please contact administrator.')
+      break
+    case 'NETWORK_ERROR':
+      ElMessage.error('Network connection failed. Please check your network and try again.')
+      break
+    default:
+      ElMessage.error(errorMessage || 'Failed to send message. Please try again.')
+  }
+}
+
+// 渠道触达限制信息
+const currentChannelLimit = ref<ChannelLimitInfo | null>(null)
+
+// 获取渠道限制信息
+const fetchChannelLimitInfo = async () => {
+  if (!selectedContact.value || !props.caseData) {
+    currentChannelLimit.value = null
+    return
+  }
+  
+  const channel = activeChannel.value === 'whatsapp' ? 'whatsapp' : 
+                  activeChannel.value === 'sms' ? 'sms' :
+                  activeChannel.value === 'rcs' ? 'rcs' : null
+  
+  // 只有WhatsApp/SMS/RCS渠道需要限制信息
+  if (!channel) {
+    currentChannelLimit.value = null
+    return
+  }
+  
+  // 验证必填参数
+  const caseId = props.caseData.id
+  const contactId = selectedContact.value.id
+  const tenantId = props.caseData.tenant_id
+  const queueId = props.caseData.queue_id
+  
+  // 如果必填参数无效（null/undefined/0），不调用API
+  if (!caseId || !contactId || !tenantId || !queueId) {
+    // 使用debug级别日志，避免正常加载过程中的噪音
+    // 只有在明显异常时才记录（案件ID存在但其他字段缺失）
+    if (caseId && (!tenantId || !queueId)) {
+      console.debug('[fetchChannelLimitInfo] 案件数据不完整，跳过获取渠道限制:', {
+        caseId,
+        contactId,
+        tenantId: tenantId || '未设置',
+        queueId: queueId || '未设置'
+      })
+    }
+    currentChannelLimit.value = null
+    return
+  }
+  
+  try {
+    const limitInfo = await getChannelLimitInfo({
+      caseId,
+      contactId,
+      channel: channel,
+      tenantId,
+      queueId
+    })
+    
+    currentChannelLimit.value = limitInfo
+  } catch (error) {
+    console.error('Failed to fetch channel limit info:', error)
+    // 不显示错误提示，静默失败
+    currentChannelLimit.value = null
+  }
+}
+
+// 格式化下次可发送时间
+const formatNextSendTime = (nextSendTime: string) => {
+  if (!nextSendTime) return ''
+  
+  const now = dayjs()
+  const target = dayjs(nextSendTime)
+  const seconds = target.diff(now, 'second')
+  
+  if (seconds <= 0) {
+    return '可发送'
+  } else if (seconds < 60) {
+    return `${seconds}秒后`
+  } else {
+    const minutes = Math.floor(seconds / 60)
+    return `${minutes}分钟后`
+  }
+}
+
+// ========== 消息接收相关功能 ==========
+
+// 未读消息计数（按联系人）
+const unreadCountByContact = ref<Record<number, number>>({})
+
+// 轮询定时器
+let pollingTimer: NodeJS.Timeout | null = null
+
+// 网络错误计数器
+let consecutiveErrors = 0
+const MAX_CONSECUTIVE_ERRORS = 3
+
+// 轮询新消息
+const pollNewMessages = async () => {
+  if (!selectedContact.value || !props.caseData) {
+    return
+  }
+  
+  try {
+    // 获取最后一条消息ID
+    const lastMessage = mockMessages.value[mockMessages.value.length - 1]
+    const lastMessageId = lastMessage?.id
+    
+    const res = await getNewMessages({
+      contactId: selectedContact.value.id,
+      lastMessageId: lastMessageId,
+      limit: 20
+    })
+    
+    if (res.messages && res.messages.length > 0) {
+      // 添加新消息到列表
+      mockMessages.value.push(...res.messages)
+      
+      // 更新未读数
+      if (res.unreadCount > 0) {
+        unreadCountByContact.value[selectedContact.value.id] = res.unreadCount
+      }
+      
+      // 显示桌面通知（仅客户消息）
+      const customerMessages = res.messages.filter(m => m.sender_type === 'customer')
+      if (customerMessages.length > 0 && !document.hasFocus()) {
+        showDesktopNotification(customerMessages[0])
+      }
+      
+      // 滚动到底部
+      nextTick(() => {
+        scrollToBottom()
+      })
+    }
+    
+    // 成功后重置错误计数
+    consecutiveErrors = 0
+  } catch (error) {
+    consecutiveErrors++
+    console.error(`[Message Polling] Failed (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`, error)
+    
+    // 连续失败3次后停止轮询
+    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+      stopMessagePolling()
+      ElMessage.warning('网络连接异常，消息轮询已暂停。请检查网络后刷新页面。')
+      console.error('[Message Polling] Stopped due to consecutive errors')
+    }
+  }
+}
+
+// 启动消息轮询（每5秒一次）
+const startMessagePolling = () => {
+  // 清除旧定时器
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+  }
+  
+  // 立即执行一次
+  pollNewMessages()
+  
+  // 启动定时器
+  pollingTimer = setInterval(pollNewMessages, 5000)
+}
+
+// 停止消息轮询
+const stopMessagePolling = () => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
+}
+
+// 桌面通知功能
+const showDesktopNotification = (message: any) => {
+  // 检查浏览器支持
+  if (!('Notification' in window)) {
+    console.warn('Browser does not support desktop notifications')
+    return
+  }
+  
+  // 请求通知权限
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        displayNotification(message)
+      }
+    })
+  } else if (Notification.permission === 'granted') {
+    displayNotification(message)
+  }
+}
+
+// 显示通知
+const displayNotification = (message: any) => {
+  if (!selectedContact.value) return
+  
+  const title = `新消息 - ${selectedContact.value.name}`
+  
+  // 根据消息类型生成内容
+  let body = ''
+  if (message.type === 'text') {
+    body = message.content.substring(0, 50)
+    if (message.content.length > 50) {
+      body += '...'
+    }
+  } else {
+    const typeLabels: Record<string, string> = {
+      'image': '[图片]',
+      'video': '[视频]',
+      'audio': '[语音]'
+    }
+    body = typeLabels[message.type] || `[${message.type}]`
+  }
+  
+  const notification = new Notification(title, {
+    body: body,
+    icon: '/cco-logo.png',
+    tag: `msg-${message.id}`, // 防止重复通知
+    requireInteraction: false
+  })
+  
+  // 点击通知时聚焦窗口并滚动到最新消息
+  notification.onclick = () => {
+    window.focus()
+    nextTick(() => {
+      scrollToBottom()
+    })
+    notification.close()
+  }
+  
+  // 3秒后自动关闭
+  setTimeout(() => {
+    notification.close()
+  }, 3000)
+}
+
+// 标记消息已读
+const markCurrentContactAsRead = async () => {
+  if (!selectedContact.value) return
+  
+  try {
+    await markMessagesAsRead(selectedContact.value.id)
+    // 清除未读数
+    unreadCountByContact.value[selectedContact.value.id] = 0
+  } catch (error) {
+    console.error('Failed to mark messages as read:', error)
+  }
+}
+
+// 获取未读消息数
+const fetchUnreadCount = async () => {
+  if (!props.caseData) return
+  
+  try {
+    const res = await getUnreadCount(props.caseData.id)
+    unreadCountByContact.value = res.byContact || {}
+  } catch (error) {
+    console.error('Failed to fetch unread count:', error)
+  }
+}
+
+// 检查联系人是否有未读消息
+const hasUnreadMessagesForContact = (contactId: number) => {
+  return (unreadCountByContact.value[contactId] || 0) > 0
+}
+
+// 检查特定渠道是否有未读消息
+const hasUnreadMessagesForChannel = (contactId: number, channel: string) => {
+  // 简化实现：只要联系人有未读消息，就认为该渠道有未读
+  return hasUnreadMessagesForContact(contactId)
+}
+
+// ========== 媒体消息相关功能 ==========
+
+// 显示图片预览
+const showImagePreview = (imageUrl: string) => {
+  currentPreviewImage.value = imageUrl
+  imagePreviewVisible.value = true
+}
+
+// 下载图片
+const downloadImage = () => {
+  if (!currentPreviewImage.value) return
+  
+  // 创建一个隐藏的a标签
+  const link = document.createElement('a')
+  link.href = currentPreviewImage.value
+  link.download = `image_${Date.now()}.jpg`
+  link.target = '_blank'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  
+  ElMessage.success('图片下载已开始')
+}
+
+// 音频播放速度管理
+const audioPlaybackRates = ref<Record<string, number>>({})
+
+// 改变音频播放速度
+const changeAudioSpeed = (messageId: string, speed: number) => {
+  audioPlaybackRates.value[messageId] = speed
+  
+  // 查找音频元素并设置播放速度
+  const audioElement = document.querySelector(`audio[data-message-id="${messageId}"]`) as HTMLAudioElement
+  if (audioElement) {
+    audioElement.playbackRate = speed
+  }
+}
+
+// 获取当前音频播放速度
+const getAudioSpeed = (messageId: string) => {
+  return audioPlaybackRates.value[messageId] || 1
+}
+
+// 处理图片加载错误
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj7lm77niYfliqDovb3lpLHotKU8L3RleHQ+PC9zdmc+'
+  img.alt = '图片加载失败'
+}
+
+// 处理视频加载错误
+const handleVideoError = (event: Event) => {
+  const video = event.target as HTMLVideoElement
+  console.error('Video load error:', video.error)
+  ElMessage.error('视频加载失败，请稍后重试')
+}
+
+// 处理音频加载错误
+const handleAudioError = (event: Event) => {
+  const audio = event.target as HTMLAudioElement
+  console.error('Audio load error:', audio.error)
+  ElMessage.error('音频加载失败，请稍后重试')
+}
+
+// ========== 个人WA账号管理功能 ==========
+
+// 添加个人WA账号
+const addPersonalWA = async () => {
+  // 1. 检查账号数量
+  if (personalWAAccounts.value.length >= maxPersonalWACount.value) {
+    ElMessage.warning('Maximum 3 personal WhatsApp accounts allowed.')
+    return
+  }
+  
+  // 2. 调用创建云设备API
+  let loadingInstance: any = null
+  try {
+    const imUserStore = useImUserStore()
+    // ✅ 使用真实的催员ID（如：btq001）
+    const collectorId = imUserStore.user?.collectorId || imUserStore.user?.id
+    
+    if (!collectorId) {
+      ElMessage.error('Unable to get current collector information')
+      console.error('[addPersonalWA] 无法获取催员信息:', {
+        user: imUserStore.user,
+        isLoggedIn: imUserStore.isLoggedIn
+      })
+      return
+    }
+    
+    // 显示 loading 效果
+    console.log('[addPersonalWA] 开始创建WA设备...')
+    console.log('[addPersonalWA] ElLoading:', ElLoading)
+    
+    loadingInstance = ElLoading.service({
+      text: 'Generating QR code...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    
+    const res = await createWADevice({
+      collectorId: String(collectorId),
+      deviceType: 'personal_wa'
+    })
+    
+    // 关闭 loading
+    if (loadingInstance) {
+      loadingInstance.close()
+      loadingInstance = null
+    }
+    
+    // 3. 显示二维码绑定弹窗
+    qrCodeDialogVisible.value = true
+    currentDeviceId.value = res.deviceId
+    qrCodeData.value = res.qrCode
+    qrCodeExpiresAt.value = res.expiresAt
+    
+    // 4. 启动倒计时
+    startQRCodeCountdown(res.expiresAt)
+    
+    // 5. 启动绑定状态轮询
+    startBindingStatusPolling(res.deviceId)
+    
+    ElMessage.success('QR code generated. Please scan with WhatsApp.')
+  } catch (error: any) {
+    // 确保关闭loading消息
+    if (loadingInstance) {
+      loadingInstance.close()
+    }
+    console.error('Failed to create WA device:', error)
+    ElMessage.error('Failed to generate QR code. Please try again.')
+  }
+}
+
+// 启动二维码倒计时
+const startQRCodeCountdown = (expiresAt: string) => {
+  // 清除旧定时器
+  if (qrCodeCountdownTimer) {
+    clearInterval(qrCodeCountdownTimer)
+  }
+  
+  const updateCountdown = () => {
+    const now = dayjs()
+    // 处理时间格式，移除微秒部分
+    const cleanExpiresAt = expiresAt.replace(/\.\d+/, '')
+    const expires = dayjs(cleanExpiresAt)
+    const seconds = expires.diff(now, 'second')
+    
+    console.log('[QR Code Countdown] Now:', now.format(), 'Expires:', expires.format(), 'Diff(s):', seconds)
+    
+    if (seconds <= 0) {
+      qrCodeCountdown.value = 0
+      if (qrCodeCountdownTimer) {
+        clearInterval(qrCodeCountdownTimer)
+      }
+      // 二维码过期后停止绑定轮询
+      stopBindingStatusPolling()
+      console.log('[QR Code] Expired, binding polling stopped')
+    } else {
+      qrCodeCountdown.value = seconds
+    }
+  }
+  
+  // 立即执行一次
+  updateCountdown()
+  
+  // 每秒更新
+  qrCodeCountdownTimer = setInterval(updateCountdown, 1000)
+}
+
+// 格式化倒计时显示
+const formatCountdown = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${minutes}:${secs.toString().padStart(2, '0')}`
+}
+
+// 获取倒计时颜色
+const getCountdownColor = (seconds: number) => {
+  if (seconds > 60) return '#25D366' // 绿色
+  if (seconds > 30) return '#FF9500' // 橙色
+  return '#FF3B30' // 红色
+}
+
+// 刷新二维码
+const refreshQRCode = async () => {
+  if (!currentDeviceId.value) return
+  
+  try {
+    const loadingMsg = ElLoading.service({
+      text: 'Refreshing QR code...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    
+    const res = await rebindWADevice(currentDeviceId.value)
+    
+    loadingMsg.close()
+    
+    qrCodeData.value = res.qrCode
+    qrCodeExpiresAt.value = res.expiresAt
+    
+    // 重新启动倒计时
+    startQRCodeCountdown(res.expiresAt)
+    
+    // 重新启动轮询
+    startBindingStatusPolling(currentDeviceId.value)
+    
+    ElMessage.success('QR code refreshed')
+  } catch (error) {
+    console.error('Failed to refresh QR code:', error)
+    ElMessage.error('Failed to refresh QR code. Please try again.')
+  }
+}
+
+// 启动绑定状态轮询
+const startBindingStatusPolling = (deviceId: string) => {
+  // 清除旧定时器
+  stopBindingStatusPolling()
+  
+  // 重置计数
+  bindingPollingCount = 0
+  
+  // 启动轮询（每2秒）
+  bindingStatusPollingTimer = setInterval(async () => {
+    await pollBindingStatus(deviceId)
+  }, 2000)
+  
+  console.log(`[Binding Polling] Started for device ${deviceId}`)
+}
+
+// 轮询绑定状态
+const pollBindingStatus = async (deviceId: string) => {
+  try {
+    bindingPollingCount++
+    
+    // 检查是否超时
+    if (bindingPollingCount > MAX_BINDING_POLLING_COUNT) {
+      stopBindingStatusPolling()
+      qrCodeDialogVisible.value = false
+      ElMessage.warning('Binding timeout. Please try again.')
+      console.log(`[Binding Polling] Timeout for device ${deviceId}`)
+      return
+    }
+    
+    // 查询状态
+    const res = await getDeviceStatus(deviceId)
+    const status = res.status
+    
+    console.log(`[Binding Polling] Device ${deviceId} status: ${status} (attempt ${bindingPollingCount})`)
+    
+    if (status === 'paired') {
+      // 绑定成功
+      stopBindingStatusPolling()
+      qrCodeDialogVisible.value = false
+      ElMessage.success('Binding successful')
+      
+      // 刷新个人WA账号列表
+      await refreshPersonalWAAccounts()
+      
+      // 从列表中找到完整的账号信息并选中
+      const newAccount = personalWAAccounts.value.find(a => a.deviceId === deviceId)
+      if (newAccount) {
+        selectedWAAccount.value = {
+          type: 'personal',
+          id: newAccount.deviceId,
+          name: newAccount.accountName || newAccount.phoneNumber
+        }
+      }
+    } else if (status === 'failed') {
+      // 绑定失败
+      stopBindingStatusPolling()
+      ElMessage.error(res.errorMessage || 'Binding failed. Please try again.')
+    }
+  } catch (error) {
+    console.error(`[Binding Polling] Failed for device ${deviceId}:`, error)
+  }
+}
+
+// 停止绑定状态轮询
+const stopBindingStatusPolling = () => {
+  if (bindingStatusPollingTimer) {
+    clearInterval(bindingStatusPollingTimer)
+    bindingStatusPollingTimer = null
+    bindingPollingCount = 0
+  }
+  
+  // 清除倒计时定时器
+  if (qrCodeCountdownTimer) {
+    clearInterval(qrCodeCountdownTimer)
+    qrCodeCountdownTimer = null
+  }
+}
+
+// 刷新个人WA账号列表
+const refreshPersonalWAAccounts = async () => {
+  try {
+    const imUserStore = useImUserStore()
+    // ✅ 使用真实的催员ID（如：btq001）
+    const collectorId = imUserStore.user?.collectorId || imUserStore.user?.id
+    
+    if (!collectorId) {
+      console.warn('[refreshPersonalWAAccounts] 无法获取催员ID，跳过加载个人WA账号')
+      return
+    }
+    
+    const res = await getPersonalWAAccounts(String(collectorId))
+    
+    personalWAAccounts.value = res.accounts || []
+    maxPersonalWACount.value = res.maxCount || 3
+    
+    console.log(`[Personal WA] ✅ 成功加载 ${res.accounts?.length || 0} 个个人WA账号`)
+  } catch (error: any) {
+    // 静默失败，不影响页面使用
+    console.warn('[Personal WA] ⚠️ 加载个人WA账号失败（后端API可能未实现），将使用空列表:', error.message)
+    
+    // 设置为空列表，确保前端能正常工作
+    personalWAAccounts.value = []
+    maxPersonalWACount.value = 3
+    
+    // 如果是500错误，可能是后端API未实现，不需要提示用户
+    if (error.response?.status === 500) {
+      console.info('[Personal WA] 💡 提示：后端个人WA账号管理API可能尚未实现，功能将受限')
+    }
+  }
+}
+
+// 处理WA账号点击
+const handleWAAccountClick = async (account: WAAccount) => {
+  if (account.status === 'paired') {
+    // 正常切换账号
+    await selectWAAccount({ id: account.deviceId, name: account.accountName }, 'personal')
+  } else if (account.status === 'unpaired') {
+    // 掉线账号，显示重新绑定选项
+    showRebindDialog(account)
+  }
+}
+
+// 显示重新绑定对话框
+const showRebindDialog = (account: WAAccount) => {
+  currentOfflineAccount.value = account
+  rebindDialogVisible.value = true
+}
+
+// 重新绑定此账号
+const rebindThisAccount = async () => {
+  if (!currentOfflineAccount.value) return
+  
+  try {
+    rebindDialogVisible.value = false
+    
+    const loadingMsg = ElLoading.service({
+      text: 'Generating new QR code...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    
+    const res = await rebindWADevice(currentOfflineAccount.value.deviceId)
+    
+    loadingMsg.close()
+    
+    // 显示二维码绑定弹窗
+    qrCodeDialogVisible.value = true
+    currentDeviceId.value = currentOfflineAccount.value.deviceId
+    qrCodeData.value = res.qrCode
+    qrCodeExpiresAt.value = res.expiresAt
+    
+    // 启动倒计时和轮询
+    startQRCodeCountdown(res.expiresAt)
+    startBindingStatusPolling(currentOfflineAccount.value.deviceId)
+    
+    currentOfflineAccount.value = null
+    
+    ElMessage.success('QR code generated for rebinding')
+  } catch (error) {
+    console.error('Failed to rebind account:', error)
+    ElMessage.error('Failed to generate QR code. Please try again.')
+  }
+}
+
+// 绑定新账号
+const bindNewAccount = async () => {
+  rebindDialogVisible.value = false
+  currentOfflineAccount.value = null
+  
+  // 执行添加新账号流程
+  await addPersonalWA()
+}
+
+// ========== 消息状态轮询相关功能 ==========
+
+// 轮询定时器管理（key: messageId, value: timer）
+const pollingTimers = ref<Record<string, NodeJS.Timeout>>({})
+
+// 轮询计数管理（key: messageId, value: count）
+const pollingCounts = ref<Record<string, number>>({})
+
+// 最大轮询次数（10分钟 = 120次 × 5秒）
+const MAX_POLLING_COUNT = 120
+
+// 启动消息状态轮询
+const startMessageStatusPolling = (messageId: string) => {
+  // 如果已经在轮询，先清除
+  if (pollingTimers.value[messageId]) {
+    clearInterval(pollingTimers.value[messageId])
+  }
+  
+  // 初始化轮询计数
+  pollingCounts.value[messageId] = 0
+  
+  // 每5秒轮询一次
+  const timer = setInterval(async () => {
+    await pollSingleMessageStatus(messageId)
+  }, 5000)
+  
+  pollingTimers.value[messageId] = timer
+  
+  console.log(`[Status Polling] Started for message ${messageId}`)
+}
+
+// 轮询单个消息状态
+const pollSingleMessageStatus = async (messageId: string) => {
+  try {
+    // 增加轮询计数
+    pollingCounts.value[messageId] = (pollingCounts.value[messageId] || 0) + 1
+    
+    // 检查是否超过最大轮询次数
+    if (pollingCounts.value[messageId] > MAX_POLLING_COUNT) {
+      stopMessageStatusPolling(messageId)
+      console.log(`[Status Polling] Timeout for message ${messageId} (${MAX_POLLING_COUNT} attempts)`)
+      return
+    }
+    
+    // 调用API获取状态
+    const res = await getMessageStatus(messageId)
+    const newStatus = res.status
+    
+    // 查找消息并更新状态
+    const message = mockMessages.value.find(m => m.id === messageId)
+    if (!message) {
+      stopMessageStatusPolling(messageId)
+      return
+    }
+    
+    // 更新消息状态
+    const oldStatus = message.status
+    message.status = newStatus
+    
+    // 更新时间戳
+    if (res.deliveredAt) message.deliveredAt = res.deliveredAt
+    if (res.readAt) message.readAt = res.readAt
+    if (res.failedAt) message.failedAt = res.failedAt
+    if (res.errorMessage) message.errorMessage = res.errorMessage
+    
+    console.log(`[Status Polling] Message ${messageId}: ${oldStatus} → ${newStatus}`)
+    
+    // 检查是否到达终态
+    if (newStatus === 'read' || newStatus === 'failed') {
+      stopMessageStatusPolling(messageId)
+      console.log(`[Status Polling] Stopped for message ${messageId} (final state: ${newStatus})`)
+    }
+  } catch (error) {
+    console.error(`[Status Polling] Failed for message ${messageId}:`, error)
+    // 错误时不停止轮询，继续尝试
+  }
+}
+
+// 停止消息状态轮询
+const stopMessageStatusPolling = (messageId: string) => {
+  if (pollingTimers.value[messageId]) {
+    clearInterval(pollingTimers.value[messageId])
+    delete pollingTimers.value[messageId]
+    delete pollingCounts.value[messageId]
+  }
+}
+
+// 停止所有消息状态轮询
+const stopAllMessageStatusPolling = () => {
+  Object.keys(pollingTimers.value).forEach(messageId => {
+    stopMessageStatusPolling(messageId)
+  })
+}
+
+// 获取状态图标配置
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'sending':
+      return { 
+        component: 'Clock', 
+        color: '#8696a0', 
+        tooltip: 'Sending...',
+        animate: true
+      }
+    case 'sent':
+      return { 
+        component: 'Select', 
+        color: '#8696a0', 
+        tooltip: 'Sent to WhatsApp server',
+        animate: false
+      }
+    case 'delivered':
+      return { 
+        component: 'CircleCheck', 
+        color: '#8696a0', 
+        tooltip: "Delivered to recipient's device",
+        animate: false
+      }
+    case 'read':
+      return { 
+        component: 'Select', 
+        color: '#53BDEB', // 蓝色（WhatsApp已读回执标准颜色）
+        tooltip: 'Read by recipient',
+        animate: false
+      }
+    case 'failed':
+      return { 
+        component: 'Warning', 
+        color: '#FF3B30', 
+        tooltip: 'Failed: Click to retry',
+        animate: false
+      }
+    default:
+      return { 
+        component: 'Clock', 
+        color: '#8696a0', 
+        tooltip: '',
+        animate: false
+      }
+  }
+}
+
+// 重试发送失败的消息
+const retryFailedMessage = async (originalMessage: any) => {
+  try {
+    // 确认重试
+    await ElMessageBox.confirm(
+      'Retry sending this message?',
+      'Confirm',
+      {
+        confirmButtonText: 'Retry',
+        cancelButtonText: 'Cancel',
+        type: 'warning'
+      }
+    )
+    
+    // 标记原消息为已重试
+    originalMessage.retried = true
+    originalMessage.status = 'retried'
+    
+    // 获取当前催员信息
+    const imUserStore = useImUserStore()
+    // ✅ 使用真实的催员ID（如：btq001）
+    const currentCollectorId = imUserStore.user?.collectorId || imUserStore.user?.id
+    const currentCollectorName = imUserStore.user?.collectorName || '催员'
+    
+    if (!currentCollectorId) {
+      ElMessage.error('无法获取当前催员信息，请重新登录')
+      return
+    }
+    
+    // 准备发送参数
+    const sendData: SendMessageRequest = {
+      contactId: originalMessage.contact_id,
+      messageType: originalMessage.type,
+      content: originalMessage.content,
+      senderId: String(currentCollectorId),
+      caseId: props.caseData?.id || 0,
+      tenantId: props.caseData?.tenant_id || 0,
+      queueId: props.caseData?.queue_id || 0
+    }
+    
+    // WhatsApp消息添加账号信息
+    if (originalMessage.channel === 'whatsapp' && selectedWAAccount.value) {
+      sendData.waAccountType = selectedWAAccount.value.type
+      sendData.waAccountId = selectedWAAccount.value.id
+    }
+    
+    // 调用发送API
+    const loadingMsg = ElLoading.service({
+      text: 'Retrying to send message...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    const res = await sendMessageAPI(sendData)
+    loadingMsg.close()
+    
+    // 优先使用后端返回的sender_name，如果没有则使用前端获取的名称
+    const senderName = (res as any).senderName || currentCollectorName
+    const senderId = (res as any).senderId || String(currentCollectorId)
+    
+    // 创建新消息
+    const newMessage: any = {
+      id: res.messageId || (mockMessages.value.length + 1),
+      contact_id: originalMessage.contact_id,
+      type: originalMessage.type,
+      content: originalMessage.content,
+      sender_type: 'collector',
+      sender_name: senderName, // ✅ 使用真实的催员名称
+      sender_id: senderId, // ✅ 使用真实的催员ID
+      channel: originalMessage.channel,
+      status: res.status || 'sent',
+      sent_at: res.sentAt || dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      originalMessageId: originalMessage.id
+    }
+    
+    // WhatsApp消息添加tool字段
+    if (originalMessage.channel === 'whatsapp') {
+      newMessage.tool = originalMessage.tool
+    } else if (originalMessage.channel === 'sms' || originalMessage.channel === 'rcs') {
+      newMessage.from_template = originalMessage.from_template
+    }
+    
+    mockMessages.value.push(newMessage)
+    
+    ElMessage.success('Message resent successfully')
+    
+    // 滚动到底部
+    nextTick(() => {
+      scrollToBottom()
+    })
+    
+    // 刷新渠道限制信息
+    fetchChannelLimitInfo()
+    
+    // 启动状态轮询
+    startMessageStatusPolling(res.messageId)
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('Failed to retry message:', error)
+      handleSendError(error)
+    }
+  }
+}
+
+// 处理图片选择
+const handleImageSelect = async (file: any) => {
+  if (!file || !file.raw) {
+    return
+  }
+  
+  // 1. 验证文件格式
+  const validFormats = ['image/jpeg', 'image/png', 'image/gif']
+  if (!validFormats.includes(file.raw.type)) {
+    ElMessage.error('Invalid image format. Only JPG, PNG, GIF are supported.')
+    return
+  }
+  
+  // 2. 验证文件大小（10MB = 10485760 bytes）
+  if (file.raw.size > 10485760) {
+    ElMessage.error('Image size exceeds 10MB limit.')
+    return
+  }
+  
+  // 3. 验证联系人
   if (!selectedContact.value) {
-    ElMessage.warning('请选择联系人')
+    ElMessage.warning('Please select a contact')
+    return
+  }
+  
+  // 4. 验证WA账号（WhatsApp渠道必需）
+  if (activeChannel.value === 'whatsapp' && !selectedWAAccount.value) {
+    ElMessage.warning('Please select a WhatsApp account')
+    return
+  }
+  
+  try {
+    // 5. 上传图片
+    const loadingMsg = ElLoading.service({
+      text: 'Uploading image...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    const uploadRes = await uploadImage(file.raw)
+    loadingMsg.close()
+    
+    if (!uploadRes || !uploadRes.url) {
+      throw new Error('Failed to get image URL')
+    }
+    
+    const imageUrl = uploadRes.url
+    
+    // 6. 获取当前催员信息
+    const imUserStore = useImUserStore()
+    const currentCollectorId = imUserStore.user?.collectorIdNumeric || imUserStore.user?.id
+    const currentCollectorName = imUserStore.user?.collectorName || imUserStore.user?.collectorId || '催员'
+    
+    if (!currentCollectorId) {
+      ElMessage.error('无法获取当前催员信息，请重新登录')
+      return
+    }
+    
+    // 7. 发送图片消息
+    const channel = activeChannel.value === 'whatsapp' ? 'whatsapp' : 
+                    activeChannel.value === 'sms' ? 'sms' :
+                    activeChannel.value === 'rcs' ? 'rcs' : 'whatsapp'
+    
+    // 准备发送参数
+    const sendData: SendMessageRequest = {
+      contactId: selectedContact.value.id,
+      messageType: 'image',
+      content: imageUrl,
+      senderId: String(currentCollectorId),
+      caseId: props.caseData?.id || 0,
+      tenantId: props.caseData?.tenant_id || 0,
+      queueId: props.caseData?.queue_id || 0
+    }
+    
+    // WhatsApp渠道添加账号信息
+    if (channel === 'whatsapp' && selectedWAAccount.value) {
+      sendData.waAccountType = selectedWAAccount.value.type
+      sendData.waAccountId = selectedWAAccount.value.id
+    }
+    
+    // 调用发送API
+    const sendingMsg = ElLoading.service({
+      text: 'Sending image...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    const res = await sendMessage(sendData)
+    sendingMsg.close()
+    
+    // 优先使用后端返回的sender_name，如果没有则使用前端获取的名称
+    const senderName = (res as any).senderName || currentCollectorName
+    const senderId = (res as any).senderId || String(currentCollectorId)
+    
+    // 8. 添加到消息列表
+    const newMessage: any = {
+      id: res.messageId || (mockMessages.value.length + 1),
+      contact_id: selectedContact.value.id,
+      type: 'image',
+      content: imageUrl,
+      sender_type: 'collector',
+      sender_name: senderName, // ✅ 使用真实的催员名称
+      sender_id: senderId, // ✅ 使用真实的催员ID
+      channel: channel,
+      status: res.status || 'sent',
+      sent_at: res.sentAt || dayjs().format('YYYY-MM-DD HH:mm:ss')
+    }
+    
+    // WhatsApp消息添加tool字段
+    if (channel === 'whatsapp') {
+      if (selectedWAAccount.value?.type === 'platform') {
+        newMessage.tool = '公司WA'
+      } else if (selectedWAAccount.value?.type === 'personal') {
+        const account = personalWAAccounts.value.accounts.find(a => a.id === selectedWAAccount.value?.id)
+        newMessage.tool = account ? `个人WA（${account.name}）` : '个人WA'
+      } else {
+        newMessage.tool = '公司WA'
+      }
+    }
+    
+    mockMessages.value.push(newMessage)
+    
+    ElMessage.success('Image sent successfully')
+    
+    // 8. 滚动到底部
+    nextTick(() => {
+      scrollToBottom()
+    })
+    
+    // 9. 刷新渠道限制信息
+    if (channel === 'whatsapp' || channel === 'sms' || channel === 'rcs') {
+      fetchChannelLimitInfo()
+    }
+    
+    // 10. 开始轮询消息状态
+    if (res.messageId) {
+      startMessageStatusPolling(res.messageId)
+    }
+  } catch (error: any) {
+    console.error('Failed to send image:', error)
+    
+    if (error.message?.includes('upload')) {
+      ElMessage.error('Failed to upload image. Please try again.')
+    } else {
+      handleSendError(error)
+    }
+  }
+}
+
+// 发送消息
+const sendMessage = async () => {
+  // 1. 验证消息内容
+  if (!messageInput.value.trim()) {
+    ElMessage.warning('Message content is required')
+    return
+  }
+  
+  // 2. 验证内容长度（最大1000字符）
+  if (messageInput.value.length > 1000) {
+    ElMessage.warning('Message content exceeds 1000 characters')
+    return
+  }
+  
+  // 3. 验证联系人
+  if (!selectedContact.value) {
+    ElMessage.warning('Please select a contact')
+    return
+  }
+  
+  // 4. 验证WA账号（WhatsApp渠道必需）
+  if (activeChannel.value === 'whatsapp' && !selectedWAAccount.value) {
+    ElMessage.warning('Please select a WhatsApp account')
     return
   }
   
@@ -2304,48 +3587,117 @@ const sendMessage = () => {
     return messageInput.value.trim() === preview.trim()
   })
   
-  const newMessage: any = {
-    id: mockMessages.value.length + 1,
-    contact_id: selectedContact.value.id,
-    type: 'text',
-    content: messageInput.value,
-    sender_type: 'collector',
-    sender_name: '当前催员',
-    sender_id: 'collector001',
-    channel: channel,
-    status: 'sent',
-    sent_at: dayjs().format('YYYY-MM-DD HH:mm:ss')
-  }
+  // 5. 获取当前催员信息
+  const imUserStore = useImUserStore()
   
-  // SMS和RCS特有字段
-  if (channel === 'sms' || channel === 'rcs') {
-    newMessage.from_template = isFromTemplate
-  } else {
-    // WhatsApp消息：根据选中的WA账号设置tool字段
-    if (selectedWAAccount.value?.type === 'platform') {
-      newMessage.tool = '公司WA'
-    } else if (selectedWAAccount.value?.type === 'personal') {
-      const account = personalWAAccounts.value.accounts.find(a => a.id === selectedWAAccount.value?.id)
-      newMessage.tool = account ? `个人WA（${account.name}）` : '个人WA'
-    } else {
-      newMessage.tool = '公司WA'
-    }
-  }
-  
-  mockMessages.value.push(newMessage)
-  messageInput.value = ''
-  
-  const channelNames: Record<string, string> = {
-    whatsapp: 'WhatsApp',
-    sms: 'SMS',
-    rcs: 'RCS'
-  }
-  ElMessage.success(`${channelNames[channel] || 'WhatsApp'}消息发送成功`)
-  
-  // 滚动到底部
-  nextTick(() => {
-    scrollToBottom()
+  // 🔍 调试：打印用户信息
+  console.log('[sendMessage] 用户信息:', {
+    user: imUserStore.user,
+    collectorId: imUserStore.user?.collectorId,
+    id: imUserStore.user?.id,
+    collectorIdNumeric: imUserStore.user?.collectorIdNumeric,
+    collectorName: imUserStore.user?.collectorName
   })
+  
+  // ✅ 使用真实的催员ID（如：btq001）
+  const currentCollectorId = imUserStore.user?.collectorId || imUserStore.user?.id
+  const currentCollectorName = imUserStore.user?.collectorName || '催员'
+  
+  console.log('[sendMessage] 使用的催员ID:', currentCollectorId)
+  
+  if (!currentCollectorId) {
+    ElMessage.error('无法获取当前催员信息，请重新登录')
+    return
+  }
+  
+  // 6. 准备发送参数
+  const sendData: SendMessageRequest = {
+    contactId: selectedContact.value.id,
+    messageType: 'text',
+    content: messageInput.value,
+    senderId: String(currentCollectorId),
+    caseId: props.caseData?.id || 0,
+    tenantId: props.caseData?.tenant_id || 0,
+    queueId: props.caseData?.queue_id || 0
+  }
+  
+  // WhatsApp渠道添加账号信息
+  if (channel === 'whatsapp' && selectedWAAccount.value) {
+    sendData.waAccountType = selectedWAAccount.value.type
+    sendData.waAccountId = selectedWAAccount.value.id
+  }
+  
+  try {
+    // 7. 调用发送API
+    const loadingMsg = ElLoading.service({
+      text: 'Sending message...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    const res = await sendMessageAPI(sendData)
+    loadingMsg.close()
+    
+    // 8. 发送成功，添加到消息列表
+    // 优先使用后端返回的sender_name，如果没有则使用前端获取的名称
+    const senderName = (res as any).senderName || currentCollectorName
+    const senderId = (res as any).senderId || String(currentCollectorId)
+    
+    const newMessage: any = {
+      id: res.messageId || (mockMessages.value.length + 1),
+      contact_id: selectedContact.value.id,
+      type: 'text',
+      content: messageInput.value,
+      sender_type: 'collector',
+      sender_name: senderName, // ✅ 使用真实的催员名称
+      sender_id: senderId, // ✅ 使用真实的催员ID
+      channel: channel,
+      status: res.status || 'sent',
+      sent_at: res.sentAt || dayjs().format('YYYY-MM-DD HH:mm:ss')
+    }
+    
+    // SMS和RCS特有字段
+    if (channel === 'sms' || channel === 'rcs') {
+      newMessage.from_template = isFromTemplate
+    } else {
+      // WhatsApp消息：根据选中的WA账号设置tool字段
+      if (selectedWAAccount.value?.type === 'platform') {
+        newMessage.tool = '公司WA'
+      } else if (selectedWAAccount.value?.type === 'personal') {
+        const account = personalWAAccounts.value.accounts.find(a => a.id === selectedWAAccount.value?.id)
+        newMessage.tool = account ? `个人WA（${account.name}）` : '个人WA'
+      } else {
+        newMessage.tool = '公司WA'
+      }
+    }
+    
+    mockMessages.value.push(newMessage)
+    messageInput.value = ''
+    
+    const channelNames: Record<string, string> = {
+      whatsapp: 'WhatsApp',
+      sms: 'SMS',
+      rcs: 'RCS'
+    }
+    ElMessage.success(`${channelNames[channel]} message sent successfully`)
+    
+    // 8. 滚动到底部
+    nextTick(() => {
+      scrollToBottom()
+    })
+    
+    // 9. 刷新渠道限制信息
+    if (channel === 'whatsapp' || channel === 'sms' || channel === 'rcs') {
+      fetchChannelLimitInfo()
+    }
+    
+    // 10. 开始轮询消息状态
+    if (res.messageId) {
+      startMessageStatusPolling(res.messageId)
+    }
+  } catch (error: any) {
+    // 11. 错误处理
+    console.error('Failed to send message:', error)
+    handleSendError(error)
+  }
 }
 
 // 滚动到底部
@@ -2510,19 +3862,23 @@ const handleCallOnce = async () => {
   
   // 调用真实的Infinity API发起外呼
   try {
-    const userStore = useUserStore()
-    const collectorId = userStore.userInfo?.id
+    const imUserStore = useImUserStore()
+    // ✅ 使用真实的催员ID（如：btq001）
+    const collectorId = imUserStore.user?.collectorId || imUserStore.user?.id
     
     if (!collectorId) {
       ElMessage.error('无法获取当前催员信息')
       return
     }
     
-    const loadingMsg = ElMessage.loading('正在发起外呼...')
+    const loadingMsg = ElLoading.service({
+      text: '正在发起外呼...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
     
     const response = await makeCall({
       case_id: props.caseId,
-      collector_id: collectorId,
+      collector_id: String(collectorId),
       contact_number: selectedContact.value.phone,
       custom_params: {
         contact_person_id: selectedContact.value.id,
@@ -2733,12 +4089,6 @@ onMounted(async () => {
   }, 1000)
 })
 
-onUnmounted(() => {
-  if (limitTimer) {
-    clearInterval(limitTimer)
-  }
-})
-
 // 获取联系人电话状态
 const fetchContactPhoneStatuses = async () => {
   if (!props.caseData?.id) {
@@ -2811,7 +4161,102 @@ watch(() => props.caseData?.id, () => {
   }
   // 获取所有联系人的电话状态
   fetchContactPhoneStatuses()
+  // 获取渠道限制信息
+  fetchChannelLimitInfo()
 }, { immediate: true })
+
+// 监听选中联系人变化
+watch(selectedContactId, () => {
+  // 获取渠道限制信息
+  fetchChannelLimitInfo()
+})
+
+// 监听活动渠道变化
+watch(activeChannel, (newChannel) => {
+  // 获取渠道限制信息
+  fetchChannelLimitInfo()
+  
+  // 如果切换到WhatsApp渠道，刷新个人WA账号列表
+  if (newChannel === 'whatsapp') {
+    refreshPersonalWAAccounts()
+  }
+})
+
+// 监听选中联系人变化 - 标记已读和重启轮询
+watch(selectedContactId, (newContactId, oldContactId) => {
+  // 切换联系人时标记旧联系人已读
+  if (oldContactId && oldContactId !== newContactId) {
+    markCurrentContactAsRead()
+  }
+  
+  // 先停止旧的轮询
+  stopMessagePolling()
+  
+  // 短暂延迟后启动新轮询，避免快速切换时的抖动
+  if (newContactId) {
+    setTimeout(() => {
+      // 确认还是当前联系人（避免快速切换导致的问题）
+      if (selectedContactId.value === newContactId) {
+        startMessagePolling()
+      }
+    }, 100)
+  }
+})
+
+// 网络恢复处理
+const handleNetworkOnline = () => {
+  if (!pollingTimer && selectedContact.value) {
+    consecutiveErrors = 0
+    startMessagePolling()
+    ElMessage.success('网络已恢复，消息轮询已重启')
+    console.log('[Network] Online, message polling restarted')
+  }
+}
+
+// 组件挂载时启动轮询和获取未读数
+onMounted(() => {
+  // 启动消息轮询
+  startMessagePolling()
+  
+  // 获取未读消息数
+  fetchUnreadCount()
+  
+  // 获取个人WA账号列表
+  refreshPersonalWAAccounts()
+  
+  // 请求桌面通知权限
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+  
+  // 监听网络恢复
+  window.addEventListener('online', handleNetworkOnline)
+})
+
+// 组件卸载时停止轮询
+// 组件卸载时清理所有资源
+onUnmounted(() => {
+  // 清理所有轮询定时器
+  stopMessagePolling()
+  stopAllMessageStatusPolling()
+  stopBindingStatusPolling()
+  
+  if (limitTimer) {
+    clearInterval(limitTimer)
+    limitTimer = null
+  }
+  
+  // 关闭所有弹窗
+  qrCodeDialogVisible.value = false
+  rebindDialogVisible.value = false
+  addContactDialogVisible.value = false
+  imagePreviewVisible.value = false
+  
+  // 移除事件监听
+  window.removeEventListener('online', handleNetworkOnline)
+  
+  console.log('[Component] Unmounted, all resources cleaned')
+})
 
 // 切换联系人和渠道的方法（供父组件调用）
 const switchToContactAndChannel = (contactId: number, channel: string) => {
@@ -2820,7 +4265,13 @@ const switchToContactAndChannel = (contactId: number, channel: string) => {
 }
 
 // 选择WA账号
-const selectWAAccount = async (account: any, type: 'platform' | 'personal') => {
+const selectWAAccount = async (account: WAAccountSelection, type: 'platform' | 'personal') => {
+  // 验证账号信息
+  if (!account?.id) {
+    ElMessage.warning('Invalid account')
+    return
+  }
+  
   // 如果选择的是当前账号，不需要切换
   if (selectedWAAccount.value?.id === account.id && selectedWAAccount.value?.type === type) {
     return
@@ -2847,28 +4298,6 @@ const selectWAAccount = async (account: any, type: 'platform' | 'personal') => {
   } catch {
     // 用户取消
   }
-}
-
-// 二维码图案（5x5网格，模拟二维码样式）
-const qrCodePattern = ref([
-  true, true, true, true, true,
-  true, false, false, false, true,
-  true, false, true, false, true,
-  true, false, false, false, true,
-  true, true, true, true, true
-])
-
-// 显示扫码对话框
-const showQRCodeDialog = () => {
-  qrCodeDialogVisible.value = true
-}
-
-// 刷新二维码
-const refreshQRCode = () => {
-  // 随机生成新的二维码图案
-  qrCodePattern.value = Array.from({ length: 25 }, () => Math.random() > 0.5)
-  ElMessage.success('二维码已刷新')
-  // 这里可以调用API重新生成二维码
 }
 
 // 暴露给父组件
@@ -3245,11 +4674,62 @@ defineExpose({
   margin: 4px 0;
 }
 
+/* 图片消息样式 */
+.message-image {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.message-image:hover {
+  transform: scale(1.02);
+}
+
+/* 视频消息样式 */
+.message-video video {
+  display: block;
+  background: #000;
+}
+
+/* 音频消息样式 */
+.message-audio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audio-speed-control {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
 .message-voice {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #111b21;
+}
+
+/* 图片预览对话框样式 */
+.image-preview-dialog {
+  .image-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .image-preview-actions {
+    display: flex;
+    gap: 8px;
+  }
+  
+  .image-preview-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+  }
 }
 
 .message-meta {
@@ -3263,6 +4743,13 @@ defineExpose({
 }
 
 .message-channel,
+.message-sender {
+  font-size: 10px;
+  color: #666;
+  margin-right: 6px;
+  font-weight: 500;
+}
+
 .message-tool {
   font-size: 10px;
   padding: 2px 6px;
@@ -3272,6 +4759,31 @@ defineExpose({
 
 .message-status {
   font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+/* 状态图标旋转动画（发送中） */
+.status-animate-spin {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 可点击的状态图标（失败） */
+.status-clickable {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.status-clickable:hover {
+  transform: scale(1.2);
 }
 
 /* 输入区域 */
@@ -3283,17 +4795,34 @@ defineExpose({
 
 .input-box {
   margin-bottom: 8px;
+  position: relative;
 }
 
 .input-box :deep(.el-textarea__inner) {
   border: 1px solid #dcdfe6;
   border-radius: 8px;
   padding: 8px 12px;
+  padding-bottom: 28px; /* 为字数统计留出空间 */
   font-size: 14px;
   line-height: 1.5;
   background: #ffffff;
   resize: none;
   transition: all 0.2s;
+}
+
+/* 字数统计样式 */
+.char-count {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 12px;
+  color: #909399;
+  pointer-events: none;
+}
+
+.char-count-warning {
+  color: #F56C6C !important;
+  font-weight: bold;
 }
 
 .input-box :deep(.el-textarea__inner):focus {
@@ -4180,6 +5709,53 @@ defineExpose({
   box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.2);
 }
 
+.wa-avatar-item.offline {
+  border-color: #FF3B30;
+  opacity: 0.8;
+}
+
+.wa-avatar-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+/* 掉线状态遮罩 */
+.offline-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.offline-icon {
+  color: #FF3B30;
+  background: white;
+  border-radius: 50%;
+  padding: 2px;
+}
+
+/* 在线状态标识 */
+.online-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  background: #25D366;
+  border: 2px solid white;
+  border-radius: 50%;
+  z-index: 2;
+}
+
 .wa-avatar-icon {
   width: 100%;
   height: 100%;
@@ -4268,6 +5844,303 @@ defineExpose({
 
 .qr-code-cell.filled {
   background: #25D366;
+}
+
+/* ========== 二维码绑定弹窗样式 ========== */
+.qr-code-dialog .el-dialog__header {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: white;
+  padding: 28px 24px;
+  margin: 0;
+  border-radius: 8px 8px 0 0;
+  text-align: center;
+}
+
+.dialog-header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: white;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.header-icon {
+  font-size: 26px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.header-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 400;
+  margin-top: 4px;
+}
+
+.qr-code-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: white;
+  font-size: 20px;
+}
+
+.qr-code-dialog .el-dialog__headerbtn .el-dialog__close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.qr-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 20px;
+}
+
+.qr-code-image {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.qr-code-wrapper {
+  position: relative;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 3px solid #25D366;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.15);
+  transition: all 0.3s ease;
+}
+
+.qr-code-wrapper:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(37, 211, 102, 0.2);
+}
+
+.qr-code-wrapper img {
+  width: 260px;
+  height: 260px;
+  display: block;
+  border-radius: 8px;
+}
+
+.qr-expired-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 16px;
+  color: white;
+}
+
+.qr-expired-mask .expired-icon {
+  font-size: 48px;
+  color: #F56C6C;
+  margin-bottom: 12px;
+}
+
+.qr-expired-mask p {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.qr-code-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-icon {
+  font-size: 18px;
+  color: #25D366;
+}
+
+.status-icon.spinning {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.status-text {
+  font-size: 14px;
+  color: #495057;
+  font-weight: 500;
+}
+
+.countdown-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: white;
+  border-radius: 8px;
+  border: 2px solid #25D366;
+  font-size: 20px;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  transition: all 0.3s;
+}
+
+.countdown-display.expired {
+  border-color: #F56C6C;
+}
+
+.countdown-display .clock-icon {
+  font-size: 16px;
+  color: #6c757d;
+}
+
+.qr-code-instructions {
+  width: 100%;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.instruction-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #495057;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.instruction-title .el-icon {
+  color: #25D366;
+  font-size: 16px;
+}
+
+.instruction-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.step-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.step-number {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.step-text {
+  color: #495057;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.qr-code-actions {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.qr-code-actions .el-button {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+  transition: all 0.3s;
+}
+
+.qr-code-actions .el-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.4);
+}
+
+.qr-code-actions .el-button .el-icon {
+  margin-right: 6px;
+}
+
+/* ========== 掉线重新绑定对话框样式 ========== */
+.rebind-dialog-content {
+  padding: 20px 10px;
+  text-align: center;
+}
+
+.offline-account-info {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.offline-prompt {
+  color: #666;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.rebind-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 </style>
 

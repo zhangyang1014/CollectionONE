@@ -11,12 +11,6 @@ import jakarta.validation.constraints.NotBlank;
 public class ImLoginRequest {
 
     /**
-     * 机构ID（租户ID）
-     */
-    @NotBlank(message = "机构ID不能为空")
-    private String tenantId;
-
-    /**
      * 催员ID（登录ID）
      */
     @NotBlank(message = "催员ID不能为空")
@@ -29,6 +23,8 @@ public class ImLoginRequest {
     private String password;
 
 }
+
+
 
 
 

@@ -52,7 +52,6 @@ export const useImUserStore = defineStore('imUser', () => {
 
   // 登录
   const login = async (credentials: {
-    tenantId: string
     collectorId: string
     password: string
   }) => {

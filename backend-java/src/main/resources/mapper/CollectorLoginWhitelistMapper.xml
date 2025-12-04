@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cco.mapper.CollectorLoginWhitelistMapper">
+
+    <!-- 根据甲方ID查询所有启用的白名单IP -->
+    <select id="selectEnabledWhitelistByTenantId" resultType="com.cco.model.entity.CollectorLoginWhitelist">
+        SELECT 
+            id,
+            tenant_id,
+            is_enabled,
+            ip_address,
+            description,
+            is_active,
+            created_at,
+            updated_at
+        FROM collector_login_whitelist
+        WHERE tenant_id = #{tenantId}
+          AND is_active = 1
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 检查甲方是否启用了白名单IP登录管理 -->
+    <select id="checkWhitelistEnabled" resultType="java.lang.Boolean">
+        SELECT 
+            CASE 
+                WHEN COUNT(*) > 0 AND MAX(is_enabled) = 1 THEN 1
+                ELSE 0
+            END
+        FROM collector_login_whitelist
+        WHERE tenant_id = #{tenantId}
+    </select>
+
+</mapper>
+
+
+

@@ -20,6 +20,7 @@ public class CorsConfig {
     // 直接使用硬编码值，避免配置依赖
     private final List<String> allowedOrigins = Arrays.asList(
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost:3000",
         "http://localhost:8080"
     );
@@ -32,7 +33,7 @@ public class CorsConfig {
     
     private final List<String> exposedHeaders = List.of("*");
     
-    @Value("${app.cors.allow-credentials}")
+    @Value("${app.cors.allow-credentials:true}")
     private Boolean allowCredentials;
     
     @Bean

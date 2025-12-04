@@ -73,6 +73,14 @@
           <el-menu-item index="/channel-config/payment-channels">还款渠道管理</el-menu-item>
         </el-sub-menu>
 
+        <el-sub-menu index="message">
+          <template #title>
+            <el-icon><ChatDotRound /></el-icon>
+            <span>消息配置</span>
+          </template>
+          <el-menu-item index="/console/message-templates">消息模板配置管理</el-menu-item>
+        </el-sub-menu>
+
         <el-sub-menu v-if="isSuperAdmin || isTenantAdmin" index="system">
           <template #title>
             <el-icon><Lock /></el-icon>
@@ -132,7 +140,7 @@
 import { computed, ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { HomeFilled, Document, Setting, OfficeBuilding, User, Connection, Lock, DataAnalysis } from '@element-plus/icons-vue'
+import { HomeFilled, Document, Setting, OfficeBuilding, User, Connection, Lock, DataAnalysis, ChatDotRound } from '@element-plus/icons-vue'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 import { getTenants } from '@/api/tenant'
