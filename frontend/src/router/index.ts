@@ -215,6 +215,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/NotificationConfig.vue'),
         meta: { title: '通知配置', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'super_admin', 'tenant_admin'] },
       },
+      {
+        path: 'system/i18n',
+        name: 'I18nManagement',
+        component: () => import('@/views/system/I18nManagement.vue'),
+        meta: { title: '国际化配置', requiresAuth: true, roles: ['SuperAdmin', 'super_admin'] },
+      },
     ],
   },
 

@@ -13,13 +13,13 @@ VALUES
 (1, 'admin_case_list', '控台案件管理列表', 'case_code', '案件编号', 'String', 'standard', 
  1, 180, 'normal', NULL, 1, 0, 0, 'system'),
 
--- 客户姓名
-(1, 'admin_case_list', '控台案件管理列表', 'user_name', '客户姓名', 'String', 'standard', 
+-- 客户（客户姓名，列名显示为"客户"）
+(1, 'admin_case_list', '控台案件管理列表', 'user_name', '客户', 'String', 'standard', 
  2, 120, 'normal', NULL, 1, 0, 0, 'system'),
 
--- 手机号码
-(1, 'admin_case_list', '控台案件管理列表', 'mobile', '手机号码', 'String', 'standard', 
- 3, 140, 'normal', NULL, 1, 0, 0, 'system'),
+-- 手机号码（不在列表中展示，但支持搜索功能）
+-- (1, 'admin_case_list', '控台案件管理列表', 'mobile', '手机号码', 'String', 'standard', 
+--  3, 140, 'normal', NULL, 1, 0, 0, 'system'),
 
 -- 贷款金额
 (1, 'admin_case_list', '控台案件管理列表', 'loan_amount', '贷款金额', 'Decimal', 'standard', 
@@ -62,8 +62,8 @@ VALUES
 (1, 'collector_case_list', '催员案件列表', 'case_code', '案件编号', 'String', 'standard', 
  1, 160, 'normal', NULL, 1, 0, 0, 'system'),
 
--- 客户姓名
-(1, 'collector_case_list', '催员案件列表', 'user_name', '客户姓名', 'String', 'standard', 
+-- 客户
+(1, 'collector_case_list', '催员案件列表', 'user_name', '客户', 'String', 'standard', 
  2, 100, 'normal', NULL, 1, 0, 0, 'system'),
 
 -- 手机号码

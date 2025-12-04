@@ -109,6 +109,8 @@ public class ImAuthController {
             userInfo.put("maxCaseCount", mockCollector.get("maxCaseCount"));
             userInfo.put("role", "collector");
             userInfo.put("permissions", Arrays.asList("case:view", "case:call", "message:send"));
+            // ✅ 添加甲方默认语言，IM端将使用此语言作为界面默认语言
+            userInfo.put("defaultLanguage", mockCollector.get("defaultLanguage"));
             
             // 构建响应
             LoginResponse loginResponse = new LoginResponse();
@@ -216,6 +218,7 @@ public class ImAuthController {
             collector.put("collectorLevel", "高级催员");
             collector.put("currentCaseCount", 45);
             collector.put("maxCaseCount", 100);
+            collector.put("defaultLanguage", "es-MX"); // 百腾企业默认西班牙语（墨西哥）
             return collector;
         }
         
@@ -234,6 +237,7 @@ public class ImAuthController {
             collector.put("collectorLevel", "普通催员");
             collector.put("currentCaseCount", 0);
             collector.put("maxCaseCount", 100);
+            collector.put("defaultLanguage", "zh-CN"); // BTSK机构默认简体中文
             return collector;
         }
         
@@ -252,6 +256,7 @@ public class ImAuthController {
         collector.put("collectorLevel", "普通催员");
         collector.put("currentCaseCount", 0);
         collector.put("maxCaseCount", 100);
+        collector.put("defaultLanguage", "zh-CN"); // 默认简体中文
         
         return collector;
     }

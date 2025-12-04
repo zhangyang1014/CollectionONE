@@ -69,11 +69,6 @@ public class TeamAdminAccount extends BaseEntity {
     private String role;
 
     /**
-     * 手机号码
-     */
-    private String mobile;
-
-    /**
      * 邮箱
      */
     private String email;

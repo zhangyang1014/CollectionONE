@@ -71,9 +71,8 @@
       </template>
 
       <el-table :data="accounts" border style="width: 100%">
-        <el-table-column prop="account_code" label="账号ID" width="120" />
-        <el-table-column prop="account_name" label="账号名" width="120" />
         <el-table-column prop="login_id" label="登录ID" width="120" />
+        <el-table-column prop="account_name" label="账号名" width="120" />
         <el-table-column prop="tenant_name" label="所属甲方" width="130" />
         <el-table-column prop="agency_name" label="所属机构" width="130" />
         <el-table-column prop="team_name" label="所属小组" width="130" />
@@ -132,26 +131,25 @@
     <!-- 创建/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
       <el-form :model="form" label-width="120px" :rules="rules" ref="formRef">
-        <el-form-item label="账号编码" prop="account_code">
+        <el-form-item label="登录ID" prop="login_id">
           <el-input 
-            v-model="form.account_code" 
-            placeholder="如：ADMIN001" 
+            v-model="form.login_id" 
+            placeholder="请输入自定义部分（如：teamadmin01）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && tenantPrefix">{{ tenantPrefix }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整登录ID：{{ tenantPrefix || '甲方编码' }}-{{ form.login_id || '自定义部分' }}
+          </div>
+          <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            登录ID不可修改
+          </div>
         </el-form-item>
 
         <el-form-item label="账号名" prop="account_name">
           <el-input v-model="form.account_name" placeholder="请输入账号名" maxlength="50" />
-        </el-form-item>
-
-        <el-form-item label="登录ID" prop="login_id">
-          <el-input 
-            v-model="form.login_id" 
-            placeholder="请输入登录ID" 
-            maxlength="50"
-            :disabled="isEdit"
-          />
         </el-form-item>
 
         <el-form-item label="登录密码" prop="password" v-if="!isEdit">
@@ -196,10 +194,6 @@
 
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="form.email" placeholder="请输入邮箱" maxlength="100" />
-        </el-form-item>
-
-        <el-form-item label="手机号">
-          <el-input v-model="form.mobile" placeholder="请输入手机号（选填）" maxlength="20" />
         </el-form-item>
 
         <el-form-item label="备注">
@@ -252,7 +246,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
@@ -263,6 +257,8 @@ const agencies = ref<any[]>([])
 const teams = ref<any[]>([])
 const formTeams = ref<any[]>([]) // 表单中的小组选项
 const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
+const currentTenant = computed(() => tenantStore.currentTenant)
+const tenantPrefix = computed(() => currentTenant.value?.tenant_code || '')
 const currentAgencyId = ref<number | undefined>(undefined) // 默认全选
 const currentTeamId = ref<number | undefined>(undefined) // 默认全选
 const allAccounts = ref<any[]>([]) // 存储所有账号（用于筛选）
@@ -310,14 +306,12 @@ onMounted(async () => {
 
 const form = ref({
   id: undefined as number | undefined,
-  account_code: '',
   account_name: '',
   login_id: '',
   password: '',
   agency_id: undefined as number | undefined,
   team_id: undefined as number | undefined,
   role: '',
-  mobile: '',
   email: '',
   remark: '',
   is_active: true
@@ -329,14 +323,11 @@ const passwordForm = ref({
 })
 
 const rules = reactive({
-  account_code: [
-    { required: true, message: '请输入账号编码', trigger: 'blur' }
+  login_id: [
+    { required: true, message: '请输入登录ID', trigger: 'blur' }
   ],
   account_name: [
     { required: true, message: '请输入账号名', trigger: 'blur' }
-  ],
-  login_id: [
-    { required: true, message: '请输入登录ID', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入登录密码', trigger: 'blur' },
@@ -614,14 +605,12 @@ const handleAdd = () => {
   dialogTitle.value = '创建账号'
   form.value = {
     id: undefined,
-    account_code: '',
     account_name: '',
     login_id: '',
     password: '',
     agency_id: undefined,
     team_id: undefined,
     role: '',
-    mobile: '',
     email: '',
     remark: '',
     is_active: true
@@ -651,14 +640,12 @@ const handleEdit = async (row: any) => {
   dialogTitle.value = '编辑账号'
   form.value = {
     id: row.id,
-    account_code: row.account_code,
     account_name: row.account_name,
     login_id: row.login_id,
     password: '',
     agency_id: row.agency_id,
     team_id: row.team_id,
     role: row.role,
-    mobile: row.mobile || '',
     email: row.email || '',
     remark: row.remark || '',
     is_active: row.is_active
@@ -676,7 +663,13 @@ const handleSave = async () => {
     
     saving.value = true
 
-    console.log('保存账号：', form.value)
+    // 在创建模式下，需要拼接前缀和用户输入的部分
+    const submitData = { ...form.value }
+    if (!isEdit.value && tenantPrefix.value) {
+      submitData.login_id = tenantPrefix.value + '-' + form.value.login_id
+    }
+
+    console.log('保存账号：', submitData)
     
     // TODO: 调用API保存
     ElMessage.success('保存成功')

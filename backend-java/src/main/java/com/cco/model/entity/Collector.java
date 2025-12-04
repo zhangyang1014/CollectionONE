@@ -1,18 +1,13 @@
 package com.cco.model.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 催员表
@@ -64,56 +59,19 @@ public class Collector extends BaseEntity {
     private String passwordHash;
 
     /**
-     * 手机号码
-     */
-    private String mobile;
-
-    /**
-     * 邮箱
+     * 邮箱（必填，用于接收系统通知）
      */
     private String email;
 
     /**
-     * 工号
+     * 备注信息（如工作职责、特长、注意事项等）
      */
-    private String employeeNo;
-
-    /**
-     * 催员等级（初级/中级/高级/资深）
-     */
-    private String collectorLevel;
-
-    /**
-     * 最大案件数量
-     */
-    private Integer maxCaseCount;
-
-    /**
-     * 当前案件数量
-     */
-    private Integer currentCaseCount;
-
-    /**
-     * 擅长领域（JSON数组，如：['高额案件','法务处理']）
-     */
-    @TableField(typeHandler = JacksonTypeHandler.class)
-    private List<String> specialties;
-
-    /**
-     * 绩效评分
-     */
-    private BigDecimal performanceScore;
+    private String remark;
 
     /**
      * 状态：active/休假/离职等
      */
     private String status;
-
-    /**
-     * 入职日期
-     */
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate hireDate;
 
     /**
      * 是否启用

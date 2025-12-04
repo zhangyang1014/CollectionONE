@@ -37,8 +37,10 @@ export interface FieldDisplayConfig {
   hide_for_agencies?: string[] // 对哪些机构隐藏
   hide_for_teams?: string[] // 对哪些小组隐藏
   format_rule?: FormatRule // 格式化规则
+  is_searchable?: boolean // 是否可搜索
   is_filterable: boolean // 是否可筛选（针对枚举字段）
   is_range_searchable: boolean // 是否支持范围检索（针对数字和时间字段）
+  is_required?: boolean // 是否必须展示（不可配置隐藏）
   created_at: string
   updated_at: string
   created_by?: string
@@ -62,8 +64,10 @@ export interface FieldDisplayConfigCreate {
   hide_for_agencies?: string[]
   hide_for_teams?: string[]
   format_rule?: FormatRule
+  is_searchable?: boolean
   is_filterable?: boolean
   is_range_searchable?: boolean
+  is_required?: boolean
   created_by?: string
 }
 
@@ -81,8 +85,10 @@ export interface FieldDisplayConfigUpdate {
   hide_for_agencies?: string[]
   hide_for_teams?: string[]
   format_rule?: FormatRule
+  is_searchable?: boolean
   is_filterable?: boolean
   is_range_searchable?: boolean
+  is_required?: boolean
   updated_by?: string
 }
 

@@ -9,16 +9,40 @@
       </template>
 
       <el-table :data="tenants" border>
-        <el-table-column prop="tenant_name" label="甲方名称" />
-        <el-table-column prop="tenant_code" label="甲方编码" />
-        <el-table-column prop="country_code" label="国家代码" />
-        <el-table-column prop="timezone" label="时区">
+        <el-table-column label="甲方名称">
+          <template #default="{ row }">
+            {{ row.tenantName || row.tenant_name }}
+          </template>
+        </el-table-column>
+        <el-table-column label="甲方编码">
+          <template #default="{ row }">
+            {{ row.tenantCode || row.tenant_code }}
+          </template>
+        </el-table-column>
+        <el-table-column label="国家代码">
+          <template #default="{ row }">
+            {{ row.countryCode || row.country_code }}
+          </template>
+        </el-table-column>
+        <el-table-column label="时区">
           <template #default="{ row }">
             {{ row.timezone !== null && row.timezone !== undefined ? row.timezone : '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="currency_code" label="货币" />
-        <el-table-column prop="collector_count" label="催员数" width="100" align="center">
+        <el-table-column label="货币">
+          <template #default="{ row }">
+            {{ row.currencyCode || row.currency_code }}
+          </template>
+        </el-table-column>
+        <el-table-column label="默认语言" width="140">
+          <template #default="{ row }">
+            <span v-if="row.defaultLanguage || row.default_language">
+              {{ getLanguageDisplay(row.defaultLanguage || row.default_language) }}
+            </span>
+            <el-text v-else type="info">未设置</el-text>
+          </template>
+        </el-table-column>
+        <el-table-column label="催员数" width="100" align="center">
           <template #default="{ row }">
             <el-button 
               link 
@@ -79,6 +103,31 @@
           <el-input v-model="form.currency_code" placeholder="如：CNY" maxlength="10" />
         </el-form-item>
 
+        <el-form-item label="默认语言" prop="default_language">
+          <el-select 
+            v-model="form.default_language" 
+            placeholder="请选择默认语言"
+            style="width: 100%"
+            filterable
+          >
+            <el-option
+              v-for="lang in availableLanguages"
+              :key="lang.locale"
+              :label="`${lang.flagIcon || ''} ${lang.name} (${lang.locale})`"
+              :value="lang.locale"
+            >
+              <span style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">{{ lang.flagIcon || '🏳️' }}</span>
+                <span>{{ lang.name }}</span>
+                <el-tag v-if="lang.isDefault" type="warning" size="small">推荐</el-tag>
+              </span>
+            </el-option>
+          </el-select>
+          <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+            该语言将作为该甲方下所有催员的默认界面语言
+          </div>
+        </el-form-item>
+
         <el-divider content-position="left">甲方管理员账号</el-divider>
 
         <el-form-item label="管理员账号名" prop="admin_name">
@@ -92,10 +141,15 @@
         <el-form-item label="管理员登录ID" prop="admin_login_id">
           <el-input 
             v-model="form.admin_login_id" 
-            placeholder="请输入登录ID" 
+            placeholder="请输入自定义部分（如：admin01）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && form.tenant_code">{{ form.tenant_code }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整登录ID：{{ form.tenant_code || '甲方编码' }}-{{ form.admin_login_id || '自定义部分' }}
+          </div>
           <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
             登录ID不可修改
           </div>
@@ -144,6 +198,7 @@ import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { getTenants } from '@/api/tenant'
+import { getLanguageList } from '@/api/i18n'
 
 const router = useRouter()
 const tenantStore = useTenantStore()
@@ -151,6 +206,31 @@ const tenants = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref<FormInstance>()
+
+// 可用语言列表
+const availableLanguages = ref<any[]>([])
+
+// 加载可用语言列表
+const loadAvailableLanguages = async () => {
+  try {
+    const response = await getLanguageList({ status: 'enabled' })
+    availableLanguages.value = Array.isArray(response) ? response : (response.data || [])
+  } catch (error) {
+    console.error('加载语言列表失败：', error)
+    ElMessage.warning('加载语言列表失败，将使用默认选项')
+    // 提供默认语言选项
+    availableLanguages.value = [
+      { locale: 'zh-CN', name: '简体中文', flagIcon: '🇨🇳', isDefault: true },
+      { locale: 'en-US', name: 'English', flagIcon: '🇺🇸', isDefault: false }
+    ]
+  }
+}
+
+// 获取语言显示名称
+const getLanguageDisplay = (locale: string) => {
+  const lang = availableLanguages.value.find(l => l.locale === locale)
+  return lang ? `${lang.flagIcon || ''} ${lang.name}` : locale
+}
 
 const dialogTitle = computed(() => isEdit.value ? '编辑甲方' : '创建甲方')
 
@@ -162,6 +242,7 @@ const form = ref({
   country_code: '',
   timezone: undefined as number | undefined,
   currency_code: '',
+  default_language: '' as string,
   admin_name: '',
   admin_login_id: '',
   admin_email: '',
@@ -169,8 +250,9 @@ const form = ref({
   admin_password_confirm: ''
 })
 
+
 // 密码确认验证器
-const validatePasswordConfirm = (rule: any, value: any, callback: any) => {
+const validatePasswordConfirm = (_rule: any, value: any, callback: any) => {
   if (value !== form.value.admin_password) {
     callback(new Error('两次输入的密码不一致'))
   } else {
@@ -179,7 +261,7 @@ const validatePasswordConfirm = (rule: any, value: any, callback: any) => {
 }
 
 // 密码条件验证器（编辑时如果填写了密码才验证）
-const validatePasswordConditional = (rule: any, value: any, callback: any) => {
+const validatePasswordConditional = (_rule: any, value: any, callback: any) => {
   if (!isEdit.value) {
     // 创建模式：密码必填
     if (!value) {
@@ -223,6 +305,9 @@ const getRules = () => ({
   currency_code: [
     { required: true, message: '请输入货币代码', trigger: 'blur' }
   ],
+  default_language: [
+    { required: true, message: '请选择默认语言', trigger: 'change' }
+  ],
   admin_name: [
     { required: !isEdit.value, message: '请输入管理员账号名', trigger: 'blur' }
   ],
@@ -260,6 +345,7 @@ const handleAdd = () => {
     country_code: '',
     timezone: undefined,
     currency_code: '',
+    default_language: '',
     admin_name: '',
     admin_login_id: '',
     admin_email: '',
@@ -292,6 +378,7 @@ const handleEdit = async (row: any) => {
     country_code: row.country_code,
     timezone: row.timezone !== null && row.timezone !== undefined ? Number(row.timezone) : undefined,
     currency_code: row.currency_code,
+    default_language: row.default_language || '',
     admin_name: '',
     admin_login_id: '',
     admin_email: '',
@@ -409,7 +496,7 @@ const createTenantAdmin = async (tenantId: number) => {
         tenant_id: tenantId,
         account_code: `TENANT_ADMIN_${tenantId}`,
         account_name: form.value.admin_name,
-        login_id: form.value.admin_login_id,
+        login_id: form.value.tenant_code + '-' + form.value.admin_login_id,
         password: form.value.admin_password,
         email: form.value.admin_email,
         role: 'tenant_admin',
@@ -465,6 +552,7 @@ const updateTenantAdmin = async (tenantId: number) => {
 
 onMounted(() => {
   loadTenants()
+  loadAvailableLanguages()
 })
 </script>
 

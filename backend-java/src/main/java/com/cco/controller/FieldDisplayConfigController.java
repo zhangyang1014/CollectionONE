@@ -389,17 +389,20 @@ public class FieldDisplayConfigController {
         String sceneName = getSceneName(sceneType);
         
         if ("admin_case_list".equals(sceneType)) {
-            String[] fieldKeys = {"case_code", "user_name", "mobile", "loan_amount", "outstanding_amount", 
-                                 "overdue_days", "case_status", "product_name", "app_name", "due_date"};
-            String[] fieldNames = {"案件编号", "客户姓名", "手机号码", "贷款金额", "未还金额", 
-                                  "逾期天数", "案件状态", "产品名称", "App名称", "到期日期"};
-            String[] fieldTypes = {"String", "String", "String", "Decimal", "Decimal", 
-                                  "Integer", "Enum", "String", "String", "Date"};
-            boolean[] isSearchable = {true, true, true, false, false, false, false, true, true, false};
-            boolean[] isFilterable = {false, false, false, false, false, false, true, false, false, false};
-            boolean[] isRangeSearchable = {false, false, false, true, true, true, false, false, false, true};
-            String[] colorTypes = {"normal", "normal", "normal", "normal", "red", "red", "normal", "normal", "normal", "normal"};
-            int[] widths = {180, 120, 140, 120, 120, 100, 110, 130, 130, 120};
+            // 手机号不在列表中展示，但仍支持搜索功能(在搜索API中处理)
+            String[] fieldKeys = {"case_code", "user_name", "loan_amount", "outstanding_amount", 
+                                 "overdue_days", "case_status", "due_date", "product_name", "app_name"};
+            String[] fieldNames = {"案件编号", "客户", "贷款金额", "未还金额", 
+                                  "逾期天数", "案件状态", "到期日期", "产品名称", "App名称"};
+            String[] fieldTypes = {"String", "String", "Decimal", "Decimal", 
+                                  "Integer", "Enum", "Date", "String", "String"};
+            // 必须展示字段(不可配置隐藏): case_code, user_name, loan_amount, outstanding_amount, overdue_days, case_status, due_date
+            boolean[] isRequired = {true, true, true, true, true, true, true, false, false};
+            boolean[] isSearchable = {true, true, false, false, false, false, false, true, true};
+            boolean[] isFilterable = {false, false, false, false, false, true, false, false, false};
+            boolean[] isRangeSearchable = {false, false, true, true, true, false, true, false, false};
+            String[] colorTypes = {"normal", "normal", "normal", "red", "red", "normal", "normal", "normal", "normal"};
+            int[] widths = {180, 120, 120, 120, 100, 110, 120, 130, 130};
             
             for (int i = 0; i < fieldKeys.length; i++) {
                 Map<String, Object> config = new HashMap<>();
@@ -433,6 +436,7 @@ public class FieldDisplayConfigController {
                 config.put("is_searchable", isSearchable[i]);
                 config.put("is_filterable", isFilterable[i]);
                 config.put("is_range_searchable", isRangeSearchable[i]);
+                config.put("is_required", isRequired[i]);
                 config.put("created_at", java.time.LocalDateTime.now().toString());
                 config.put("updated_at", java.time.LocalDateTime.now().toString());
                 config.put("created_by", "system");

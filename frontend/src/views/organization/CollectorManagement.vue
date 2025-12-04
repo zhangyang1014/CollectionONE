@@ -137,13 +137,23 @@
     <!-- 创建/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
       <el-form :model="form" label-width="120px" :rules="rules" ref="formRef">
+        <el-divider content-position="left">基础信息</el-divider>
+        
         <el-form-item label="催员登录id" prop="collector_code">
           <el-input 
             v-model="form.collector_code" 
-            placeholder="如：COL001" 
+            placeholder="请输入自定义部分（如：col001）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && tenantPrefix">{{ tenantPrefix }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整登录ID：{{ tenantPrefix || '甲方编码' }}-{{ form.collector_code || '自定义部分' }}
+          </div>
+          <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            催员登录ID不可修改
+          </div>
         </el-form-item>
 
         <el-form-item label="催员姓名" prop="collector_name">
@@ -186,29 +196,18 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="手机号">
-          <el-input v-model="form.mobile" placeholder="请输入手机号" maxlength="20" />
-        </el-form-item>
+        <el-divider content-position="left">账号信息</el-divider>
 
-        <el-form-item label="邮箱">
-          <el-input v-model="form.email" placeholder="请输入邮箱" maxlength="100" />
-        </el-form-item>
-
-        <el-form-item label="回呼号码">
+        <el-form-item label="邮箱" prop="email">
           <el-input 
-            v-model="form.callback_number" 
-            placeholder="请输入回呼号码（用于外呼时接听电话）" 
-            maxlength="50"
-          >
-            <template #append>
-              <el-tooltip 
-                content="催员接听外呼电话的号码（手机/座机），启用外呼功能时必填" 
-                placement="top"
-              >
-                <el-icon><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </template>
-          </el-input>
+            v-model="form.email" 
+            placeholder="请输入邮箱，用于接收系统通知" 
+            maxlength="100"
+            type="email"
+          />
+          <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+            邮箱用于接收密码重置、账号状态变更等系统通知
+          </div>
         </el-form-item>
 
         <el-form-item label="备注">
@@ -216,13 +215,22 @@
             v-model="form.remark" 
             type="textarea" 
             :rows="3"
-            placeholder="请输入备注信息"
+            placeholder="请输入备注信息，如工作职责、特长、注意事项等"
             maxlength="500"
+            show-word-limit
           />
+          <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+            可记录催员的工作职责、擅长领域、特殊注意事项等信息
+          </div>
         </el-form-item>
+
+        <el-divider content-position="left">状态配置</el-divider>
 
         <el-form-item label="是否启用">
           <el-switch v-model="form.is_active" />
+          <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+            {{ form.is_active ? '启用状态：催员可正常登录系统' : '禁用状态：催员无法登录系统' }}
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -316,7 +324,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Search, QuestionFilled } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
@@ -330,6 +338,8 @@ const agencies = ref<any[]>([])
 const teams = ref<any[]>([])
 const formTeams = ref<any[]>([]) // 表单中的小组选项
 const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
+const currentTenant = computed(() => tenantStore.currentTenant)
+const tenantPrefix = computed(() => currentTenant.value?.tenant_code || '')
 const currentAgencyId = ref<number | undefined>(undefined) // 默认全选
 const currentTeamId = ref<number | undefined>(undefined) // 默认全选
 const collectors = ref<any[]>([])
@@ -477,8 +487,6 @@ const form = ref({
   agency_id: undefined as number | undefined,
   team_id: undefined as number | undefined,
   role: 'collector',
-  mobile: '',
-  callback_number: '',
   email: '',
   remark: '',
   is_active: true
@@ -494,7 +502,8 @@ const rules = reactive({
     { required: true, message: '请输入催员登录id', trigger: 'blur' }
   ],
   collector_name: [
-    { required: true, message: '请输入催员姓名', trigger: 'blur' }
+    { required: true, message: '请输入催员姓名', trigger: 'blur' },
+    { min: 2, max: 50, message: '催员姓名长度为2-50个字符', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入登录密码', trigger: 'blur' },
@@ -505,6 +514,11 @@ const rules = reactive({
   ],
   team_id: [
     { required: true, message: '请选择所属小组', trigger: 'change' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
+    { max: 100, message: '邮箱长度不能超过100个字符', trigger: 'blur' }
   ]
 })
 
@@ -784,8 +798,6 @@ const handleAdd = () => {
     agency_id: undefined,
     team_id: undefined,
     role: 'collector',
-    mobile: '',
-    callback_number: '',
     email: '',
     remark: '',
     is_active: true
@@ -807,8 +819,6 @@ const handleEdit = async (row: any) => {
     agency_id: row.agency_id,
     team_id: row.team_id,
     role: row.role,
-    mobile: row.mobile || '',
-    callback_number: row.callback_number || '',
     email: row.email || '',
     remark: row.remark || '',
     is_active: row.is_active
@@ -826,7 +836,13 @@ const handleSave = async () => {
     
     saving.value = true
 
-    console.log('保存催员：', form.value)
+    // 在创建模式下，需要拼接前缀和用户输入的部分
+    const submitData = { ...form.value }
+    if (!isEdit.value && tenantPrefix.value) {
+      submitData.collector_code = tenantPrefix.value + '-' + form.value.collector_code
+    }
+
+    console.log('保存催员：', submitData)
     
     // TODO: 调用API保存
     ElMessage.success('保存成功')

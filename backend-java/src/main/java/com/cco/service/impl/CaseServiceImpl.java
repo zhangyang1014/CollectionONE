@@ -236,7 +236,8 @@ public class CaseServiceImpl extends ServiceImpl<CaseMapper, Case> implements Ca
                 dto.setAgencyId(c.getAgencyId());
                 dto.setTeamId(c.getTeamId());
                 dto.setStatus(c.getStatus());
-                dto.setCurrentCaseCount(c.getCurrentCaseCount() != null ? c.getCurrentCaseCount() : 0);
+                // TODO: getCurrentCaseCount() 方法未在Collector实体中定义
+                dto.setCurrentCaseCount(0);
                 
                 // TODO: 可以通过关联查询获取机构名称、小组名称、队列信息
                 // 暂时设置为空

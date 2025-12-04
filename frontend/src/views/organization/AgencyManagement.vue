@@ -100,10 +100,18 @@
         <el-form-item label="机构编码" prop="agency_code">
           <el-input 
             v-model="form.agency_code" 
-            placeholder="如：AGENCY001" 
+            placeholder="请输入自定义部分（如：AG001）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && tenantPrefix">{{ tenantPrefix }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整编码：{{ tenantPrefix || '甲方编码' }}-{{ form.agency_code || '自定义部分' }}
+          </div>
+          <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            机构编码不可修改
+          </div>
         </el-form-item>
 
         <el-form-item label="机构名称" prop="agency_name">
@@ -154,10 +162,15 @@
         <el-form-item label="管理员登录ID" prop="admin_login_id">
           <el-input 
             v-model="form.admin_login_id" 
-            placeholder="请输入登录ID" 
+            placeholder="请输入自定义部分（如：agadmin01）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && tenantPrefix">{{ tenantPrefix }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整登录ID：{{ tenantPrefix || '甲方编码' }}-{{ form.admin_login_id || '自定义部分' }}
+          </div>
           <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
             登录ID不可修改
           </div>
@@ -204,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
@@ -213,6 +226,8 @@ const router = useRouter()
 
 const tenantStore = useTenantStore()
 const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
+const currentTenant = computed(() => tenantStore.currentTenant)
+const tenantPrefix = computed(() => currentTenant.value?.tenant_code || '')
 const agencies = ref<any[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -249,6 +264,7 @@ const form = ref({
   is_active: true
 })
 
+
 // 密码确认验证器
 const validatePasswordConfirm = (_rule: any, value: any, callback: any) => {
   if (value !== form.value.admin_password) {
@@ -264,6 +280,13 @@ const rules = reactive({
   ],
   agency_name: [
     { required: true, message: '请输入机构名称', trigger: 'blur' }
+  ],
+  agency_type: [
+    { required: true, message: '请选择机构类型', trigger: 'change' }
+  ],
+  timezone: [
+    { required: true, message: '请输入时区', trigger: 'blur' },
+    { type: 'number', message: '时区必须是数字', trigger: 'blur' }
   ],
   admin_name: [
     { required: true, message: '请输入管理员账号名', trigger: 'blur' }
@@ -413,7 +436,14 @@ const handleSave = async () => {
     
     saving.value = true
 
-    console.log('保存机构：', form.value)
+    // 在创建模式下，需要拼接前缀和用户输入的部分
+    const submitData = { ...form.value }
+    if (!isEdit.value && tenantPrefix.value) {
+      submitData.agency_code = tenantPrefix.value + '-' + form.value.agency_code
+      submitData.admin_login_id = tenantPrefix.value + '-' + form.value.admin_login_id
+    }
+
+    console.log('保存机构：', submitData)
     
     // TODO: 调用API保存
     ElMessage.success('保存成功')

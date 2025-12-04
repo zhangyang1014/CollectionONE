@@ -46,9 +46,9 @@ public class TeamGroup extends BaseEntity {
     private String groupNameEn;
 
     /**
-     * 小组群长SPV ID（催员ID）
+     * 小组群管理员ID
      */
-    private Long spvId;
+    private Long adminId;
 
     /**
      * 小组群描述

@@ -51,6 +51,12 @@ public class Tenant extends BaseEntity {
     private String currencyCode;
 
     /**
+     * 默认语言（Locale，如zh-CN, en-US）
+     * 该语言将作为该甲方下所有催员的默认界面语言
+     */
+    private String defaultLanguage;
+
+    /**
      * 是否启用
      */
     private Boolean isActive;

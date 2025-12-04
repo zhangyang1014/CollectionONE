@@ -85,10 +85,18 @@
         <el-form-item label="小组群编码" prop="group_code">
           <el-input 
             v-model="form.group_code" 
-            placeholder="如：GROUP001" 
+            placeholder="请输入自定义部分（如：GP001）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && tenantPrefix">{{ tenantPrefix }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整编码：{{ tenantPrefix || '甲方编码' }}-{{ form.group_code || '自定义部分' }}
+          </div>
+          <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            小组群编码不可修改
+          </div>
         </el-form-item>
 
         <el-form-item label="小组群名称" prop="group_name">
@@ -129,10 +137,15 @@
         <el-form-item label="SPV登录ID" prop="spv_login_id">
           <el-input 
             v-model="form.spv_login_id" 
-            placeholder="请输入登录ID" 
+            placeholder="请输入自定义部分（如：spv01）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && tenantPrefix">{{ tenantPrefix }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整登录ID：{{ tenantPrefix || '甲方编码' }}-{{ form.spv_login_id || '自定义部分' }}
+          </div>
           <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
             登录ID不可修改
           </div>
@@ -162,10 +175,6 @@
           />
         </el-form-item>
 
-        <el-form-item label="SPV手机号">
-          <el-input v-model="form.spv_mobile" placeholder="请输入手机号码" maxlength="50" />
-        </el-form-item>
-
         <el-form-item label="是否启用" v-if="isEdit">
           <el-switch v-model="form.is_active" />
         </el-form-item>
@@ -189,6 +198,8 @@ const route = useRoute()
 const tenantStore = useTenantStore()
 const agencies = ref<any[]>([])
 const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
+const currentTenant = computed(() => tenantStore.currentTenant)
+const tenantPrefix = computed(() => currentTenant.value?.tenant_code || '')
 const currentAgencyId = ref<number | undefined>(undefined) // 默认全选
 const teamGroups = ref<any[]>([])
 const dialogVisible = ref(false)
@@ -212,6 +223,7 @@ watch(
     }
   }
 )
+
 
 // 初始加载
 onMounted(async () => {
@@ -240,8 +252,7 @@ const form = ref({
   spv_login_id: '',
   spv_email: '',
   spv_password: '',
-  spv_password_confirm: '',
-  spv_mobile: ''
+  spv_password_confirm: ''
 })
 
 // 密码确认验证器
@@ -351,8 +362,7 @@ const handleAdd = () => {
     spv_login_id: '',
     spv_email: '',
     spv_password: '',
-    spv_password_confirm: '',
-    spv_mobile: ''
+    spv_password_confirm: ''
   }
   dialogVisible.value = true
 }
@@ -384,8 +394,7 @@ const handleEdit = async (row: any) => {
     spv_login_id: '',
     spv_email: '',
     spv_password: '',
-    spv_password_confirm: '',
-    spv_mobile: ''
+    spv_password_confirm: ''
   }
   
   // 获取小组群详情（包含SPV账号信息）并回显
@@ -399,7 +408,6 @@ const handleEdit = async (row: any) => {
       form.value.spv_account_name = teamGroupDetail.spv_account_name || ''
       form.value.spv_login_id = teamGroupDetail.spv_login_id || ''
       form.value.spv_email = teamGroupDetail.spv_email || ''
-      form.value.spv_mobile = teamGroupDetail.spv_mobile || ''
     }
   } catch (error) {
     console.error('获取小组群详情失败：', error)
@@ -431,16 +439,15 @@ const handleSave = async () => {
     } : {
       tenant_id: currentTenantId.value,
       agency_id: form.value.agency_id,
-      group_code: form.value.group_code,
+      group_code: tenantPrefix.value ? tenantPrefix.value + '-' + form.value.group_code : form.value.group_code,
       group_name: form.value.group_name,
       description: form.value.description,
       is_active: form.value.is_active,
       // SPV管理员账号信息
       spv_account_name: form.value.spv_account_name,
-      spv_login_id: form.value.spv_login_id,
+      spv_login_id: tenantPrefix.value ? tenantPrefix.value + '-' + form.value.spv_login_id : form.value.spv_login_id,
       spv_email: form.value.spv_email,
       spv_password: form.value.spv_password,
-      spv_mobile: form.value.spv_mobile,
       spv_remark: ''
     }
 

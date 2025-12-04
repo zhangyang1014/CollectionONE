@@ -35,6 +35,26 @@ export const SCENE_CONFIG = {
 }
 
 /**
+ * 控台案件列表必须展示的字段(不可配置隐藏)
+ */
+export const ADMIN_CASE_LIST_REQUIRED_FIELDS = [
+  'case_code',        // 案件编号
+  'user_name',        // 客户
+  'loan_amount',      // 贷款金额
+  'outstanding_amount', // 未还金额
+  'overdue_days',     // 逾期天数
+  'case_status',      // 案件状态
+  'due_date'          // 到期日期
+]
+
+/**
+ * 不在列表中展示但支持搜索的字段
+ */
+export const SEARCH_ONLY_FIELDS = [
+  'mobile'  // 手机号码 - 不在列表中展示，但可以被搜索
+]
+
+/**
  * 字段展示配置Hook选项
  */
 export interface UseFieldDisplayConfigOptions {
@@ -213,6 +233,11 @@ export function useFieldDisplayConfig(options: UseFieldDisplayConfigOptions) {
   ) => {
     return visibleConfigs.value
       .filter(config => {
+        // 过滤掉仅用于搜索的字段(如手机号)
+        if (SEARCH_ONLY_FIELDS.includes(config.field_key)) {
+          return false
+        }
+        
         // 应用隐藏规则
         if (hideContext) {
           return !shouldHideField(config.field_key, hideContext)
@@ -229,7 +254,10 @@ export function useFieldDisplayConfig(options: UseFieldDisplayConfigOptions) {
         showOverflowTooltip: true,
         fieldDataType: config.field_data_type,
         colorType: config.color_type,
-        formatRule: config.format_rule
+        formatRule: config.format_rule,
+        isRequired: sceneType === 'admin_case_list' 
+          ? ADMIN_CASE_LIST_REQUIRED_FIELDS.includes(config.field_key)
+          : false
       }))
   }
 

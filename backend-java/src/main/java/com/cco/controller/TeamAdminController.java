@@ -91,7 +91,6 @@ public class TeamAdminController {
         admin.setLoginId(loginId);
         admin.setPasswordHash(passwordEncoder.encode(password)); // BCrypt加密
         admin.setEmail((String) request.get("email"));
-        admin.setMobile((String) request.get("mobile"));
         admin.setRole((String) (request.get("role") != null ? request.get("role") : "team_leader"));
         admin.setRemark((String) request.get("remark"));
         admin.setIsActive((Boolean) request.getOrDefault("is_active", true));
@@ -173,9 +172,6 @@ public class TeamAdminController {
         }
         if (request.containsKey("email")) {
             admin.setEmail((String) request.get("email"));
-        }
-        if (request.containsKey("mobile")) {
-            admin.setMobile((String) request.get("mobile"));
         }
         if (request.containsKey("role")) {
             admin.setRole((String) request.get("role"));
@@ -263,5 +259,11 @@ public class TeamAdminController {
         log.info("========== 状态更新成功，adminId={}, isActive={} ==========", admin_id, isActive);
         return ResponseData.success(result);
     }
+    
+    /**
+     * 小组管理员不支持删除操作，只能通过启用/禁用来管理
+     * 如需禁用小组管理员，请使用状态更新接口
+     */
+    // 删除接口已移除，小组管理员不支持删除
 }
 

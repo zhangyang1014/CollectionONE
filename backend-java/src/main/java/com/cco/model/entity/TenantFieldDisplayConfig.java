@@ -129,6 +129,12 @@ public class TenantFieldDisplayConfig extends BaseEntity {
     private Boolean isRangeSearchable;
 
     /**
+     * 是否必须展示（不可配置隐藏）
+     * 控台案件列表的必须展示字段：case_code、user_name、loan_amount、outstanding_amount、overdue_days、case_status、due_date
+     */
+    private Boolean isRequired;
+
+    /**
      * 创建人
      */
     private String createdBy;

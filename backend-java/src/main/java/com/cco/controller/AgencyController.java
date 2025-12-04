@@ -3,9 +3,13 @@ package com.cco.controller;
 import com.cco.common.constant.Constants;
 import com.cco.common.response.ResponseData;
 import com.cco.model.entity.AgencyWorkingHours;
+import com.cco.model.entity.TeamAdminAccount;
 import com.cco.service.AgencyWorkingHoursService;
+import com.cco.service.TeamAdminAccountService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalTime;
@@ -24,6 +28,12 @@ public class AgencyController {
     
     @Autowired
     private AgencyWorkingHoursService agencyWorkingHoursService;
+    
+    @Autowired
+    private TeamAdminAccountService teamAdminAccountService;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     /**
      * 获取催收机构列表
@@ -121,18 +131,30 @@ public class AgencyController {
     }
 
     /**
-     * 创建催收机构
+     * 创建催收机构（同时创建机构管理员账号）
+     * 根据PRD要求，创建机构时必须同时创建机构管理员账号，且时区为必填
      */
     @PostMapping
+    @Transactional
     public ResponseData<Map<String, Object>> createAgency(@RequestBody Map<String, Object> request) {
         log.info("========== 创建催收机构，request={} ==========", request);
         
+        // 验证时区必填
+        Object timezoneObj = request.get("timezone");
+        if (timezoneObj == null) {
+            return ResponseData.error(400, "时区不能为空");
+        }
+        
+        // 创建机构
         Map<String, Object> agency = new HashMap<>();
-        agency.put("id", System.currentTimeMillis());
-        agency.put("tenant_id", request.get("tenant_id") != null ? request.get("tenant_id") : request.get("tenantId"));
+        Long agencyId = System.currentTimeMillis();
+        agency.put("id", agencyId);
+        Long tenantId = getLongValue(request.get("tenant_id") != null ? request.get("tenant_id") : request.get("tenantId"));
+        agency.put("tenant_id", tenantId);
         agency.put("agency_code", request.get("agency_code") != null ? request.get("agency_code") : request.get("agencyCode"));
         agency.put("agency_name", request.get("agency_name") != null ? request.get("agency_name") : request.get("agencyName"));
         agency.put("agency_name_en", request.get("agency_name_en") != null ? request.get("agency_name_en") : request.get("agencyNameEn"));
+        agency.put("timezone", timezoneObj);
         agency.put("contact_person", request.get("contact_person") != null ? request.get("contact_person") : request.get("contactPerson"));
         agency.put("contact_phone", request.get("contact_phone") != null ? request.get("contact_phone") : request.get("contactPhone"));
         agency.put("contact_email", request.get("contact_email") != null ? request.get("contact_email") : request.get("contactEmail"));
@@ -143,7 +165,88 @@ public class AgencyController {
         agency.put("created_at", new Date().toString());
         agency.put("updated_at", new Date().toString());
         
+        // 处理管理员信息（admin_info）
+        Map<String, Object> adminInfo = null;
+        if (request.containsKey("admin_info")) {
+            adminInfo = (Map<String, Object>) request.get("admin_info");
+        } else if (request.containsKey("adminInfo")) {
+            adminInfo = (Map<String, Object>) request.get("adminInfo");
+        }
+        
+        TeamAdminAccount admin = null;
+        // 如果提供了管理员信息，同时创建管理员账号
+        if (adminInfo != null && !adminInfo.isEmpty()) {
+            String loginId = (String) (adminInfo.get("username") != null ? adminInfo.get("username") : adminInfo.get("login_id"));
+            if (loginId == null || loginId.isEmpty()) {
+                return ResponseData.error(400, "管理员登录ID不能为空");
+            }
+            
+            // 检查登录ID是否已存在
+            if (teamAdminAccountService.existsByLoginId(loginId, null)) {
+                return ResponseData.error(400, "管理员登录ID已存在：" + loginId);
+            }
+            
+            String password = (String) adminInfo.get("password");
+            if (password == null || password.isEmpty()) {
+                return ResponseData.error(400, "管理员密码不能为空");
+            }
+            
+            // 验证密码确认
+            String confirmPassword = (String) adminInfo.get("confirm_password");
+            if (confirmPassword == null || confirmPassword.isEmpty()) {
+                return ResponseData.error(400, "确认密码不能为空");
+            }
+            if (!password.equals(confirmPassword)) {
+                return ResponseData.error(400, "密码和确认密码不一致");
+            }
+            
+            // 创建管理员实体
+            admin = new TeamAdminAccount();
+            admin.setTenantId(tenantId);
+            admin.setAgencyId(agencyId);
+            admin.setAccountCode("AGENCY_ADMIN_" + agencyId);
+            admin.setAccountName((String) (adminInfo.get("name") != null ? adminInfo.get("name") : adminInfo.get("account_name")));
+            admin.setLoginId(loginId);
+            admin.setPasswordHash(passwordEncoder.encode(password)); // BCrypt加密
+            admin.setRole("agency_admin");
+            admin.setEmail((String) adminInfo.get("email"));
+            admin.setIsActive(true);
+            
+            // 保存管理员
+            teamAdminAccountService.save(admin);
+            log.info("========== 机构管理员创建成功，adminId={} ==========", admin.getId());
+            
+            // 将管理员ID添加到agency
+            agency.put("admin_id", admin.getId());
+        }
+        
+        // 构建响应
+        if (admin != null) {
+            Map<String, Object> adminMap = new HashMap<>();
+            adminMap.put("id", admin.getId());
+            adminMap.put("tenant_id", admin.getTenantId());
+            adminMap.put("agency_id", admin.getAgencyId());
+            adminMap.put("account_code", admin.getAccountCode());
+            adminMap.put("account_name", admin.getAccountName());
+            adminMap.put("login_id", admin.getLoginId());
+            adminMap.put("role", admin.getRole());
+            adminMap.put("email", admin.getEmail());
+            adminMap.put("is_active", admin.getIsActive());
+            agency.put("admin", adminMap);
+        }
+        
         return ResponseData.success(agency);
+    }
+    
+    /**
+     * 辅助方法：将Object转换为Long
+     */
+    private Long getLongValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof Long) return (Long) value;
+        if (value instanceof Integer) return ((Integer) value).longValue();
+        if (value instanceof String) return Long.parseLong((String) value);
+        return null;
     }
 
     /**

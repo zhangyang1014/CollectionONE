@@ -1105,28 +1105,12 @@
     <!-- 历史催记对话框 -->
     <el-dialog 
       v-model="showHistoryNotesDialog" 
-      title="历史催记" 
+      :title="`历史催记 - ${currentCaseId}`"
       width="1200px" 
       top="5vh"
       class="history-notes-dialog"
     >
       <div class="history-notes-content">
-        <!-- 搜索框 -->
-        <div class="history-search">
-          <el-input
-            v-model="historySearchKeyword"
-            placeholder="搜索案件ID"
-            clearable
-            @clear="handleHistorySearch"
-            @keyup.enter="handleHistorySearch"
-            style="width: 300px;"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </div>
-
         <!-- 筛选器 -->
         <div class="history-filters">
           <el-select 
@@ -2202,13 +2186,17 @@ const isMainContact = computed(() => {
 
 // 历史催记相关
 const showHistoryNotesDialog = ref(false)
-const historySearchKeyword = ref('')
 const historyFilters = ref({
   collector: '',
   channel: '',
   status: '',
   result: '',
   dateRange: null as [Date, Date] | null
+})
+
+// 当前案件ID（从props获取）
+const currentCaseId = computed(() => {
+  return props.caseData?.loan_id || ''
 })
 
 // 触达人列表（mock数据）
@@ -2251,24 +2239,9 @@ const historyNotes = ref([
   }
 ])
 
-// 监听案件变化，更新搜索关键词
-watch(() => props.caseData?.loan_id, (newLoanId) => {
-  if (newLoanId) {
-    historySearchKeyword.value = newLoanId
-  }
-}, { immediate: true })
-
 // 筛选后的历史催记列表
 const filteredHistoryNotes = computed(() => {
   let result = historyNotes.value
-
-  // 搜索案件ID
-  if (historySearchKeyword.value) {
-    const keyword = historySearchKeyword.value.toLowerCase()
-    result = result.filter(note => 
-      note.case_id?.toLowerCase().includes(keyword)
-    )
-  }
 
   // 筛选触达人
   if (historyFilters.value.collector) {
@@ -2310,11 +2283,6 @@ const filteredHistoryNotes = computed(() => {
 
   return result
 })
-
-// 处理历史催记搜索
-const handleHistorySearch = () => {
-  // 搜索逻辑已在 computed 中实现
-}
 
 // 处理历史催记筛选
 const handleHistoryFilter = () => {
@@ -5178,11 +5146,6 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.history-search {
-  display: flex;
-  justify-content: flex-start;
 }
 
 .history-filters {

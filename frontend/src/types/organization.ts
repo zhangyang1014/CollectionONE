@@ -88,7 +88,6 @@ export interface TeamGroupCreate {
   spv_login_id: string
   spv_email: string
   spv_password: string
-  spv_mobile?: string
   spv_remark?: string
 }
 

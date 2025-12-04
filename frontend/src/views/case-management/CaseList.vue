@@ -16,9 +16,10 @@
         </div>
       </template>
 
-      <!-- 筛选器 -->
-      <el-form :model="filters" class="filter-form" label-width="100px">
-        <el-row :gutter="20">
+      <!-- 筛选器 - 优化布局为两排 -->
+      <el-form :model="filters" class="filter-form" label-width="120px">
+        <!-- 第一排：案件状态、案件队列、到期日范围、逾期天数范围 -->
+        <el-row :gutter="16">
           <el-col :span="6">
             <el-form-item label="案件状态">
               <el-select 
@@ -55,6 +56,50 @@
           </el-col>
 
           <el-col :span="6">
+            <el-form-item label="到期日范围">
+              <el-date-picker
+                v-model="filters.due_date_range"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+                :shortcuts="dueDateShortcuts"
+                @change="handleQuery"
+              />
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="6">
+            <el-form-item label="逾期天数范围">
+              <div class="range-input-group">
+                <el-input-number
+                  v-model="filters.overdue_days_min"
+                  :min="0"
+                  :controls="false"
+                  placeholder="最小"
+                  class="range-input"
+                  @change="handleQuery"
+                />
+                <span class="range-separator">至</span>
+                <el-input-number
+                  v-model="filters.overdue_days_max"
+                  :min="filters.overdue_days_min || 0"
+                  :controls="false"
+                  placeholder="最大"
+                  class="range-input"
+                  @change="handleQuery"
+                />
+              </div>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 第二排：催收机构、催收小组群、催收小组、催员 -->
+        <el-row :gutter="16">
+          <el-col :span="6">
             <el-form-item label="催收机构">
               <el-select 
                 v-model="filters.agency_id" 
@@ -73,12 +118,31 @@
           </el-col>
 
           <el-col :span="6">
+            <el-form-item label="催收小组群">
+              <el-select 
+                v-model="filters.team_group_id" 
+                placeholder="全部" 
+                clearable
+                :disabled="!filters.agency_id"
+                @change="handleTeamGroupChange"
+              >
+                <el-option
+                  v-for="teamGroup in teamGroups"
+                  :key="teamGroup.id"
+                  :label="teamGroup.group_name"
+                  :value="teamGroup.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="6">
             <el-form-item label="催收小组">
               <el-select 
                 v-model="filters.team_id" 
                 placeholder="全部" 
                 clearable
-                :disabled="!filters.agency_id"
+                :disabled="!filters.team_group_id && !filters.agency_id"
                 @change="handleTeamChange"
               >
                 <el-option
@@ -90,9 +154,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-        </el-row>
 
-        <el-row :gutter="20">
           <el-col :span="6">
             <el-form-item label="催员">
               <el-select 
@@ -111,97 +173,10 @@
               </el-select>
             </el-form-item>
           </el-col>
-
-          <!-- 动态筛选器 - 基于字段展示配置自动生成 -->
-          
-          <!-- 可筛选字段（枚举） -->
-          <el-col 
-            v-for="field in filterableFields.slice(0, 2)" 
-            :key="`filter-${field.field_key}`" 
-            :span="6"
-          >
-            <el-form-item :label="field.field_name">
-              <el-select
-                v-model="dynamicFilterValues[field.field_key]"
-                placeholder="全部"
-                clearable
-                style="width: 100%"
-                @change="handleQuery"
-              >
-                <!-- TODO: 从枚举配置中获取选项 -->
-                <el-option label="选项1" value="option1" />
-                <el-option label="选项2" value="option2" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-
-          <!-- 可范围检索字段（数字/日期） -->
-          <el-col 
-            v-for="field in rangeSearchableFields.slice(0, 1)" 
-            :key="`range-${field.field_key}`" 
-            :span="6"
-          >
-            <el-form-item :label="field.field_name">
-              <!-- 日期类型 -->
-              <el-date-picker
-                v-if="field.field_data_type === 'Date'"
-                v-model="dynamicFilterValues[field.field_key]"
-                type="daterange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-                @change="handleQuery"
-              />
-              <!-- 数字类型 -->
-              <el-input
-                v-else
-                v-model="dynamicFilterValues[field.field_key]"
-                placeholder="范围，如：1000-5000"
-                style="width: 100%"
-                @blur="handleQuery"
-                @clear="handleQuery"
-                clearable
-              />
-            </el-form-item>
-          </el-col>
-
-          <el-col :span="9">
-            <el-form-item label="到期日">
-              <el-date-picker
-                v-model="filters.due_date_range"
-                type="daterange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-                @change="handleQuery"
-              />
-            </el-form-item>
-          </el-col>
-
-          <el-col :span="9">
-            <el-form-item label="结清日期">
-              <el-date-picker
-                v-model="filters.settlement_date_range"
-                type="daterange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-                @change="handleQuery"
-              />
-            </el-form-item>
-          </el-col>
         </el-row>
 
-        <el-row :gutter="20">
+        <!-- 操作按钮 -->
+        <el-row :gutter="16">
           <el-col :span="24" style="text-align: right;">
             <el-button type="primary" @click="handleQuery">查询</el-button>
             <el-button @click="resetFilters">重置</el-button>
@@ -318,28 +293,12 @@
       <!-- 历史催记对话框 -->
       <el-dialog 
         v-model="showHistoryNotesDialog" 
-        title="历史催记" 
+        :title="`历史催记 - ${currentViewingCaseId}`"
         width="1200px" 
         top="5vh"
         class="history-notes-dialog"
       >
         <div class="history-notes-content">
-          <!-- 搜索框 -->
-          <div class="history-search">
-            <el-input
-              v-model="historySearchKeyword"
-              placeholder="搜索案件ID"
-              clearable
-              @clear="handleHistorySearch"
-              @keyup.enter="handleHistorySearch"
-              style="width: 300px;"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-          </div>
-
           <!-- 筛选器 -->
           <div class="history-filters">
             <el-select 
@@ -528,7 +487,7 @@ import { Search, Operation, Lock } from '@element-plus/icons-vue'
 import { getCases, batchStayCases } from '@/api/case'
 import { getFieldGroups } from '@/api/field'
 import { getTenantQueues } from '@/api/queue'
-import { getTenantAgencies, getAgencyTeams, getTeamCollectors } from '@/api/organization'
+import { getTenantAgencies, getAgencyTeamGroups, getAgencyTeams, getTeamGroupTeams, getTeamCollectors } from '@/api/organization'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 import { useFieldDisplayConfig } from '@/composables/useFieldDisplayConfig'
@@ -545,11 +504,7 @@ const currentTenantId = computed(() => tenantStore.currentTenantId)
 // 使用字段展示配置Hook - 控台案件列表场景
 const {
   loading: configLoading,
-  visibleConfigs,
-  filterableFields,
-  rangeSearchableFields,
-  getTableColumns,
-  formatFieldValue
+  getTableColumns
 } = useFieldDisplayConfig({
   tenantId: currentTenantId,
   sceneType: 'admin_case_list',
@@ -567,6 +522,7 @@ const canManageFilters = computed(() => {
 const cases = ref<any[]>([])
 const queues = ref<any[]>([])
 const agencies = ref<any[]>([])
+const teamGroups = ref<any[]>([])
 const teams = ref<any[]>([])
 const collectors = ref<any[]>([])
 const searchKeyword = ref('')
@@ -579,19 +535,54 @@ const filters = ref<{
   case_status?: string
   queue_id?: number
   agency_id?: number
+  team_group_id?: number
   team_id?: number
   collector_id?: number
   due_date_range: string[] | null
   settlement_date_range: string[] | null
+  overdue_days_min?: number
+  overdue_days_max?: number
 }>({
   case_status: undefined,
   queue_id: undefined,
   agency_id: undefined,
+  team_group_id: undefined,
   team_id: undefined,
   collector_id: undefined,
   due_date_range: null,
   settlement_date_range: null,
+  overdue_days_min: undefined,
+  overdue_days_max: undefined,
 })
+
+// 到期日快捷选择选项
+const dueDateShortcuts = [
+  {
+    text: '今天',
+    value: () => {
+      const today = new Date()
+      return [today, today]
+    }
+  },
+  {
+    text: '最近7天',
+    value: () => {
+      const end = new Date()
+      const start = new Date()
+      start.setDate(start.getDate() - 6)
+      return [start, end]
+    }
+  },
+  {
+    text: '最近30天',
+    value: () => {
+      const end = new Date()
+      const start = new Date()
+      start.setDate(start.getDate() - 29)
+      return [start, end]
+    }
+  }
+]
 
 // 动态筛选器的值(基于字段展示配置自动生成)
 const dynamicFilterValues = ref<Record<string, any>>({})
@@ -689,18 +680,42 @@ const loadAgencies = async () => {
   }
 }
 
+// 加载催收小组群
+const loadTeamGroups = async () => {
+  if (!filters.value.agency_id) {
+    teamGroups.value = []
+    return
+  }
+  
+  try {
+    const response = await getAgencyTeamGroups(filters.value.agency_id)
+    teamGroups.value = Array.isArray(response) ? response : (response.data || [])
+  } catch (error) {
+    console.error('加载小组群失败:', error)
+  }
+}
+
 // 加载催收小组
 const loadTeams = async () => {
-  if (!filters.value.agency_id) {
+  // 优先使用小组群ID，其次使用机构ID
+  if (!filters.value.team_group_id && !filters.value.agency_id) {
     teams.value = []
     return
   }
   
   try {
-    const response = await getAgencyTeams(filters.value.agency_id)
-    teams.value = Array.isArray(response) ? response : (response.data || [])
+    let response
+    if (filters.value.team_group_id) {
+      // 如果选择了小组群，加载小组群下的小组
+      response = await getTeamGroupTeams(filters.value.team_group_id)
+    } else if (filters.value.agency_id) {
+      // 如果只选择了机构，加载机构下的所有小组
+      response = await getAgencyTeams(filters.value.agency_id)
+    }
+    teams.value = response ? (Array.isArray(response) ? response : (response.data || [])) : []
   } catch (error) {
     console.error('加载小组失败:', error)
+    teams.value = []
   }
 }
 
@@ -732,14 +747,20 @@ const loadCases = async () => {
     tenant_id: currentTenantId.value,
   }
   
+  // 第一排筛选条件
   if (filters.value.case_status) {
     params.case_status = filters.value.case_status
   }
   if (filters.value.queue_id) {
     params.queue_id = filters.value.queue_id
   }
+  
+  // 第二排筛选条件（组织架构）
   if (filters.value.agency_id) {
     params.agency_id = filters.value.agency_id
+  }
+  if (filters.value.team_group_id) {
+    params.team_group_id = filters.value.team_group_id
   }
   if (filters.value.team_id) {
     params.team_id = filters.value.team_id
@@ -747,10 +768,20 @@ const loadCases = async () => {
   if (filters.value.collector_id) {
     params.collector_id = filters.value.collector_id
   }
+  
+  // 第三排筛选条件（范围筛选）
   if (filters.value.due_date_range && Array.isArray(filters.value.due_date_range) && filters.value.due_date_range.length === 2) {
     params.due_date_start = filters.value.due_date_range[0]
     params.due_date_end = filters.value.due_date_range[1]
   }
+  if (filters.value.overdue_days_min !== undefined && filters.value.overdue_days_min !== null) {
+    params.overdue_days_min = filters.value.overdue_days_min
+  }
+  if (filters.value.overdue_days_max !== undefined && filters.value.overdue_days_max !== null) {
+    params.overdue_days_max = filters.value.overdue_days_max
+  }
+  
+  // 其他筛选条件
   if (filters.value.settlement_date_range && Array.isArray(filters.value.settlement_date_range) && filters.value.settlement_date_range.length === 2) {
     params.settlement_date_start = filters.value.settlement_date_range[0]
     params.settlement_date_end = filters.value.settlement_date_range[1]
@@ -765,15 +796,16 @@ const loadCases = async () => {
   // 处理不同的响应格式
   // Java后端格式: { items: [...], total: 100 } (request.ts已经提取了data)
   // Python后端格式: 直接返回数组
-  if (Array.isArray(res)) {
+  const resData: any = res
+  if (Array.isArray(resData)) {
     // 直接返回数组（Python后端格式）
-    cases.value = res
-  } else if (res && Array.isArray(res.items)) {
+    cases.value = resData
+  } else if (resData && Array.isArray(resData.items)) {
     // Java后端格式：{ items: [...], total: 100 }
-    cases.value = res.items
-  } else if (res && Array.isArray(res.data)) {
+    cases.value = resData.items
+  } else if (resData && Array.isArray(resData.data)) {
     // 兼容其他可能的格式
-    cases.value = res.data
+    cases.value = resData.data
   } else {
     cases.value = []
   }
@@ -782,18 +814,36 @@ const loadCases = async () => {
 
 // 处理机构变更
 const handleAgencyChange = () => {
+  // 清空下级筛选条件
+  filters.value.team_group_id = undefined
+  filters.value.team_id = undefined
+  filters.value.collector_id = undefined
+  teamGroups.value = []
+  teams.value = []
+  collectors.value = []
+  // 加载小组群
+  loadTeamGroups()
+  handleQuery() // 自动触发查询
+}
+
+// 处理小组群变更
+const handleTeamGroupChange = () => {
+  // 清空下级筛选条件
   filters.value.team_id = undefined
   filters.value.collector_id = undefined
   teams.value = []
   collectors.value = []
+  // 加载小组
   loadTeams()
   handleQuery() // 自动触发查询
 }
 
 // 处理小组变更
 const handleTeamChange = () => {
+  // 清空下级筛选条件
   filters.value.collector_id = undefined
   collectors.value = []
+  // 加载催员
   loadCollectors()
   handleQuery() // 自动触发查询
 }
@@ -814,13 +864,17 @@ const resetFilters = () => {
     case_status: undefined,
     queue_id: undefined,
     agency_id: undefined,
+    team_group_id: undefined,
     team_id: undefined,
     collector_id: undefined,
     due_date_range: null,
     settlement_date_range: null,
+    overdue_days_min: undefined,
+    overdue_days_max: undefined,
   }
   searchKeyword.value = ''
   pagination.value.page = 1
+  teamGroups.value = []
   teams.value = []
   collectors.value = []
   loadCases()
@@ -1037,18 +1091,6 @@ const getCaseStatusType = (status: string) => {
   return map[status] || 'info'
 }
 
-// 格式化金额
-const formatAmount = (amount: any) => {
-  const num = parseFloat(amount) || 0
-  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-// 格式化日期时间
-const formatDateTime = (datetime: string) => {
-  if (!datetime) return '-'
-  return datetime.replace('T', ' ').substring(0, 19)
-}
-
 const handleView = (row: any) => {
   router.push(`/cases/${String(row.id)}`)
 }
@@ -1056,7 +1098,7 @@ const handleView = (row: any) => {
 // 历史催记相关
 const showHistoryNotesDialog = ref(false)
 const currentCase = ref<any>(null)
-const historySearchKeyword = ref('')
+const currentViewingCaseId = ref<string>('')  // 当前查看的案件ID
 const historyFilters = ref({
   collector: '',
   channel: '',
@@ -1124,7 +1166,7 @@ const generateMockNotes = (caseData: any) => {
 // 查看催记
 const handleViewNotes = (row: any) => {
   currentCase.value = row
-  historySearchKeyword.value = row.loan_id || ''
+  currentViewingCaseId.value = row.case_code || row.loan_id || ''  // 保存案件ID用于显示在标题
   historyNotes.value = generateMockNotes(row)
   showHistoryNotesDialog.value = true
 }
@@ -1132,14 +1174,6 @@ const handleViewNotes = (row: any) => {
 // 筛选后的历史催记列表
 const filteredHistoryNotes = computed(() => {
   let result = historyNotes.value
-
-  // 搜索案件ID
-  if (historySearchKeyword.value) {
-    const keyword = historySearchKeyword.value.toLowerCase()
-    result = result.filter((note: any) => 
-      note.case_id?.toLowerCase().includes(keyword)
-    )
-  }
 
   // 筛选触达人
   if (historyFilters.value.collector) {
@@ -1181,11 +1215,6 @@ const filteredHistoryNotes = computed(() => {
 
   return result
 })
-
-// 处理历史催记搜索
-const handleHistorySearch = () => {
-  // 搜索逻辑已在 computed 中实现
-}
 
 // 处理历史催记筛选
 const handleHistoryFilter = () => {
@@ -1389,12 +1418,16 @@ watch(currentTenantId, async (newTenantId) => {
       case_status: undefined,
       queue_id: undefined,
       agency_id: undefined,
+      team_group_id: undefined,
       team_id: undefined,
       collector_id: undefined,
       due_date_range: null,
       settlement_date_range: null,
+      overdue_days_min: undefined,
+      overdue_days_max: undefined,
     }
     dynamicFilterValues.value = {}
+    teamGroups.value = []
     teams.value = []
     collectors.value = []
     
@@ -1409,6 +1442,7 @@ watch(currentTenantId, async (newTenantId) => {
     cases.value = []
     queues.value = []
     agencies.value = []
+    teamGroups.value = []
     teams.value = []
     collectors.value = []
     dynamicFilters.value = []
@@ -1521,12 +1555,6 @@ onMounted(async () => {
   gap: 16px;
 }
 
-.history-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .history-filters {
   display: flex;
   align-items: center;
@@ -1582,6 +1610,25 @@ onMounted(async () => {
 :deep(.case-row-disabled .el-checkbox__input) {
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* 范围输入框组样式 */
+.range-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.range-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.range-separator {
+  color: #606266;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 </style>
 

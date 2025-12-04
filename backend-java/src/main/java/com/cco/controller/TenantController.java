@@ -110,6 +110,7 @@ public class TenantController {
             }
         }
         tenant.setCurrencyCode((String) (request.get("currency_code") != null ? request.get("currency_code") : request.get("currencyCode")));
+        tenant.setDefaultLanguage((String) (request.get("default_language") != null ? request.get("default_language") : request.get("defaultLanguage")));
         tenant.setIsActive((Boolean) request.getOrDefault("is_active", request.getOrDefault("isActive", true)));
         
         // 保存甲方
@@ -143,6 +144,15 @@ public class TenantController {
                 return ResponseData.error(400, "管理员密码不能为空");
             }
             
+            // 验证密码确认
+            String confirmPassword = (String) adminInfo.get("confirm_password");
+            if (confirmPassword == null || confirmPassword.isEmpty()) {
+                return ResponseData.error(400, "确认密码不能为空");
+            }
+            if (!password.equals(confirmPassword)) {
+                return ResponseData.error(400, "密码和确认密码不一致");
+            }
+            
             // 创建管理员实体
             admin = new TenantAdmin();
             admin.setTenantId(tenantId);
@@ -151,7 +161,6 @@ public class TenantController {
             admin.setLoginId(loginId);
             admin.setPasswordHash(passwordEncoder.encode(password)); // BCrypt加密
             admin.setEmail((String) adminInfo.get("email"));
-            admin.setMobile((String) adminInfo.get("mobile"));
             admin.setIsActive(true);
             
             // 保存管理员
@@ -221,6 +230,9 @@ public class TenantController {
         if (request.containsKey("currency_code") || request.containsKey("currencyCode")) {
             tenant.setCurrencyCode((String) (request.get("currency_code") != null ? request.get("currency_code") : request.get("currencyCode")));
         }
+        if (request.containsKey("default_language") || request.containsKey("defaultLanguage")) {
+            tenant.setDefaultLanguage((String) (request.get("default_language") != null ? request.get("default_language") : request.get("defaultLanguage")));
+        }
         if (request.containsKey("is_active") || request.containsKey("isActive")) {
             tenant.setIsActive((Boolean) request.getOrDefault("is_active", request.get("isActive")));
         }
@@ -232,24 +244,10 @@ public class TenantController {
     }
 
     /**
-     * 删除甲方（软删除：设置为禁用状态）
+     * 甲方不支持删除操作，只能通过启用/禁用来管理
+     * 如需禁用甲方，请使用更新接口
      */
-    @DeleteMapping("/{id}")
-    public ResponseData<String> deleteTenant(@PathVariable Long id) {
-        log.info("========== 删除甲方，id={} ==========", id);
-        
-        Tenant tenant = tenantService.getById(id);
-        if (tenant == null) {
-            return ResponseData.error(404, "甲方不存在");
-        }
-        
-        // 软删除：设置为禁用状态
-        tenant.setIsActive(false);
-        tenantService.updateById(tenant);
-        
-        log.info("========== 甲方删除成功（已禁用），id={} ==========", id);
-        return ResponseData.success("删除成功");
-    }
+    // 删除接口已移除，甲方不支持删除
 
     /**
      * 获取甲方字段配置列表

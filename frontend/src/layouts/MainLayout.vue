@@ -88,6 +88,7 @@
           </template>
           <el-menu-item index="/system/permissions">权限配置</el-menu-item>
           <el-menu-item index="/system/notification-config">通知配置</el-menu-item>
+          <el-menu-item v-if="isSuperAdmin" index="/system/i18n">国际化配置</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>

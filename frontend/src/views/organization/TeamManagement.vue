@@ -99,10 +99,18 @@
         <el-form-item label="小组编码" prop="team_code">
           <el-input 
             v-model="form.team_code" 
-            placeholder="如：TEAM001" 
+            placeholder="请输入自定义部分（如：TM001）" 
             maxlength="50"
             :disabled="isEdit"
-          />
+          >
+            <template #prepend v-if="!isEdit && tenantPrefix">{{ tenantPrefix }}-</template>
+          </el-input>
+          <div v-if="!isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            完整编码：{{ tenantPrefix || '甲方编码' }}-{{ form.team_code || '自定义部分' }}
+          </div>
+          <div v-if="isEdit" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            小组编码不可修改
+          </div>
         </el-form-item>
 
         <el-form-item label="小组名称" prop="team_name">
@@ -177,6 +185,8 @@ const agencies = ref<any[]>([])
 const teamGroups = ref<any[]>([]) // 小组群列表
 const queues = ref<any[]>([]) // 催收队列列表
 const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
+const currentTenant = computed(() => tenantStore.currentTenant)
+const tenantPrefix = computed(() => currentTenant.value?.tenant_code || '')
 const currentAgencyId = ref<number | undefined>(undefined) // 默认全选
 const currentTeamId = ref<number | undefined>(undefined) // 默认全选
 const allTeams = ref<any[]>([]) // 存储所有小组（用于筛选）
@@ -494,7 +504,7 @@ const handleSave = async () => {
       agency_id: form.value.agency_id,
       team_group_id: form.value.team_group_id || null,
       queue_id: form.value.queue_id,
-      team_code: form.value.team_code,
+      team_code: !isEdit.value && tenantPrefix.value ? tenantPrefix.value + '-' + form.value.team_code : form.value.team_code,
       team_name: form.value.team_name,
       team_leader_id: form.value.leader_id || null,
       description: form.value.remark || null,
