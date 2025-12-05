@@ -52,19 +52,19 @@
             <el-table-column prop="field_name" label="字段名称" />
             <el-table-column prop="field_key" label="字段标识" />
             <el-table-column prop="field_type" label="字段类型" width="100" />
-            <el-table-column prop="enum_values" label="枚举值" width="200">
+            <el-table-column prop="enum_options" label="枚举值" width="200">
               <template #default="{ row }">
-                <span v-if="row.field_type === 'Enum' && row.enum_values && row.enum_values.length > 0">
+                <span v-if="row.field_type === 'Enum' && row.enum_options && row.enum_options.length > 0">
                   <el-tag 
-                    v-for="(item, index) in row.enum_values.slice(0, 2)" 
+                    v-for="(item, index) in row.enum_options.slice(0, 2)" 
                     :key="index"
                     size="small"
                     style="margin-right: 4px"
                   >
                     {{ item.standard_name }}
                   </el-tag>
-                  <el-tag v-if="row.enum_values.length > 2" size="small" type="info">
-                    +{{ row.enum_values.length - 2 }}
+                  <el-tag v-if="row.enum_options.length > 2" size="small" type="info">
+                    +{{ row.enum_options.length - 2 }}
                   </el-tag>
                 </span>
                 <span v-else style="color: #909399;">-</span>
@@ -117,7 +117,7 @@
                 添加枚举项
               </el-button>
             </div>
-            <el-table :data="form.enum_values" border style="width: 100%; margin-top: 10px">
+            <el-table :data="form.enum_options" border style="width: 100%; margin-top: 10px">
               <el-table-column label="标准名称" width="140">
                 <template #default="{ row }">
                   <el-input v-model="row.standard_name" size="small" placeholder="如：待还款" />
@@ -218,7 +218,7 @@ const form = ref({
   is_required: false,
   is_extended: false,
   sort_order: 0,
-  enum_values: [] as Array<{
+  enum_options: [] as Array<{
     standard_name: string
     standard_id: string
     tenant_name: string
@@ -367,7 +367,7 @@ const handleAdd = () => {
     is_required: false,
     is_extended: false,
     sort_order: 0,
-    enum_values: []
+    enum_options: []
   }
   // 重置表单验证状态
   nextTick(() => {
@@ -381,7 +381,7 @@ const handleEdit = (row: StandardField) => {
   form.value = { 
     ...row,
     field_group_path: row.field_group_id, // 编辑时将 field_group_id 赋值给 field_group_path
-    enum_values: row.enum_values || [] // 确保枚举值正确加载
+    enum_options: row.enum_options || [] // 确保枚举值正确加载
   }
   // 重置表单验证状态
   nextTick(() => {
@@ -392,9 +392,9 @@ const handleEdit = (row: StandardField) => {
 
 // 字段类型变更处理
 const handleFieldTypeChange = (value: string) => {
-  if (value === 'Enum' && form.value.enum_values.length === 0) {
+  if (value === 'Enum' && form.value.enum_options.length === 0) {
     // 如果切换到枚举类型且没有枚举值，添加一个默认项
-    form.value.enum_values = [{
+    form.value.enum_options = [{
       standard_name: '',
       standard_id: '',
       tenant_name: '',
@@ -405,7 +405,7 @@ const handleFieldTypeChange = (value: string) => {
 
 // 添加枚举项
 const handleAddEnumValue = () => {
-  form.value.enum_values.push({
+  form.value.enum_options.push({
     standard_name: '',
     standard_id: '',
     tenant_name: '',
@@ -415,7 +415,7 @@ const handleAddEnumValue = () => {
 
 // 删除枚举项
 const handleRemoveEnumValue = (index: number) => {
-  form.value.enum_values.splice(index, 1)
+  form.value.enum_options.splice(index, 1)
 }
 
 const handleDelete = async (row: StandardField) => {
@@ -444,14 +444,14 @@ const handleSubmit = async () => {
   
   // 如果是枚举类型，验证枚举值是否填写完整
   if (form.value.field_type === 'Enum') {
-    if (!form.value.enum_values || form.value.enum_values.length === 0) {
+    if (!form.value.enum_options || form.value.enum_options.length === 0) {
       ElMessage.warning('枚举类型字段至少需要添加一个枚举值')
       return
     }
     
     // 验证每个枚举项是否填写完整
-    for (let i = 0; i < form.value.enum_values.length; i++) {
-      const enumItem = form.value.enum_values[i]
+    for (let i = 0; i < form.value.enum_options.length; i++) {
+      const enumItem = form.value.enum_options[i]
       if (!enumItem.standard_name || !enumItem.standard_id) {
         ElMessage.warning(`第 ${i + 1} 个枚举项的标准名称和标准ID不能为空`)
         return

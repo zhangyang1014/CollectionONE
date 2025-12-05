@@ -6,6 +6,7 @@ import com.cco.mapper.CollectorMapper;
 import com.cco.mapper.CaseAssignmentMapper;
 import com.cco.mapper.TenantFieldsJsonMapper;
 import com.cco.mapper.FieldGroupMapper;
+import com.cco.mapper.StandardFieldMapper;
 import com.cco.mapper.TenantMapper;
 import com.cco.mapper.TenantAdminMapper;
 import com.cco.mapper.TeamAdminAccountMapper;
@@ -156,6 +157,17 @@ public class MapperConfig {
     public MapperFactoryBean<CollectorLoginWhitelistMapper> collectorLoginWhitelistMapper() {
         MapperFactoryBean<CollectorLoginWhitelistMapper> factoryBean = new MapperFactoryBean<>();
         factoryBean.setMapperInterface(CollectorLoginWhitelistMapper.class);
+        factoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return factoryBean;
+    }
+    
+    /**
+     * 手动注册StandardFieldMapper
+     */
+    @Bean
+    public MapperFactoryBean<StandardFieldMapper> standardFieldMapper() {
+        MapperFactoryBean<StandardFieldMapper> factoryBean = new MapperFactoryBean<>();
+        factoryBean.setMapperInterface(StandardFieldMapper.class);
         factoryBean.setSqlSessionFactory(sqlSessionFactory);
         return factoryBean;
     }

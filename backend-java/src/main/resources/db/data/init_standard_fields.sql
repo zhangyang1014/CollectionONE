@@ -23,7 +23,11 @@ INSERT INTO `field_groups` (`id`, `group_key`, `group_name`, `group_name_en`, `p
 (2, 'loan_details', '贷款详情', 'Loan Details', NULL, 2, 1, NOW(), NOW()),
 (3, 'borrowing_records', '借款记录', 'Borrowing Records', NULL, 3, 1, NOW(), NOW()),
 (4, 'repayment_records', '还款记录', 'Repayment Records', NULL, 4, 1, NOW(), NOW()),
-(5, 'installment_details', '分期详情', 'Installment Details', NULL, 5, 1, NOW(), NOW());
+(5, 'installment_details', '分期详情', 'Installment Details', NULL, 5, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE 
+`group_name` = VALUES(`group_name`),
+`group_name_en` = VALUES(`group_name_en`),
+`updated_at` = NOW();
 
 -- 二级分组（客户基础信息的子分组）
 INSERT INTO `field_groups` (`id`, `group_key`, `group_name`, `group_name_en`, `parent_id`, `sort_order`, `is_active`, `created_at`, `updated_at`) VALUES
@@ -31,7 +35,11 @@ INSERT INTO `field_groups` (`id`, `group_key`, `group_name`, `group_name_en`, `p
 (12, 'education', '教育信息', 'Education', 1, 2, 1, NOW(), NOW()),
 (13, 'employment', '职业信息', 'Employment', 1, 3, 1, NOW(), NOW()),
 (14, 'user_behavior', '用户行为与信用', 'User Behavior & Credit', 1, 4, 1, NOW(), NOW()),
-(15, 'contact_info', '联系方式', 'Contact Information', 1, 5, 1, NOW(), NOW());
+(15, 'contact_info', '联系方式', 'Contact Information', 1, 5, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE 
+`group_name` = VALUES(`group_name`),
+`group_name_en` = VALUES(`group_name_en`),
+`updated_at` = NOW();
 
 
 -- ============================================
@@ -219,16 +227,16 @@ INSERT INTO `standard_fields` (`id`, `field_key`, `field_name`, `field_name_en`,
 (60, 'last_payment_date', '最近还款日期', 'last_payment_date', 'Datetime', 2, 0, 1, '上一次部分或全部还款时间', '2025/2/28 14:33:22', NULL, 23, 1, 0, NOW(), NOW());
 
 INSERT INTO `standard_fields` (`id`, `field_key`, `field_name`, `field_name_en`, `field_type`, `field_group_id`, `is_required`, `is_extended`, `description`, `example_value`, `enum_options`, `sort_order`, `is_active`, `is_deleted`, `created_at`, `updated_at`) VALUES
-(61, 'loan_id', '贷款编号', 'loan_id', 'String', 3, 1, 0, '系统内唯一的贷款订单编号', '100023', NULL, 1, 1, 0, NOW(), NOW());
+(61, 'borrowing_loan_id', '贷款编号', 'borrowing_loan_id', 'String', 3, 1, 0, '系统内唯一的贷款订单编号', '100023', NULL, 1, 1, 0, NOW(), NOW());
 
 INSERT INTO `standard_fields` (`id`, `field_key`, `field_name`, `field_name_en`, `field_type`, `field_group_id`, `is_required`, `is_extended`, `description`, `example_value`, `enum_options`, `sort_order`, `is_active`, `is_deleted`, `created_at`, `updated_at`) VALUES
-(62, 'user_id', '用户编号', 'user_id', 'String', 3, 1, 0, '用户唯一标识', '5983', NULL, 2, 1, 0, NOW(), NOW());
+(62, 'borrowing_user_id', '用户编号', 'borrowing_user_id', 'String', 3, 1, 0, '用户唯一标识', '5983', NULL, 2, 1, 0, NOW(), NOW());
 
 INSERT INTO `standard_fields` (`id`, `field_key`, `field_name`, `field_name_en`, `field_type`, `field_group_id`, `is_required`, `is_extended`, `description`, `example_value`, `enum_options`, `sort_order`, `is_active`, `is_deleted`, `created_at`, `updated_at`) VALUES
-(63, 'user_name', '用户姓名', 'user_name', 'String', 3, 0, 0, '借款人姓名', 'Juan Dela Cruz', NULL, 3, 1, 0, NOW(), NOW());
+(63, 'borrowing_user_name', '用户姓名', 'borrowing_user_name', 'String', 3, 0, 0, '借款人姓名', 'Juan Dela Cruz', NULL, 3, 1, 0, NOW(), NOW());
 
 INSERT INTO `standard_fields` (`id`, `field_key`, `field_name`, `field_name_en`, `field_type`, `field_group_id`, `is_required`, `is_extended`, `description`, `example_value`, `enum_options`, `sort_order`, `is_active`, `is_deleted`, `created_at`, `updated_at`) VALUES
-(64, 'mobile_number', '手机号码', 'mobile_number', 'String', 3, 0, 0, '用户注册手机号', '+63 9123456789', NULL, 4, 1, 0, NOW(), NOW());
+(64, 'borrowing_mobile_number', '手机号码', 'borrowing_mobile_number', 'String', 3, 0, 0, '用户注册手机号', '+63 9123456789', NULL, 4, 1, 0, NOW(), NOW());
 
 INSERT INTO `standard_fields` (`id`, `field_key`, `field_name`, `field_name_en`, `field_type`, `field_group_id`, `is_required`, `is_extended`, `description`, `example_value`, `enum_options`, `sort_order`, `is_active`, `is_deleted`, `created_at`, `updated_at`) VALUES
 (65, 'app_name', 'App名称', 'app_name', 'String', 3, 0, 0, '借款App来源', 'MegaPeso', NULL, 5, 1, 0, NOW(), NOW());

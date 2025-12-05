@@ -24,7 +24,12 @@ export interface StandardField {
   description?: string
   example_value?: string
   validation_rules?: any
-  enum_options?: string[]
+  enum_options?: Array<{
+    standard_name: string
+    standard_id: string
+    tenant_name: string
+    tenant_id: string
+  }>
   sort_order: number
   is_active: boolean
   is_deleted: boolean
