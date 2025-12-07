@@ -49,7 +49,12 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
         log.error("❌ 参数校验失败: {}", errors);
-        return ResponseData.error(400, "参数校验失败: " + errors.toString());
+        
+        // 构建友好的错误信息
+        String errorMsg = errors.values().stream()
+                .findFirst()
+                .orElse("参数校验失败");
+        return ResponseData.error(400, errorMsg);
     }
     
     /**

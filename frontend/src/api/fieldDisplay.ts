@@ -1,49 +1,52 @@
 /**
- * 甲方字段展示配置API
+ * 字段展示配置API
  */
 import request from '@/utils/request'
-import type { FieldDisplayConfig } from '@/types/fieldDisplay'
+import type {
+  FieldDisplayConfig,
+  FieldDisplayConfigCreate,
+  FieldDisplayConfigUpdate,
+  FieldDisplayConfigQuery,
+  SceneType,
+  AvailableFieldOption
+} from '@/types/fieldDisplay'
+
+/**
+ * 获取所有场景类型
+ */
+export function getSceneTypes() {
+  return request<SceneType[]>({
+    url: '/api/v1/field-display-configs/scene-types',
+    method: 'get'
+  })
+}
 
 /**
  * 获取字段展示配置列表
  */
-export async function getFieldDisplayConfigs(params: {
-  tenant_id?: number | string
-  scene_type?: string
-  field_key?: string
-}): Promise<FieldDisplayConfig[]> {
-  const response = await request({
+export function getFieldDisplayConfigs(params?: FieldDisplayConfigQuery) {
+  return request<FieldDisplayConfig[]>({
     url: '/api/v1/field-display-configs',
     method: 'get',
     params
   })
-  // 兼容Java后端格式（ResponseData）和直接数组格式
-  return Array.isArray(response) ? response : (response.data || [])
 }
 
 /**
- * 获取指定甲方和场景的字段展示配置
+ * 获取单个字段展示配置
  */
-export async function getSceneFieldDisplayConfigs(
-  tenantId: number | string,
-  sceneType: 'admin_case_list' | 'collector_case_list' | 'collector_case_detail'
-): Promise<FieldDisplayConfig[]> {
-  const response = await request({
-    url: '/api/v1/field-display-configs',
-    method: 'get',
-    params: {
-      tenant_id: tenantId,
-      scene_type: sceneType
-    }
+export function getFieldDisplayConfig(id: number) {
+  return request<FieldDisplayConfig>({
+    url: `/api/v1/field-display-configs/${id}`,
+    method: 'get'
   })
-  return Array.isArray(response) ? response : (response.data || [])
 }
 
 /**
  * 创建字段展示配置
  */
-export function createFieldDisplayConfig(data: any) {
-  return request({
+export function createFieldDisplayConfig(data: FieldDisplayConfigCreate) {
+  return request<FieldDisplayConfig>({
     url: '/api/v1/field-display-configs',
     method: 'post',
     data
@@ -53,22 +56,9 @@ export function createFieldDisplayConfig(data: any) {
 /**
  * 更新字段展示配置
  */
-export function updateFieldDisplayConfig(id: number, data: any) {
-  return request({
+export function updateFieldDisplayConfig(id: number, data: FieldDisplayConfigUpdate) {
+  return request<FieldDisplayConfig>({
     url: `/api/v1/field-display-configs/${id}`,
-    method: 'put',
-    data
-  })
-}
-
-/**
- * 批量更新字段展示配置
- */
-export function batchUpdateFieldDisplayConfigs(data: {
-  configs: Array<{ id: number; [key: string]: any }>
-}) {
-  return request({
-    url: '/api/v1/field-display-configs/batch',
     method: 'put',
     data
   })
@@ -85,60 +75,49 @@ export function deleteFieldDisplayConfig(id: number) {
 }
 
 /**
- * 获取所有场景类型
- */
-export function getSceneTypes() {
-  return request({
-    url: '/api/v1/field-display-configs/scene-types',
-    method: 'get'
-  })
-}
-
-/**
- * 获取可用字段选项
- */
-export function getAvailableFields(tenantId?: number) {
-  return request({
-    url: '/api/v1/field-display-configs/available-fields',
-    method: 'get',
-    params: tenantId ? { tenant_id: tenantId } : undefined
-  })
-}
-
-/**
  * 批量创建或更新字段展示配置
  */
 export function batchCreateOrUpdateConfigs(
-  tenantId: number | string,
+  tenantId: string,
   sceneType: string,
-  configs: any[]
+  configs: FieldDisplayConfigCreate[]
 ) {
-  return request({
+  return request<FieldDisplayConfig[]>({
     url: '/api/v1/field-display-configs/batch',
     method: 'post',
-    data: {
+    params: {
       tenant_id: tenantId,
-      scene_type: sceneType,
-      configs: configs
-    }
+      scene_type: sceneType
+    },
+    data: configs
   })
 }
 
 /**
  * 复制场景配置
  */
-export function copySceneConfig(
-  fromScene: string,
-  toScene: string,
-  tenantId: number | string
-) {
+export function copySceneConfig(fromScene: string, toScene: string, tenantId: string) {
   return request({
-    url: '/api/v1/field-display-configs/copy-scene',
+    url: '/api/v1/field-display-configs/copy',
     method: 'post',
-    data: {
+    params: {
       from_scene: fromScene,
       to_scene: toScene,
       tenant_id: tenantId
     }
   })
 }
+/**
+ * 获取可用字段选项（用于添加字段配置）
+ */
+export function getAvailableFields(tenantId?: string) {
+  return request<AvailableFieldOption[]>({
+    url: '/api/v1/field-display-configs/available-fields',
+    method: 'get',
+    params: {
+      tenant_id: tenantId
+    }
+  })
+}
+
+

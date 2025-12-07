@@ -108,10 +108,23 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '字段分组管理', requiresAuth: true },
       },
       {
+        path: 'field-config/list',
+        name: 'FieldListConfig',
+        component: () => import('@/views/field-config/FieldListConfig.vue'),
+        meta: { title: '案件列表字段配置', requiresAuth: true },
+      },
+      {
+        path: 'field-config/detail',
+        name: 'FieldDetailConfig',
+        component: () => import('@/views/field-config/FieldDetailConfig.vue'),
+        meta: { title: '案件详情字段配置', requiresAuth: true },
+      },
+      // 旧路由 - 保留以兼容旧链接
+      {
         path: 'field-config/display',
         name: 'FieldDisplayConfig',
         component: () => import('@/views/field-config/FieldDisplayConfig.vue'),
-        meta: { title: '甲方字段展示配置', requiresAuth: true },
+        meta: { title: '甲方字段展示配置(已废弃)', requiresAuth: true },
       },
       {
         path: 'tenants',
@@ -436,4 +449,3 @@ router.beforeEach((to, _from, next) => {
 })
 
 export default router
-

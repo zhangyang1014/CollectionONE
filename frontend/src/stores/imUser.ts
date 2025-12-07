@@ -56,6 +56,13 @@ export const useImUserStore = defineStore('imUser', () => {
     password: string
   }) => {
     try {
+      console.log('[IM Store] 开始登录，参数:', {
+        collectorId: credentials.collectorId,
+        collectorIdLength: credentials.collectorId?.length || 0,
+        passwordLength: credentials.password?.length || 0,
+        collectorIdType: typeof credentials.collectorId
+      })
+      
       // imRequest已经返回了response.data，所以response就是后端返回的完整对象
       // 响应格式: { code: 200, message: "success", data: { token: "...", user: {...} } }
       const response = await imLogin(credentials) as {

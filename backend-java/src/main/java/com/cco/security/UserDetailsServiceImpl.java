@@ -27,6 +27,16 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         // TODO: 从数据库查询用户信息
         // 临时实现：硬编码用户信息
         
+        // 添加调试日志
+        System.out.println("[UserDetailsServiceImpl] loadUserByUsername called with username: [" + username + "]");
+        System.out.println("[UserDetailsServiceImpl] username is null: " + (username == null));
+        System.out.println("[UserDetailsServiceImpl] username is empty: " + (username != null && username.isEmpty()));
+        
+        // 参数验证
+        if (username == null || username.trim().isEmpty()) {
+            throw new UsernameNotFoundException("用户名不能为空");
+        }
+        
         List<GrantedAuthority> authorities = new ArrayList<>();
         String password;
         

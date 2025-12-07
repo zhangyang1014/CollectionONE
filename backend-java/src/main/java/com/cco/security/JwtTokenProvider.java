@@ -28,7 +28,14 @@ public class JwtTokenProvider {
      * 获取签名密钥
      */
     private SecretKey getSigningKey() {
+        if (jwtSecret == null || jwtSecret.trim().isEmpty()) {
+            log.error("JWT密钥未配置或为空");
+            throw new IllegalStateException("JWT密钥未配置");
+        }
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            log.warn("JWT密钥长度不足32字节，建议使用更长的密钥");
+        }
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -39,6 +46,12 @@ public class JwtTokenProvider {
      * @return JWT Token
      */
     public String generateToken(String subject) {
+        // 验证subject不能为空
+        if (subject == null || subject.trim().isEmpty()) {
+            log.error("生成Token时subject为空或null");
+            throw new IllegalArgumentException("Subject不能为空，无法生成Token");
+        }
+        
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 

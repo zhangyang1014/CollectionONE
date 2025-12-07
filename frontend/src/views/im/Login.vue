@@ -561,14 +561,50 @@ const handleLogin = async () => {
 
     loading.value = true
 
-    // 确保传递给API的值是字符串
-    const collectorId = Array.isArray(loginForm.collectorId) ? loginForm.collectorId[0] : String(loginForm.collectorId || '')
-    const password = Array.isArray(loginForm.password) ? loginForm.password[0] : String(loginForm.password || '')
+    // 确保传递给API的值是字符串，并进行非空验证
+    const collectorId = Array.isArray(loginForm.collectorId) 
+      ? (typeof loginForm.collectorId[0] === 'string' ? loginForm.collectorId[0] : '')
+      : (typeof loginForm.collectorId === 'string' ? loginForm.collectorId : String(loginForm.collectorId || ''))
+    
+    const password = Array.isArray(loginForm.password) 
+      ? (typeof loginForm.password[0] === 'string' ? loginForm.password[0] : '')
+      : (typeof loginForm.password === 'string' ? loginForm.password : String(loginForm.password || ''))
+
+    // 最终验证：确保collectorId和password不为空
+    const trimmedCollectorId = collectorId ? collectorId.trim() : ''
+    const trimmedPassword = password ? password.trim() : ''
+    
+    console.log('[Login] 准备发送登录请求:', {
+      collectorId: trimmedCollectorId,
+      collectorIdLength: trimmedCollectorId.length,
+      passwordLength: trimmedPassword.length,
+      collectorIdType: typeof trimmedCollectorId,
+      passwordType: typeof trimmedPassword
+    })
+    
+    if (!trimmedCollectorId || trimmedCollectorId === '') {
+      console.error('[Login] ❌ 催员ID为空')
+      ElMessage.error('催员ID不能为空')
+      loading.value = false
+      return
+    }
+    
+    if (!trimmedPassword || trimmedPassword === '') {
+      console.error('[Login] ❌ 密码为空')
+      ElMessage.error('密码不能为空')
+      loading.value = false
+      return
+    }
 
     // 调用登录API
+    console.log('[Login] 调用登录API，参数:', {
+      collectorId: trimmedCollectorId,
+      password: '***' // 不打印密码
+    })
+    
     await imUserStore.login({
-      collectorId: collectorId,
-      password: password
+      collectorId: trimmedCollectorId,
+      password: trimmedPassword
     })
 
     // 登录成功后上传人脸记录（如果有的话）

@@ -31,3 +31,14 @@ public interface CollectorMapper extends BaseMapper<Collector> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+

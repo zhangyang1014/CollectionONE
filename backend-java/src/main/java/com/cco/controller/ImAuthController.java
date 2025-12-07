@@ -8,9 +8,11 @@ import com.cco.security.JwtTokenProvider;
 import com.cco.service.CollectorLoginWhitelistService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.util.*;
 
 /**
@@ -35,13 +37,38 @@ public class ImAuthController {
      * IM端催员登录
      */
     @PostMapping("/login")
-    public ResponseData<LoginResponse> login(@RequestBody ImLoginRequest request, HttpServletRequest httpRequest) {
-        log.info("========== IM端登录请求，collectorId={} ==========", 
-                request.getCollectorId());
+    public ResponseData<LoginResponse> login(@Valid @RequestBody ImLoginRequest request, HttpServletRequest httpRequest) {
+        log.info("========== IM端登录请求开始 ==========");
+        log.info("请求参数 - collectorId: [{}], password长度: {}", 
+                request.getCollectorId(), 
+                request.getPassword() != null ? request.getPassword().length() : 0);
         
         try {
             String collectorId = request.getCollectorId();
             String password = request.getPassword();
+            
+            log.info("提取后的参数 - collectorId: [{}], collectorId是否为null: {}, collectorId是否为空: {}, password是否为null: {}", 
+                    collectorId, 
+                    collectorId == null,
+                    collectorId != null && collectorId.isEmpty(),
+                    password == null);
+            
+            // 参数验证：确保collectorId和password不为空
+            if (collectorId == null || collectorId.trim().isEmpty()) {
+                log.error("❌ 催员ID为空或null - collectorId: [{}]", collectorId);
+                return ResponseData.error(400, "催员ID不能为空");
+            }
+            
+            if (password == null || password.trim().isEmpty()) {
+                log.error("❌ 密码为空或null");
+                return ResponseData.error(400, "密码不能为空");
+            }
+            
+            // 去除首尾空格
+            collectorId = collectorId.trim();
+            password = password.trim();
+            
+            log.info("验证后的参数 - collectorId: [{}], password长度: {}", collectorId, password.length());
             
             // Mock数据：验证催员信息
             // 这里使用简单的Mock验证，实际应该查询数据库
@@ -85,8 +112,14 @@ public class ImAuthController {
                 }
             }
             
-            // 生成JWT Token
-            String token = jwtTokenProvider.generateToken(collectorId);
+            // 生成JWT Token（确保collectorId不为空）
+            log.info("准备生成Token，collectorId: [{}], 长度: {}", collectorId, collectorId != null ? collectorId.length() : 0);
+            if (collectorId == null || collectorId.trim().isEmpty()) {
+                log.error("❌ 生成Token时collectorId为空或null");
+                return ResponseData.error(500, "系统错误：催员ID无效");
+            }
+            String token = jwtTokenProvider.generateToken(collectorId.trim());
+            log.info("Token生成成功，长度: {}", token != null ? token.length() : 0);
             
             // 构建用户信息
             Map<String, Object> userInfo = new HashMap<>();
@@ -121,10 +154,19 @@ public class ImAuthController {
                     collectorId, mockCollector.get("collectorName"));
             return ResponseData.success(loginResponse);
             
+        } catch (IllegalArgumentException e) {
+            // 参数错误（如collectorId为空）
+            log.error("❌ IM端登录失败 - 参数错误: {}", e.getMessage(), e);
+            return ResponseData.error(400, e.getMessage());
         } catch (Exception e) {
-            log.error("IM端登录失败", e);
+            log.error("❌ IM端登录失败 - 系统异常", e);
             e.printStackTrace();
-            return ResponseData.error(500, "登录失败: " + e.getMessage());
+            String errorMessage = e.getMessage();
+            // 如果是JWT相关错误，提供更友好的错误信息
+            if (errorMessage != null && errorMessage.contains("Cannot pass null or empty values")) {
+                return ResponseData.error(400, "登录参数无效：催员ID或密码不能为空");
+            }
+            return ResponseData.error(500, "登录失败: " + errorMessage);
         }
     }
 

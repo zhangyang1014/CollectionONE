@@ -490,7 +490,7 @@ import { getTenantQueues } from '@/api/queue'
 import { getTenantAgencies, getAgencyTeamGroups, getAgencyTeams, getTeamGroupTeams, getTeamCollectors } from '@/api/organization'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
-import { useFieldDisplayConfig } from '@/composables/useFieldDisplayConfig'
+import { useFieldListConfig } from '@/composables/useFieldListConfig'
 import DynamicCaseTable from '@/components/DynamicCaseTable.vue'
 import BatchAssignDialog from '@/components/BatchAssignDialog.vue'
 import dayjs from 'dayjs'
@@ -501,11 +501,11 @@ const tenantStore = useTenantStore()
 const userStore = useUserStore()
 const currentTenantId = computed(() => tenantStore.currentTenantId)
 
-// 使用字段展示配置Hook - 控台案件列表场景
+// 使用案件列表字段配置Hook - 控台案件列表场景
 const {
   loading: configLoading,
   getTableColumns
-} = useFieldDisplayConfig({
+} = useFieldListConfig({
   tenantId: currentTenantId,
   sceneType: 'admin_case_list',
   autoLoad: true

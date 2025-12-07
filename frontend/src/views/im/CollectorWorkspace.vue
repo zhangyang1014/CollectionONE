@@ -593,7 +593,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useImUserStore } from '@/stores/imUser'
 import { getCases } from '@/api/imCase'
-import { useFieldDisplayConfig } from '@/composables/useFieldDisplayConfig'
+import { useFieldListConfig } from '@/composables/useFieldListConfig'
 import { useDashboardData } from '@/composables/useDashboardData'
 import CaseDetail from '@/components/CaseDetail.vue'
 import IMPanel from '@/components/IMPanel.vue'
@@ -623,21 +623,11 @@ const {
   rangeSearchableFields,
   getTableColumns,
   formatFieldValue
-} = useFieldDisplayConfig({
+} = useFieldListConfig({
   tenantId: tenantIdForConfig,
   sceneType: 'collector_case_list',
   autoLoad: true
 })
-
-// 详情场景配置（暂时未使用，保留以备将来使用）
-// const {
-//   visibleConfigs: detailConfigs,
-//   loading: detailConfigLoading
-// } = useFieldDisplayConfig({
-//   tenantId: tenantIdForConfig,
-//   sceneType: 'collector_case_detail',
-//   autoLoad: true
-// })
 
 // IMPanel引用
 const imPanelRef = ref<any>(null)

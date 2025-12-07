@@ -32,7 +32,7 @@ spring:
     serialization:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
-    property-naming-strategy: SNAKE_CASE
+    property-naming-strategy: SNAKE_CASE  # 必须使用下划线命名，与前端保持一致
 
 # MyBatis Plus 配置
 mybatis-plus:
