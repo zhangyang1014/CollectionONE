@@ -2,15 +2,10 @@ package com.cco.controller;
 
 import com.cco.common.constant.Constants;
 import com.cco.common.response.ResponseData;
-import com.cco.model.dto.FieldDisplayConfigDTO;
-import com.cco.model.entity.TenantFieldDisplayConfig;
-import com.cco.service.FieldDisplayConfigService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -31,9 +26,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 @RestController
 @RequestMapping(Constants.API_V1_PREFIX + "/field-display-configs")
 public class FieldDisplayConfigController {
-
-    @Autowired(required = false)
-    private FieldDisplayConfigService fieldDisplayConfigService;
 
     /**
      * 文件存储路径
@@ -389,21 +381,24 @@ public class FieldDisplayConfigController {
         String sceneName = getSceneName(sceneType);
         
         if ("admin_case_list".equals(sceneType)) {
-            // 手机号不在列表中展示，但仍支持搜索功能(在搜索API中处理)
-            String[] fieldKeys = {"case_code", "user_name", "loan_amount", "outstanding_amount", 
-                                 "overdue_days", "case_status", "due_date", "product_name", "app_name"};
-            String[] fieldNames = {"案件编号", "客户", "贷款金额", "未还金额", 
-                                  "逾期天数", "案件状态", "到期日期", "产品名称", "App名称"};
-            String[] fieldTypes = {"String", "String", "Decimal", "Decimal", 
-                                  "Integer", "Enum", "Date", "String", "String"};
-            // 必须展示字段(不可配置隐藏): case_code, user_name, loan_amount, outstanding_amount, overdue_days, case_status, due_date
-            boolean[] isRequired = {true, true, true, true, true, true, true, false, false};
-            boolean[] isSearchable = {true, true, false, false, false, false, false, true, true};
-            boolean[] isFilterable = {false, false, false, false, false, true, false, false, false};
-            boolean[] isRangeSearchable = {false, false, true, true, true, false, true, false, false};
-            String[] colorTypes = {"normal", "normal", "normal", "red", "red", "normal", "normal", "normal", "normal"};
-            int[] widths = {180, 120, 120, 120, 100, 110, 120, 130, 130};
-            
+            String[] fieldKeys = {"case_code", "user_name", "mobile_number", "loan_amount", "outstanding_amount",
+                                  "overdue_days", "case_status", "due_date", "total_installments", "term_days",
+                                  "system_name", "product_name", "app_name", "merchant_name"};
+            String[] fieldNames = {"案件编号", "客户", "手机号", "贷款金额", "未还金额",
+                                   "逾期天数", "案件状态", "到期日期", "期数", "当期天数",
+                                   "所属系统", "产品", "APP", "商户"};
+            String[] fieldTypes = {"String", "String", "String", "Decimal", "Decimal",
+                                   "Integer", "Enum", "Date", "Integer", "Integer",
+                                   "String", "String", "String", "String"};
+            boolean[] isRequired = {true, true, true, true, true, true, true, true, true, true, true, true, true, true};
+            boolean[] isSearchable = {false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+            boolean[] isFilterable = {false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+            boolean[] isRangeSearchable = {false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+            String[] colorTypes = {"normal", "normal", "normal", "normal", "normal",
+                                   "normal", "normal", "normal", "normal", "normal",
+                                   "normal", "normal", "normal", "normal"};
+            int[] widths = {140, 140, 150, 120, 120, 100, 110, 120, 100, 110, 120, 130, 120, 120};
+
             for (int i = 0; i < fieldKeys.length; i++) {
                 Map<String, Object> config = new HashMap<>();
                 config.put("id", (long) (i + 1));
@@ -422,7 +417,7 @@ public class FieldDisplayConfigController {
                 config.put("hide_for_queues", new ArrayList<>());
                 config.put("hide_for_agencies", new ArrayList<>());
                 config.put("hide_for_teams", new ArrayList<>());
-                
+
                 if ("Decimal".equals(fieldTypes[i]) && (fieldKeys[i].equals("loan_amount") || fieldKeys[i].equals("outstanding_amount"))) {
                     Map<String, Object> formatRule = new HashMap<>();
                     formatRule.put("format_type", "currency");
@@ -432,7 +427,7 @@ public class FieldDisplayConfigController {
                 } else {
                     config.put("format_rule", null);
                 }
-                
+
                 config.put("is_searchable", isSearchable[i]);
                 config.put("is_filterable", isFilterable[i]);
                 config.put("is_range_searchable", isRangeSearchable[i]);
@@ -441,7 +436,7 @@ public class FieldDisplayConfigController {
                 config.put("updated_at", java.time.LocalDateTime.now().toString());
                 config.put("created_by", "system");
                 config.put("updated_by", null);
-                
+
                 configs.add(config);
             }
         }

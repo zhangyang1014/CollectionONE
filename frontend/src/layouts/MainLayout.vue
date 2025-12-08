@@ -38,30 +38,29 @@
           <el-menu-item index="/tenants/queue-management">{{ $t('menu.queueManagement') }}</el-menu-item>
         </el-sub-menu>
 
-        <!-- 案件列表字段配置菜单 -->
+        <!-- 案件列表字段管理菜单 -->
         <el-sub-menu index="field-list">
           <template #title>
             <el-icon><Setting /></el-icon>
             <span>{{ $t('menu.caseListFieldConfig') }}</span>
           </template>
-          <el-menu-item index="/field-config/standard">{{ $t('menu.standardFields') }}</el-menu-item>
+          <el-menu-item index="/field-config/standard">标准字段管理</el-menu-item>
           <el-menu-item index="/field-config/tenant-fields-view">甲方字段查看</el-menu-item>
-          <el-menu-item index="/field-config/custom">{{ $t('menu.customFields') }}</el-menu-item>
-          <el-menu-item index="/field-config/groups">{{ $t('menu.fieldGroups') }}</el-menu-item>
-          <el-menu-item index="/field-config/list">{{ $t('menu.caseListFieldConfig') }}</el-menu-item>
+          <el-menu-item index="/field-config/custom">字段映射配置</el-menu-item>
+          <el-menu-item index="/field-config/list">字段展示配置</el-menu-item>
         </el-sub-menu>
 
-        <!-- 案件详情字段配置菜单（仅保留详情配置，避免与列表菜单重复激活） -->
+        <!-- 案件详情字段管理菜单 -->
         <el-sub-menu index="field-detail">
           <template #title>
             <el-icon><Setting /></el-icon>
             <span>{{ $t('menu.caseDetailFieldConfig') }}</span>
           </template>
-          <el-menu-item index="/field-config/detail/standard">案件详情标准字段管理</el-menu-item>
-          <el-menu-item index="/field-config/detail/tenant-fields-view">案件详情甲方字段查看</el-menu-item>
-          <el-menu-item index="/field-config/detail/custom">案件详情字段映射配置</el-menu-item>
-          <el-menu-item index="/field-config/detail/groups">案件详情字段分组管理</el-menu-item>
-          <el-menu-item index="/field-config/detail">{{ $t('menu.caseDetailFieldConfig') }}</el-menu-item>
+          <el-menu-item index="/field-config/detail/groups">分组管理</el-menu-item>
+          <el-menu-item index="/field-config/detail/standard">标准字段管理</el-menu-item>
+          <el-menu-item index="/field-config/detail/tenant-fields-view">甲方字段查看</el-menu-item>
+          <el-menu-item index="/field-config/detail/custom">字段映射配置</el-menu-item>
+          <el-menu-item index="/field-config/detail">字段展示配置</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="tenant">

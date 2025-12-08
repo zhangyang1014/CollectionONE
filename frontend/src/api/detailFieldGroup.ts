@@ -32,3 +32,10 @@ export function deleteDetailFieldGroup(id: number, tenantId?: number) {
   })
 }
 
+export function batchUpdateGroupSort(data: { tenantId: number; updates: Array<{ id: number; sort_order: number }> }) {
+  return request({
+    url: '/api/v1/detail-field-groups/batch-sort',
+    method: 'post',
+    data
+  })
+}

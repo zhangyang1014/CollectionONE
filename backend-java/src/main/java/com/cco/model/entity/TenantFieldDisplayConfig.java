@@ -61,6 +61,13 @@ public class TenantFieldDisplayConfig extends BaseEntity {
      * custom: 自定义字段（不映射到标准字段，存储在custom_fields表）
      */
     private String fieldSource;
+    
+    /**
+     * 枚举选项（仅Enum类型字段有值）
+     * 非数据库字段，仅用于前端展示
+     */
+    @TableField(exist = false)
+    private Object enumOptions;
 
     /**
      * 排序顺序
@@ -132,6 +139,7 @@ public class TenantFieldDisplayConfig extends BaseEntity {
      * 是否必须展示（不可配置隐藏）
      * 控台案件列表的必须展示字段：case_code、user_name、loan_amount、outstanding_amount、overdue_days、case_status、due_date
      */
+    @TableField(exist = false)
     private Boolean isRequired;
 
     /**

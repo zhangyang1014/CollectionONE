@@ -47,10 +47,9 @@ export const ADMIN_CASE_LIST_REQUIRED_FIELDS = [
 
 /**
  * 不在列表中展示但支持搜索的字段
+ * 说明：原先将手机号标记为仅搜索字段；但控台已要求可点击展示手机号，故这里留空。
  */
-export const SEARCH_ONLY_FIELDS = [
-  'mobile'  // 手机号码 - 不在列表中展示，但可以被搜索
-]
+export const SEARCH_ONLY_FIELDS: string[] = []
 
 /**
  * 案件列表字段配置Hook选项
@@ -69,6 +68,14 @@ export interface UseCaseListFieldConfigOptions {
  */
 export function useCaseListFieldConfig(options: UseCaseListFieldConfigOptions) {
   const { tenantId, sceneType, autoLoad = true } = options
+
+  // 兼容：后端当前只接受详情场景(admin_case_detail / collector_case_detail)
+  const normalizeSceneType = (scene: string): ListSceneType => {
+    if (scene === 'admin_case_list') return 'admin_case_detail'
+    if (scene === 'collector_case_list') return 'collector_case_detail'
+    return scene as ListSceneType
+  }
+  const normalizedSceneType = normalizeSceneType(sceneType)
 
   // 状态
   const loading = ref(false)
@@ -90,11 +97,11 @@ export function useCaseListFieldConfig(options: UseCaseListFieldConfigOptions) {
       // 使用案件列表专用API
       const data = await getCaseListFieldConfigs({
         tenantId: Number(tid),
-        sceneType: sceneType
+        sceneType: normalizedSceneType
       })
       configs.value = Array.isArray(data) ? data : []
       
-      console.log(`[useCaseListFieldConfig] 已加载${sceneType}的字段配置,共${configs.value.length}个字段`)
+      console.log(`[useCaseListFieldConfig] 已加载${normalizedSceneType}的字段配置,共${configs.value.length}个字段`)
     } catch (error) {
       console.error(`[useCaseListFieldConfig] 加载字段配置失败:`, error)
       ElMessage.error('加载字段配置失败')
@@ -231,11 +238,6 @@ export function useCaseListFieldConfig(options: UseCaseListFieldConfigOptions) {
   ) => {
     return visibleConfigs.value
       .filter(config => {
-        // 过滤掉仅用于搜索的字段(如手机号)
-        if (SEARCH_ONLY_FIELDS.includes(config.field_key)) {
-          return false
-        }
-        
         // 应用隐藏规则
         if (hideContext) {
           return !shouldHideField(config.field_key, hideContext)

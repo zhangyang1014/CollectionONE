@@ -64,6 +64,66 @@ export function getCaseListSceneTypes() {
 }
 
 /**
+ * 获取案件列表字段配置所依赖的映射版本信息
+ */
+export function getCaseListFieldConfigVersion(params?: {
+  tenantId?: number
+  sceneType?: string
+}) {
+  return request({
+    url: '/api/v1/case-list-field-configs/version',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 保存展示配置为新版本
+ */
+export function saveCaseListFieldConfigVersion(data: {
+  tenant_id: number
+  scene_type: string
+  configs: any[]
+  operator?: string
+  note?: string
+}) {
+  return request({
+    url: '/api/v1/case-list-field-configs/version/save',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取展示配置版本历史
+ */
+export function getCaseListFieldConfigVersionHistory(params?: {
+  tenantId?: number
+  sceneType?: string
+}) {
+  return request({
+    url: '/api/v1/case-list-field-configs/version/history',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 激活指定展示配置版本
+ */
+export function activateCaseListFieldConfigVersion(data: {
+  tenant_id: number
+  scene_type: string
+  version: number
+}) {
+  return request({
+    url: '/api/v1/case-list-field-configs/version/activate',
+    method: 'post',
+    data
+  })
+}
+
+/**
  * 获取案件列表可用字段选项
  */
 export function getAvailableFieldsForList(params?: {

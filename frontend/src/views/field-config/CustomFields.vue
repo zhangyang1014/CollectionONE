@@ -25,26 +25,9 @@
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <!-- Tab 1: 匹配目标字段 -->
         <el-tab-pane label="匹配目标字段" name="matched">
-          <el-row :gutter="20">
-            <!-- 左侧：字段分组树 -->
-            <el-col :span="5">
-              <el-card shadow="never">
-                <template #header>字段分组</template>
-                <el-tree
-                  :data="treeData"
-                  :props="{ label: 'group_name', children: 'children' }"
-                  node-key="id"
-                  :default-expand-all="true"
-                  :expand-on-click-node="false"
-                  @node-click="handleGroupClick"
-                  highlight-current
-                  class="field-group-tree"
-                />
-              </el-card>
-            </el-col>
-
-            <!-- 右侧：字段列表 -->
-            <el-col :span="19">
+          <el-row :gutter="0">
+            <!-- 字段列表（去掉分组） -->
+            <el-col :span="24">
               <div class="table-header">
                 <el-space>
                   <el-button 
@@ -241,26 +224,8 @@
 
         <!-- Tab 2: 拓展字段 -->
         <el-tab-pane label="拓展字段" name="extended">
-          <el-row :gutter="20">
-            <!-- 左侧：字段分组树 -->
-            <el-col :span="5">
-              <el-card shadow="never">
-                <template #header>字段分组</template>
-                <el-tree
-                  :data="treeData"
-                  :props="{ label: 'group_name', children: 'children' }"
-                  node-key="id"
-                  :default-expand-all="true"
-                  :expand-on-click-node="false"
-                  @node-click="handleExtendedGroupClick"
-                  highlight-current
-                  class="field-group-tree"
-                />
-              </el-card>
-            </el-col>
-
-            <!-- 右侧：字段列表 -->
-            <el-col :span="19">
+          <el-row :gutter="0">
+            <el-col :span="24">
               <div class="table-header">
                 <el-button 
                   type="primary" 
@@ -272,7 +237,7 @@
               </div>
 
               <el-table 
-                :data="filteredExtendedFields" 
+                :data="extendedFields" 
                 border 
                 style="width: 100%"
               >
@@ -604,22 +569,6 @@
             <el-option label="布尔" value="Boolean" />
           </el-select>
         </el-form-item>
-        <el-form-item label="所属分组">
-          <el-cascader
-            v-model="extendedForm.field_group_path"
-            :options="treeData"
-            :props="{
-              value: 'id',
-              label: 'group_name',
-              children: 'children',
-              checkStrictly: true,
-              emitPath: false
-            }"
-            placeholder="请选择分组"
-            clearable
-            style="width: 100%"
-          />
-        </el-form-item>
         <el-form-item label="隐私标签" required>
           <el-select v-model="extendedForm.privacy_label" style="width: 100%">
             <el-option label="PII（个人身份信息）" value="PII" />
@@ -697,8 +646,6 @@ let sortableInstance: any = null
 
 // 扩展字段数据
 const extendedFields = ref<any[]>([])
-const filteredExtendedFields = ref<any[]>([])
-const currentExtendedGroupId = ref<number>()
 
 // 未使用的甲方字段
 const unmappedTenantFields = ref<any[]>([])
@@ -742,6 +689,8 @@ watch(
       fields.value = []
       filteredFields.value = []
       treeData.value = []
+      extendedFields.value = []
+      unmappedTenantFields.value = []
     }
   }
 )
@@ -787,7 +736,6 @@ const extendedForm = ref<any>({
   tenant_field_key: '',
   tenant_field_name: '',
   field_type: 'String',
-  field_group_path: 0,
   privacy_label: '公开',
   is_required: false
 })
@@ -805,16 +753,11 @@ const matchForm = ref<any>({
 const loadGroups = async () => {
   try {
     const res = await getFieldGroups()
-    // API直接返回数组，不是{data: [...]}格式
     allGroups.value = Array.isArray(res) ? res : (res.data || [])
     treeData.value = buildTree(allGroups.value)
-    
-    // 自动选中第一个分组（但只在已选择甲方的情况下加载字段）
-    if (treeData.value.length > 0) {
-      currentGroupId.value = treeData.value[0].id
-      if (currentTenantId.value) {
-        loadFields(treeData.value[0].id)
-      }
+    // 无论是否有分组，都直接加载全部字段（列表场景不再按分组过滤）
+    if (currentTenantId.value) {
+      await loadFields()
     }
   } catch (error) {
     console.error('加载分组失败：', error)
@@ -1011,9 +954,8 @@ const initSortable = () => {
 }
 
 // 点击分组
-const handleGroupClick = (data: any) => {
-  currentGroupId.value = data.id
-  loadFields(data.id)
+const handleGroupClick = () => {
+  loadFields()
 }
 
 // 添加自定义字段
@@ -1096,7 +1038,7 @@ const handleSave = () => {
 
   ElMessage.success('保存成功')
   dialogVisible.value = false
-  loadFields(currentGroupId.value)
+  loadFields()
   // TODO: 调用API保存 submitData
 }
 
@@ -1165,7 +1107,7 @@ const handleDelete = (row: any) => {
     type: 'warning'
   }).then(() => {
     ElMessage.success('删除成功')
-    loadFields(currentGroupId.value)
+    loadFields()
     // TODO: 调用API删除
   }).catch(() => {})
 }
@@ -1191,37 +1133,23 @@ const handleSaveQueueConfig = () => {
 const handleTabChange = (tabName: string) => {
   console.log('切换到tab:', tabName)
   if (tabName === 'extended') {
-    // 如果还没有选中分组，自动选中第一个分组
-    if (!currentExtendedGroupId.value && treeData.value.length > 0) {
-      currentExtendedGroupId.value = treeData.value[0].id
-    }
-    loadExtendedFields(currentExtendedGroupId.value)
+    loadExtendedFields()
   } else if (tabName === 'unmapped') {
     loadUnmappedTenantFields()
   }
 }
 
-// 点击扩展字段分组
-const handleExtendedGroupClick = (data: any) => {
-  currentExtendedGroupId.value = data.id
-  loadExtendedFields(data.id)
-}
-
 // 加载扩展字段
-const loadExtendedFields = async (groupId?: number) => {
+const loadExtendedFields = async () => {
   if (!currentTenantId.value) return
   
   try {
-    const params = groupId ? { field_group_id: groupId } : {}
     const response = await request({
       url: `/api/v1/tenants/${currentTenantId.value}/extended-fields`,
       method: 'get',
-      params,
     })
     // API直接返回数组，不是{data: [...]}格式
     extendedFields.value = Array.isArray(response) ? response : (response.data || [])
-    // 根据分组筛选
-    filterExtendedFields()
   } catch (error: any) {
     console.log('加载扩展字段失败，使用Mock数据:', error.message)
     // API失败时使用Mock数据（静默降级）
@@ -1232,23 +1160,11 @@ const loadExtendedFields = async (groupId?: number) => {
         tenant_field_key: 'COMP_NAME',
         tenant_field_name: '公司名称',
         field_type: 'String',
-        field_group_id: groupId || null,
+        field_group_id: null,
         privacy_label: 'PII',
         is_required: false
       }
     ]
-    filterExtendedFields()
-  }
-}
-
-// 筛选扩展字段
-const filterExtendedFields = () => {
-  if (!currentExtendedGroupId.value) {
-    filteredExtendedFields.value = extendedFields.value
-  } else {
-    filteredExtendedFields.value = extendedFields.value.filter(field => 
-      field.field_group_id === currentExtendedGroupId.value
-    )
   }
 }
 
@@ -1302,7 +1218,7 @@ const handleAutoSuggestMapping = async () => {
         method: 'post',
       })
       ElMessage.success(`成功建议 ${response.data.count || 0} 个字段的映射关系`)
-      loadFields(currentGroupId.value)
+      loadFields()
       loadUnmappedTenantFields()
     } catch (error) {
       console.error('一键建议映射失败:', error)
@@ -1321,7 +1237,6 @@ const handleAddExtendedField = () => {
     tenant_field_key: '',
     tenant_field_name: '',
     field_type: 'String',
-    field_group_path: currentExtendedGroupId.value || 0,
     privacy_label: '公开',
     is_required: false
   }
@@ -1332,8 +1247,7 @@ const handleAddExtendedField = () => {
 const handleEditExtended = (row: any) => {
   extendedDialogTitle.value = '编辑扩展字段'
   extendedForm.value = { 
-    ...row,
-    field_group_path: row.field_group_id || row.field_group_path || 0 // 编辑时将 field_group_id 赋值给 field_group_path
+    ...row
   }
   extendedDialogVisible.value = true
 }
@@ -1346,12 +1260,13 @@ const handleSaveExtended = async () => {
   }
   
   try {
-    // 准备提交数据：将 field_group_path 转换为 field_group_id
+    // 准备提交数据
     const submitData = {
-      ...extendedForm.value,
-      field_group_id: extendedForm.value.field_group_path
+      ...extendedForm.value
     }
-    delete submitData.field_group_path
+    if (!('field_group_id' in submitData)) {
+      submitData.field_group_id = null
+    }
     
     const url = extendedForm.value.id
       ? `/api/v1/tenants/${currentTenantId.value}/extended-fields/${extendedForm.value.id}`
@@ -1365,7 +1280,7 @@ const handleSaveExtended = async () => {
     
     ElMessage.success('保存成功')
     extendedDialogVisible.value = false
-    loadExtendedFields(currentExtendedGroupId.value)
+    loadExtendedFields()
     // 更新未映射字段列表
     loadUnmappedTenantFields()
   } catch (error) {
@@ -1433,7 +1348,7 @@ const handleConfirmMatch = async () => {
     
     ElMessage.success('匹配成功')
     matchDialogVisible.value = false
-    loadFields(currentGroupId.value)
+    loadFields()
     loadUnmappedTenantFields()
   } catch (error) {
     console.error('匹配失败:', error)
@@ -1449,7 +1364,6 @@ const handleSetAsExtended = (row: any) => {
     tenant_field_key: row.tenant_field_key,
     tenant_field_name: row.tenant_field_name,
     field_type: row.field_type,
-    field_group_path: currentExtendedGroupId.value || 0,
     privacy_label: '公开',
     is_required: false
   }
@@ -1459,10 +1373,8 @@ const handleSetAsExtended = (row: any) => {
 onMounted(() => {
   if (currentTenantId.value) {
     loadGroups().then(() => {
-      // 如果当前在扩展字段tab，初始化分组选择
-      if (activeTab.value === 'extended' && treeData.value.length > 0) {
-        currentExtendedGroupId.value = treeData.value[0].id
-        loadExtendedFields(currentExtendedGroupId.value)
+      if (activeTab.value === 'extended') {
+        loadExtendedFields()
       }
     })
     // 初始加载未映射字段（用于显示警告）

@@ -84,6 +84,7 @@
     <BatchAssignDialog
       v-model="showBatchAssignDialog"
       :selected-case-ids="selectedCases.map(c => c.id)"
+      :selected-cases="selectedCases"
       @success="handleAssignSuccess"
     />
   </div>
@@ -246,6 +247,8 @@ const getCaseStatusText = (status: string) => {
   }
 }
 </style>
+
+
 
 
 

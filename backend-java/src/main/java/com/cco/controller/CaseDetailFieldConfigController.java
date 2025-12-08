@@ -10,6 +10,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -354,6 +360,49 @@ public class CaseDetailFieldConfigController {
      */
     private boolean isValidDetailScene(String sceneType) {
         return "admin_case_detail".equals(sceneType) || "collector_case_detail".equals(sceneType);
+    }
+
+    /**
+     * 文件读取：如不存在则返回null以触发Mock
+     */
+    private List<Map<String, Object>> loadFromFile(Long tenantId, String sceneType) {
+        try {
+            String filePath = getStorageFilePath(tenantId, sceneType);
+            File file = new File(filePath);
+            if (!file.exists()) {
+                return null;
+            }
+            String content = new String(Files.readAllBytes(Paths.get(filePath)));
+            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+            return om.readValue(content, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+        } catch (Exception e) {
+            log.warn("loadFromFile失败，tenantId={}, sceneType={}, err={}", tenantId, sceneType, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 文件写入：失败仅记录日志
+     */
+    private void saveToFile(Long tenantId, String sceneType, List<Map<String, Object>> configs) {
+        try {
+            String filePath = getStorageFilePath(tenantId, sceneType);
+            File dir = new File(filePath).getParentFile();
+            if (dir != null && !dir.exists()) {
+                dir.mkdirs();
+            }
+            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+            String content = om.writerWithDefaultPrettyPrinter().writeValueAsString(configs);
+            try (FileWriter fw = new FileWriter(filePath)) {
+                fw.write(content);
+            }
+        } catch (Exception e) {
+            log.warn("saveToFile失败，tenantId={}, sceneType={}, err={}", tenantId, sceneType, e.getMessage());
+        }
+    }
+
+    private String getStorageFilePath(Long tenantId, String sceneType) {
+        return System.getProperty("user.home") + "/.cco-storage/case-detail-field-configs_" + tenantId + "_" + sceneType + ".json";
     }
 
     /**

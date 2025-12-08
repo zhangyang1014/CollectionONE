@@ -5,12 +5,26 @@ import com.cco.common.response.ResponseData;
 import com.cco.model.dto.FieldDisplayConfigDTO;
 import com.cco.model.entity.TenantFieldDisplayConfig;
 import com.cco.service.FieldDisplayConfigService;
+import com.cco.service.TenantFieldUploadService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * 案件列表字段配置Controller - 使用文件存储（持久化）
@@ -31,7 +45,24 @@ public class CaseListFieldConfigController {
     private static final String DEFAULT_SCENE = "admin_case_detail";
     private static final String ALT_SCENE = "collector_case_detail";
 
+    /**
+     * 必须展示的字段key列表
+     */
+    private static final Set<String> REQUIRED_FIELD_KEYS = new HashSet<>(Set.of(
+            "case_code",
+            "user_name",
+            "loan_amount",
+            "outstanding_amount",
+            "overdue_days",
+            "case_status",
+            "due_date"
+    ));
+
+    private static final Path VERSION_BASE = Paths.get(System.getProperty("user.home"), ".cco-storage", "case-list-display-versions");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final FieldDisplayConfigService fieldDisplayConfigService;
+    private final TenantFieldUploadService tenantFieldUploadService;
 
     /**
      * 获取案件列表字段配置（现在从“原详情”场景读取：admin_case_detail / collector_case_detail）
@@ -48,7 +79,177 @@ public class CaseListFieldConfigController {
             finalSceneType = DEFAULT_SCENE;
         }
         List<TenantFieldDisplayConfig> list = fieldDisplayConfigService.list(finalTenantId, finalSceneType, fieldKey);
-        return ResponseData.success(list);
+
+        // 先尝试从展示配置的本地版本文件获取当前激活版本
+        if (list == null || list.isEmpty()) {
+            List<TenantFieldDisplayConfig> versionConfigs = loadActiveVersion(finalTenantId, finalSceneType);
+            if (versionConfigs != null && !versionConfigs.isEmpty()) {
+                list = versionConfigs;
+            }
+        }
+
+        // 如果仍为空，则回退到“案件列表字段映射配置”最新版本的字段列表
+        if ((list == null || list.isEmpty()) && tenantFieldUploadService != null) {
+            try {
+                Map<String, Object> latest = tenantFieldUploadService.getCurrentVersionFields(finalTenantId.toString(), "list");
+                if (latest != null && latest.get("fields") instanceof List<?> rawFields) {
+                    list = convertUploadFields(rawFields, finalTenantId, finalSceneType);
+                }
+            } catch (Exception e) {
+                log.warn("回退读取映射版本字段失败: {}", e.getMessage());
+            }
+        }
+
+        return ResponseData.success(list != null ? list : new ArrayList<>());
+    }
+
+    /**
+     * 获取当前基于的“案件列表字段映射配置”版本信息
+     */
+    @GetMapping("/version")
+    public ResponseData<Map<String, Object>> getVersionInfo(
+            @RequestParam(required = false) Long tenantId,
+            @RequestParam(required = false) String sceneType
+    ) {
+        Long finalTenantId = tenantId != null ? tenantId : 1L;
+        String finalSceneType = sceneType != null && !sceneType.isEmpty() ? sceneType : DEFAULT_SCENE;
+
+        Map<String, Object> versionInfo = new HashMap<>();
+        versionInfo.put("tenant_id", finalTenantId);
+        versionInfo.put("scene_type", finalSceneType);
+        versionInfo.put("source", "mock");
+        versionInfo.put("version", 0);
+        versionInfo.put("fetched_at", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+        // 尝试读取本地版本文件（展示配置）
+        Map<String, Object> active = readVersionMeta(finalTenantId, finalSceneType);
+        if (!active.isEmpty()) {
+            versionInfo.putAll(active);
+            versionInfo.put("source", active.getOrDefault("source", "local"));
+        }
+
+        if (tenantFieldUploadService != null) {
+            try {
+                // 映射配置使用 scene = list
+                Map<String, Object> latest = tenantFieldUploadService.getCurrentVersionFields(finalTenantId.toString(), "list");
+                if (latest != null && !latest.isEmpty()) {
+                    versionInfo.put("source", "upload");
+                    versionInfo.put("version", Optional.ofNullable(latest.get("version")).orElse(0));
+                    if (latest.get("fetched_at") != null) {
+                        versionInfo.put("fetched_at", latest.get("fetched_at"));
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取映射配置版本信息失败: {}", e.getMessage());
+            }
+        }
+
+        return ResponseData.success(versionInfo);
+    }
+
+    /**
+     * 保存当前配置为新版本（本地文件）
+     */
+    @PostMapping("/version/save")
+    public ResponseData<Map<String, Object>> saveVersion(@RequestBody Map<String, Object> body) {
+        Long tenantId = body.get("tenant_id") != null ? Long.valueOf(body.get("tenant_id").toString()) : 1L;
+        String sceneType = body.get("scene_type") != null ? body.get("scene_type").toString() : DEFAULT_SCENE;
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> configs = (List<Map<String, Object>>) body.get("configs");
+        String operator = body.getOrDefault("operator", "admin").toString();
+        String note = body.getOrDefault("note", "").toString();
+
+        if (configs == null || configs.isEmpty()) {
+            return ResponseData.error("配置不能为空");
+        }
+
+        try {
+            Map<String, Object> fileData = readVersionFile(tenantId, sceneType);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> versions = (List<Map<String, Object>>) fileData.getOrDefault("versions", new ArrayList<>());
+            int nextVersion = versions.stream()
+                    .map(v -> Integer.parseInt(v.getOrDefault("version", 0).toString()))
+                    .max(Integer::compareTo)
+                    .orElse(0) + 1;
+
+            Map<String, Object> record = new HashMap<>();
+            record.put("version", nextVersion);
+            record.put("saved_at", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            record.put("operator", operator);
+            record.put("note", note);
+            record.put("configs", configs);
+
+            versions.add(record);
+            fileData.put("versions", versions);
+            fileData.put("activeVersion", nextVersion);
+
+            writeVersionFile(tenantId, sceneType, fileData);
+
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("version", nextVersion);
+            resp.put("saved_at", record.get("saved_at"));
+            return ResponseData.success("保存成功", resp);
+        } catch (Exception e) {
+            log.error("保存展示配置版本失败", e);
+            return ResponseData.error("保存失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取版本历史（本地文件）
+     */
+    @GetMapping("/version/history")
+    public ResponseData<List<Map<String, Object>>> getVersionHistory(
+            @RequestParam(required = false) Long tenantId,
+            @RequestParam(required = false) String sceneType
+    ) {
+        Long finalTenantId = tenantId != null ? tenantId : 1L;
+        String finalSceneType = sceneType != null && !sceneType.isEmpty() ? sceneType : DEFAULT_SCENE;
+        try {
+            Map<String, Object> fileData = readVersionFile(finalTenantId, finalSceneType);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> versions = (List<Map<String, Object>>) fileData.getOrDefault("versions", new ArrayList<>());
+            return ResponseData.success(versions);
+        } catch (Exception e) {
+            log.error("读取版本历史失败", e);
+            return ResponseData.error("读取失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 激活指定版本（本地文件），并返回该版本配置
+     */
+    @PostMapping("/version/activate")
+    public ResponseData<Map<String, Object>> activateVersion(@RequestBody Map<String, Object> body) {
+        Long tenantId = body.get("tenant_id") != null ? Long.valueOf(body.get("tenant_id").toString()) : 1L;
+        String sceneType = body.get("scene_type") != null ? body.get("scene_type").toString() : DEFAULT_SCENE;
+        Integer version = body.get("version") != null ? Integer.valueOf(body.get("version").toString()) : null;
+        if (version == null) {
+            return ResponseData.error("version不能为空");
+        }
+
+        try {
+            Map<String, Object> fileData = readVersionFile(tenantId, sceneType);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> versions = (List<Map<String, Object>>) fileData.getOrDefault("versions", new ArrayList<>());
+            Map<String, Object> target = versions.stream()
+                    .filter(v -> version.equals(Integer.valueOf(v.getOrDefault("version", 0).toString())))
+                    .findFirst()
+                    .orElse(null);
+            if (target == null) {
+                return ResponseData.error("版本不存在");
+            }
+            fileData.put("activeVersion", version);
+            writeVersionFile(tenantId, sceneType, fileData);
+
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("version", version);
+            resp.put("configs", target.get("configs"));
+            return ResponseData.success("激活成功", resp);
+        } catch (Exception e) {
+            log.error("激活版本失败", e);
+            return ResponseData.error("激活失败：" + e.getMessage());
+        }
     }
 
     /**
@@ -57,8 +258,8 @@ public class CaseListFieldConfigController {
     @GetMapping("/scene-types")
     public ResponseData<List<Map<String, String>>> getSceneTypes() {
         List<Map<String, String>> sceneTypes = new java.util.ArrayList<>();
-        sceneTypes.add(scene("admin_case_detail", "控台案件详情"));
-        sceneTypes.add(scene("collector_case_detail", "IM端案件详情"));
+        sceneTypes.add(scene("admin_case_detail", "控台案件列表"));
+        sceneTypes.add(scene("collector_case_detail", "IM端案件列表"));
         return ResponseData.success(sceneTypes);
     }
 
@@ -100,7 +301,6 @@ public class CaseListFieldConfigController {
         for (TenantFieldDisplayConfig cfg : source) {
             FieldDisplayConfigDTO.Create dto = new FieldDisplayConfigDTO.Create();
             BeanUtils.copyProperties(cfg, dto);
-            dto.setId(null);
             dto.setSceneType(toScene);
             dto.setSceneName(getSceneName(toScene));
             fieldDisplayConfigService.create(dto);
@@ -220,9 +420,9 @@ public class CaseListFieldConfigController {
         }
         switch (sceneType) {
             case "admin_case_detail":
-                return "控台案件详情";
+                return "控台案件列表";
             case "collector_case_detail":
-                return "IM端案件详情";
+                return "IM端案件列表";
             default:
                 return sceneType;
         }
@@ -234,6 +434,154 @@ public class CaseListFieldConfigController {
         m.put("name", name);
         m.put("description", name);
         return m;
+    }
+
+    /**
+     * 将上传版本中的字段转换为列表配置实体（仅内存返回，不入库）
+     */
+    private List<TenantFieldDisplayConfig> convertUploadFields(List<?> rawFields, Long tenantId, String sceneType) {
+        List<TenantFieldDisplayConfig> result = new ArrayList<>();
+        int idx = 0;
+        for (Object obj : rawFields) {
+            if (!(obj instanceof Map)) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> field = (Map<String, Object>) obj;
+
+            TenantFieldDisplayConfig cfg = new TenantFieldDisplayConfig();
+            cfg.setTenantId(tenantId);
+            cfg.setSceneType(sceneType);
+            cfg.setSceneName(getSceneName(sceneType));
+            cfg.setFieldKey(String.valueOf(field.getOrDefault("field_key", "")));
+            cfg.setFieldName(String.valueOf(field.getOrDefault("field_name", "")));
+            cfg.setFieldDataType(String.valueOf(field.getOrDefault("field_type", "")));
+            cfg.setFieldSource(String.valueOf(field.getOrDefault("field_source", "standard")));
+            
+            // 处理枚举选项（支持enum_options和enum_values两种字段名）
+            Object enumOptions = field.get("enum_options");
+            if (enumOptions == null) {
+                enumOptions = field.get("enum_values");
+            }
+            if (enumOptions != null) {
+                cfg.setEnumOptions(enumOptions);
+            }
+
+            Integer sort = null;
+            Object sortObj = field.get("sort_order");
+            if (sortObj instanceof Number) {
+                sort = ((Number) sortObj).intValue();
+            }
+            cfg.setSortOrder(sort != null ? sort : ++idx);
+            cfg.setDisplayWidth(120);
+            cfg.setColorType("normal");
+            cfg.setColorRule(null);
+            cfg.setHideRule(null);
+            cfg.setHideForQueues(new ArrayList<>());
+            cfg.setHideForAgencies(new ArrayList<>());
+            cfg.setHideForTeams(new ArrayList<>());
+            cfg.setFormatRule(null);
+
+            Boolean isRequired = null;
+            Object requiredObj = field.get("is_required");
+            if (requiredObj instanceof Boolean) {
+                isRequired = (Boolean) requiredObj;
+            }
+            cfg.setIsRequired(isRequired != null ? isRequired : REQUIRED_FIELD_KEYS.contains(cfg.getFieldKey()));
+
+            // 控台案件列表：可筛选、范围检索默认开启，其他拓展字段默认关闭可搜索
+            cfg.setIsSearchable(Boolean.FALSE);
+            cfg.setIsFilterable(Boolean.TRUE);
+            cfg.setIsRangeSearchable(Boolean.TRUE);
+            cfg.setCreatedBy("system");
+            cfg.setUpdatedBy(null);
+
+            result.add(cfg);
+        }
+        // 根据 sort_order 再排序一次
+        result.sort((a, b) -> {
+            int sa = a.getSortOrder() != null ? a.getSortOrder() : 0;
+            int sb = b.getSortOrder() != null ? b.getSortOrder() : 0;
+            return Integer.compare(sa, sb);
+        });
+        return result;
+    }
+
+    /**
+     * 读取当前激活版本的配置（本地文件）
+     */
+    private List<TenantFieldDisplayConfig> loadActiveVersion(Long tenantId, String sceneType) {
+        try {
+            Map<String, Object> fileData = readVersionFile(tenantId, sceneType);
+            Integer activeVersion = (Integer) fileData.get("activeVersion");
+            if (activeVersion == null) {
+                return null;
+            }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> versions = (List<Map<String, Object>>) fileData.getOrDefault("versions", new ArrayList<>());
+            Map<String, Object> target = versions.stream()
+                    .filter(v -> activeVersion.equals(Integer.valueOf(v.getOrDefault("version", 0).toString())))
+                    .findFirst()
+                    .orElse(null);
+            if (target == null) {
+                return null;
+            }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> raw = (List<Map<String, Object>>) target.get("configs");
+            return convertUploadFields(raw, tenantId, sceneType);
+        } catch (Exception e) {
+            log.warn("读取激活版本失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 读取版本文件
+     */
+    private Map<String, Object> readVersionFile(Long tenantId, String sceneType) throws Exception {
+        if (!Files.exists(VERSION_BASE)) {
+            Files.createDirectories(VERSION_BASE);
+        }
+        Path file = VERSION_BASE.resolve(tenantId + "_" + sceneType + ".json");
+        if (!Files.exists(file)) {
+            Map<String, Object> init = new HashMap<>();
+            init.put("versions", new ArrayList<>());
+            init.put("activeVersion", null);
+            return init;
+        }
+        byte[] bytes = Files.readAllBytes(file);
+        return OBJECT_MAPPER.readValue(bytes, new TypeReference<Map<String, Object>>() {});
+    }
+
+    /**
+     * 写入版本文件
+     */
+    private void writeVersionFile(Long tenantId, String sceneType, Map<String, Object> data) throws Exception {
+        if (!Files.exists(VERSION_BASE)) {
+            Files.createDirectories(VERSION_BASE);
+        }
+        Path file = VERSION_BASE.resolve(tenantId + "_" + sceneType + ".json");
+        byte[] bytes = OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsBytes(data);
+        Files.write(file, bytes);
+    }
+
+    /**
+     * 读取版本元信息（用于提示）
+     */
+    private Map<String, Object> readVersionMeta(Long tenantId, String sceneType) {
+        Map<String, Object> meta = new HashMap<>();
+        try {
+            Map<String, Object> data = readVersionFile(tenantId, sceneType);
+            Integer activeVersion = (Integer) data.get("activeVersion");
+            meta.put("version", activeVersion != null ? activeVersion : 0);
+            meta.put("source", activeVersion != null ? "local" : "mock");
+            meta.put("fetched_at", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        } catch (Exception e) {
+            meta.put("version", 0);
+            meta.put("source", "mock");
+            meta.put("fetched_at", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        }
+        return meta;
     }
 }
 

@@ -86,6 +86,22 @@ export function deleteStandardField(id: number) {
   })
 }
 
+// 案件列表标准字段（只读）
+export function getCaseListStandardFields() {
+  return request({
+    url: '/api/v1/standard-fields/case-list',
+    method: 'get',
+  })
+}
+
+// 案件详情标准字段（只读）
+export function getCaseDetailStandardFields() {
+  return request({
+    url: '/api/v1/standard-fields/case-detail',
+    method: 'get',
+  })
+}
+
 // 自定义字段API
 export function getCustomFields(params: any) {
   return request({

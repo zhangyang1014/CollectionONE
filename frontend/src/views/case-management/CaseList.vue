@@ -17,7 +17,7 @@
       </template>
 
       <!-- 筛选器 - 优化布局为两排 -->
-      <el-form :model="filters" class="filter-form" label-width="120px">
+      <el-form :model="filters" class="filter-form" label-width="90px" label-position="left">
         <!-- 第一排：案件状态、案件队列、到期日范围、逾期天数范围 -->
         <el-row :gutter="16">
           <el-col :span="6">
@@ -175,13 +175,115 @@
           </el-col>
         </el-row>
 
-        <!-- 操作按钮 -->
-        <el-row :gutter="16">
-          <el-col :span="24" style="text-align: right;">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="resetFilters">重置</el-button>
-          </el-col>
-        </el-row>
+      <!-- 第三排：期数、首期天数、所属系统、商户、APP、产品 -->
+      <el-row :gutter="16" class="third-filter-row">
+        <el-col :span="6">
+          <el-form-item label="期数">
+            <el-input
+              v-model="filters.installment_no"
+              placeholder="输入期数"
+              clearable
+              @keyup.enter="handleQuery"
+              @change="handleQuery"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="6">
+          <el-form-item label="首期天数">
+            <el-input
+              v-model="filters.first_term_days"
+              placeholder="输入首期天数"
+              clearable
+              @keyup.enter="handleQuery"
+              @change="handleQuery"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="6">
+          <el-form-item label="所属系统">
+            <el-select
+              v-model="filters.system_name"
+              placeholder="全部"
+              clearable
+              @change="handleQuery"
+            >
+              <el-option label="全部" value="" />
+              <el-option label="iOS" value="ios" />
+              <el-option label="Android" value="android" />
+              <el-option label="Web" value="web" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="6">
+          <el-form-item label="商户">
+            <el-select
+              v-model="filters.merchant_name"
+              placeholder="全部"
+              clearable
+              filterable
+              @change="handleQuery"
+            >
+              <el-option label="全部" value="" />
+              <el-option
+                v-for="opt in merchantOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row :gutter="16" class="third-filter-row">
+        <el-col :span="6">
+          <el-form-item label="APP">
+            <el-select
+              v-model="filters.app_name"
+              placeholder="全部"
+              clearable
+              filterable
+              @change="handleQuery"
+            >
+              <el-option label="全部" value="" />
+              <el-option
+                v-for="opt in appOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="6">
+          <el-form-item label="产品">
+            <el-select
+              v-model="filters.product_name"
+              placeholder="全部"
+              clearable
+              filterable
+              @change="handleQuery"
+            >
+              <el-option label="全部" value="" />
+              <el-option
+                v-for="opt in productOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="6"></el-col>
+        <el-col :span="6"></el-col>
+      </el-row>
+
+      <!-- 操作按钮（放在所有筛选器下方） -->
+      <el-row :gutter="16">
+        <el-col :span="24" style="text-align: right;">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-col>
+      </el-row>
       </el-form>
 
       <!-- 搜索区域 - 只在选择甲方后显示 -->
@@ -230,7 +332,7 @@
         v-if="currentTenantId"
         ref="tableRef"
         :data="displayCases"
-        :columns="getTableColumns()"
+        :columns="getColumnsWithFallback()"
         :loading="configLoading"
         border
         show-selection
@@ -247,6 +349,30 @@
             <span class="user-name">{{ value || row.userName || row.user_name || row['userName'] || row['user_name'] || '-' }}</span>
             <span v-if="(row.userId || row.user_id || row['userId'] || row['user_id'])" class="user-id-text">{{ row.userId || row.user_id || row['userId'] || row['user_id'] }}</span>
           </div>
+        </template>
+
+        <!-- 自定义手机号显示（点击后展示，无需说明原因） -->
+        <template #cell-mobile_number="{ row }">
+          <div class="mobile-cell">
+            <template v-if="revealedPhones.has(getCaseKey(row))">
+              <span class="revealed-phone">{{ getRowMobile(row) || '-' }}</span>
+            </template>
+            <template v-else>
+              <el-button type="primary" link @click="revealPhone(row)">
+                {{ maskPhone(getRowMobile(row)) }}
+              </el-button>
+            </template>
+          </div>
+        </template>
+
+        <!-- 自定义期数显示 -->
+        <template #cell-total_installments="{ row }">
+          <span>{{ getRowTotalInstallments(row) ?? '-' }}</span>
+        </template>
+
+        <!-- 自定义当期天数显示 -->
+        <template #cell-term_days="{ row }">
+          <span>{{ getRowTermDays(row) ?? '-' }}</span>
         </template>
 
         <!-- 自定义逾期天数显示 -->
@@ -401,6 +527,7 @@
       <BatchAssignDialog
         v-model="showBatchAssignDialog"
         :selected-case-ids="selectedCases.map(c => c.id)"
+        :selected-cases="selectedCases"
         @success="handleAssignSuccess"
       />
 
@@ -490,7 +617,7 @@ import { getTenantQueues } from '@/api/queue'
 import { getTenantAgencies, getAgencyTeamGroups, getAgencyTeams, getTeamGroupTeams, getTeamCollectors } from '@/api/organization'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
-import { useFieldListConfig } from '@/composables/useFieldListConfig'
+import { useCaseListFieldConfig } from '@/composables/useCaseListFieldConfig'
 import DynamicCaseTable from '@/components/DynamicCaseTable.vue'
 import BatchAssignDialog from '@/components/BatchAssignDialog.vue'
 import dayjs from 'dayjs'
@@ -505,11 +632,114 @@ const currentTenantId = computed(() => tenantStore.currentTenantId)
 const {
   loading: configLoading,
   getTableColumns
-} = useFieldListConfig({
+} = useCaseListFieldConfig({
   tenantId: currentTenantId,
-  sceneType: 'admin_case_list',
-  autoLoad: true
+  // 后端接口目前复用“详情”场景，使用 admin_case_detail 防止500
+  sceneType: 'admin_case_detail',
+  // 后端接口当前返回500，暂时禁用自动拉取，使用本地兜底列
+  autoLoad: false
 })
+
+// 列配置降级：后端接口异常时使用的兜底列
+const fallbackColumns = [
+  { prop: 'case_code', label: '案件编号', minWidth: 140, showOverflowTooltip: true },
+  { prop: 'user_name', label: '客户', minWidth: 140, showOverflowTooltip: true },
+  { prop: 'mobile_number', label: '手机号', minWidth: 150, showOverflowTooltip: true },
+  { prop: 'loan_amount', label: '贷款金额', align: 'right', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'outstanding_amount', label: '未还金额', align: 'right', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'overdue_days', label: '逾期天数', align: 'right', minWidth: 100, sortable: true },
+  { prop: 'case_status', label: '案件状态', minWidth: 110 },
+  { prop: 'due_date', label: '到期日期', minWidth: 120, sortable: true },
+  // 需排在到期日期之后的六个字段（按指定顺序）
+  { prop: 'total_installments', label: '期数', minWidth: 100, align: 'center' },
+  { prop: 'term_days', label: '当期天数', minWidth: 110, align: 'center' },
+  { prop: 'system_name', label: '所属系统', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'product_name', label: '产品', minWidth: 130, showOverflowTooltip: true },
+  { prop: 'app_name', label: 'APP', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'merchant_name', label: '商户', minWidth: 120, showOverflowTooltip: true },
+]
+
+// 额外必显列（即便后端未返回也追加）
+const extraColumns = [
+  { prop: 'mobile_number', label: '手机号', minWidth: 150, showOverflowTooltip: true },
+  // 需插入到到期日期后，按顺序
+  { prop: 'total_installments', label: '期数', minWidth: 100, align: 'center' },
+  { prop: 'term_days', label: '当期天数', minWidth: 110, align: 'center' },
+  { prop: 'system_name', label: '所属系统', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'product_name', label: '产品', minWidth: 130, showOverflowTooltip: true },
+  { prop: 'app_name', label: 'APP', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'merchant_name', label: '商户', minWidth: 120, showOverflowTooltip: true },
+]
+
+// 获取表格列，优先后端配置，失败时兜底，并确保新需求字段存在
+const getColumnsWithFallback = () => {
+  const cols = getTableColumns?.()
+  const baseColumns = (Array.isArray(cols) && cols.length > 0) ? [...cols] : [...fallbackColumns]
+  const exist = new Set(baseColumns.map(c => c.prop))
+  // 先追加手机号（若不存在）
+  const ensureMobile = extraColumns[0]
+  if (ensureMobile && !exist.has('mobile_number') && !exist.has('mobile') && !exist.has('borrowing_mobile_number')) {
+    baseColumns.splice(2, 0, ensureMobile)
+  }
+  // 其余字段按要求插入到到期日(due_date)之后
+  const dueIdx = baseColumns.findIndex(c => c.prop === 'due_date' || c.prop === 'dueDate')
+  const insertStart = dueIdx >= 0 ? dueIdx + 1 : baseColumns.length
+  const orderedExtras = extraColumns.slice(1) // 去掉手机号
+  let offset = 0
+  orderedExtras.forEach(col => {
+    if (!exist.has(col.prop)) {
+      baseColumns.splice(insertStart + offset, 0, col)
+      offset += 1
+    }
+  })
+  return baseColumns
+}
+
+// 手机号显隐状态（按案件维度记录）
+const revealedPhones = ref<Set<string>>(new Set())
+
+// 取案件唯一键
+const getCaseKey = (row: any) => {
+  return String(row?.id ?? row?.case_id ?? row?.case_code ?? row?.loan_id ?? row?.user_id ?? '')
+}
+
+// 手机号脱敏
+const maskPhone = (phone?: string) => {
+  if (!phone) return '-'
+  const clean = String(phone)
+  if (clean.length <= 4) return '****'
+  const last4 = clean.slice(-4)
+  return `****${last4}`
+}
+
+// 获取行内手机号
+const getRowMobile = (row: any) => {
+  return row?.mobile_number || row?.mobileNumber || row?.borrowing_mobile_number || row?.mobile || ''
+}
+
+// 点击展示手机号
+const revealPhone = (row: any) => {
+  const key = getCaseKey(row)
+  if (!key) return
+  const mobile = getRowMobile(row)
+  if (!mobile) {
+    ElMessage.warning('暂无手机号')
+    return
+  }
+  const next = new Set(revealedPhones.value)
+  next.add(key)
+  revealedPhones.value = next
+}
+
+// 获取总期数
+const getRowTotalInstallments = (row: any) => {
+  return row?.total_installments ?? row?.totalInstallments ?? row?.installment_details?.total_installments ?? row?.installmentDetails?.total_installments ?? row?.installmentDetails?.totalInstallments
+}
+
+// 获取当期天数
+const getRowTermDays = (row: any) => {
+  return row?.term_days ?? row?.termDays ?? row?.installment_details?.term_days ?? row?.installment_details?.termDays ?? row?.first_term_days ?? row?.firstTermDays
+}
 
 // 权限检查：是否为超级管理员或甲方管理员
 const canManageFilters = computed(() => {
@@ -542,6 +772,12 @@ const filters = ref<{
   settlement_date_range: string[] | null
   overdue_days_min?: number
   overdue_days_max?: number
+  installment_no?: string
+  first_term_days?: string
+  system_name?: string
+  merchant_name?: string
+  app_name?: string
+  product_name?: string
 }>({
   case_status: undefined,
   queue_id: undefined,
@@ -553,6 +789,12 @@ const filters = ref<{
   settlement_date_range: null,
   overdue_days_min: undefined,
   overdue_days_max: undefined,
+  installment_no: undefined,
+  first_term_days: undefined,
+  system_name: undefined,
+  merchant_name: undefined,
+  app_name: undefined,
+  product_name: undefined,
 })
 
 // 到期日快捷选择选项
@@ -603,6 +845,34 @@ const pagination = ref({
   page: 1,
   pageSize: 20,
   total: 0,
+})
+
+// 基于已加载案件动态生成下拉选项
+const merchantOptions = computed(() => {
+  const set = new Set<string>()
+  cases.value.forEach(c => {
+    const v = c?.merchant_name || c?.merchantName
+    if (v) set.add(String(v))
+  })
+  return Array.from(set).map(v => ({ label: v, value: v }))
+})
+
+const appOptions = computed(() => {
+  const set = new Set<string>()
+  cases.value.forEach(c => {
+    const v = c?.app_name || c?.appName
+    if (v) set.add(String(v))
+  })
+  return Array.from(set).map(v => ({ label: v, value: v }))
+})
+
+const productOptions = computed(() => {
+  const set = new Set<string>()
+  cases.value.forEach(c => {
+    const v = c?.product_name || c?.productName
+    if (v) set.add(String(v))
+  })
+  return Array.from(set).map(v => ({ label: v, value: v }))
 })
 
 // 搜索过滤 - 现在由后端处理，这里直接返回cases
@@ -780,6 +1050,26 @@ const loadCases = async () => {
   if (filters.value.overdue_days_max !== undefined && filters.value.overdue_days_max !== null) {
     params.overdue_days_max = filters.value.overdue_days_max
   }
+
+  // 第三排筛选
+  if (filters.value.installment_no) {
+    params.installment_no = filters.value.installment_no
+  }
+  if (filters.value.first_term_days) {
+    params.first_term_days = filters.value.first_term_days
+  }
+  if (filters.value.system_name) {
+    params.system_name = filters.value.system_name
+  }
+  if (filters.value.merchant_name) {
+    params.merchant_name = filters.value.merchant_name
+  }
+  if (filters.value.app_name) {
+    params.app_name = filters.value.app_name
+  }
+  if (filters.value.product_name) {
+    params.product_name = filters.value.product_name
+  }
   
   // 其他筛选条件
   if (filters.value.settlement_date_range && Array.isArray(filters.value.settlement_date_range) && filters.value.settlement_date_range.length === 2) {
@@ -871,6 +1161,12 @@ const resetFilters = () => {
     settlement_date_range: null,
     overdue_days_min: undefined,
     overdue_days_max: undefined,
+    installment_no: undefined,
+    first_term_days: undefined,
+    system_name: undefined,
+    merchant_name: undefined,
+    app_name: undefined,
+    product_name: undefined,
   }
   searchKeyword.value = ''
   pagination.value.page = 1
@@ -1257,40 +1553,9 @@ const getResultLabel = (result: string) => {
   return labels[result] || result
 }
 
-// 筛选器配置
-const handleFilterConfig = async () => {
-  if (!currentTenantId.value) {
-    ElMessage.warning('请先选择甲方')
-    return
-  }
-  
-  // 加载字段分组
-  await loadFilterGroups()
-  
-  // 加载可配置的字段列表
-  try {
-    const url = getApiUrl(`tenants/${currentTenantId.value}/fields`)
-    const response = await fetch(url)
-    const result = await response.json()
-    availableFields.value = (result.data || []).filter((field: any) => {
-      // 只显示已映射的字段，且支持筛选的类型
-      return (field.tenant_field_key || field.tenant_field_id) && 
-             ['String', 'Enum', 'Integer', 'Decimal', 'Date'].includes(field.field_type)
-    })
-    
-    // 加载已配置的筛选器
-    await loadFilterConfig()
-    
-    // 默认选中第一个分组
-    if (filterGroupTreeData.value.length > 0) {
-      handleFilterGroupClick(filterGroupTreeData.value[0])
-    }
-    
-    filterConfigDialogVisible.value = true
-  } catch (error) {
-    console.error('加载字段列表失败：', error)
-    ElMessage.error('加载字段列表失败')
-  }
+// 筛选器配置入口跳转到“案件列表字段展示配置”页面
+const handleFilterConfig = () => {
+  router.push('/field-config/list')
 }
 
 // 加载字段分组
@@ -1629,6 +1894,29 @@ onMounted(async () => {
   color: #606266;
   font-size: 14px;
   flex-shrink: 0;
+}
+
+/* 手机号显示样式 */
+.mobile-cell {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-cell .revealed-phone {
+  color: #303133;
+  font-weight: 500;
+}
+
+/* 第三排筛选压缩样式 */
+.third-filter-row :deep(.el-form-item) {
+  margin-bottom: 12px;
+}
+.third-filter-row :deep(.el-form-item__label) {
+  width: 70px;
+}
+.third-filter-row :deep(.el-select),
+.third-filter-row :deep(.el-input) {
+  width: 100%;
 }
 </style>
 

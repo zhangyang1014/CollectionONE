@@ -3,11 +3,23 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>案件列表字段配置</span>
+          <div class="title-block">
+            <span class="title">案件列表字段配置</span>
+            <el-tag size="small" type="info" class="version-badge">
+              基于映射配置：v{{ versionInfo.version || 0 }}
+            </el-tag>
+            <el-tag size="small" class="version-badge" :type="versionInfo.source === 'upload' ? 'success' : 'warning'">
+              {{ versionInfo.source === 'upload' ? '来源：上传版本' : '来源：内置Mock' }}
+            </el-tag>
+            <span v-if="versionInfo.fetched_at" class="version-time">拉取时间：{{ versionInfo.fetched_at }}</span>
+          </div>
           <div class="header-actions">
-            <el-button type="primary" @click="handleAdd">添加字段配置</el-button>
-            <el-button @click="handleCopyScene">复制场景配置</el-button>
-            <el-button @click="handleBatchSave">批量保存</el-button>
+            <el-button type="primary" @click="handleSaveVersion" :loading="saveVersionLoading">
+              保存为新版本
+            </el-button>
+            <el-button @click="handleShowHistory">
+              版本历史
+            </el-button>
           </div>
         </div>
       </template>
@@ -66,6 +78,12 @@
         <el-table-column label="字段类型" width="100">
           <template #default="{ row }">
             <el-tag size="small" type="info">{{ row.field_data_type || '-' }}</el-tag>
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="枚举值" width="200">
+          <template #default="{ row }">
+            <span>{{ getEnumOptionsLabel(row) }}</span>
           </template>
         </el-table-column>
         
@@ -133,41 +151,10 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="隐藏规则" width="150">
-          <template #default="{ row }">
-            <el-tag
-              v-if="row.hide_for_queues && row.hide_for_queues.length > 0"
-              type="warning"
-              size="small"
-            >
-              队列: {{ row.hide_for_queues.length }}
-            </el-tag>
-            <el-tag
-              v-if="row.hide_for_agencies && row.hide_for_agencies.length > 0"
-              type="warning"
-              size="small"
-              style="margin-left: 5px;"
-            >
-              机构: {{ row.hide_for_agencies.length }}
-            </el-tag>
-            <el-tag
-              v-if="row.hide_for_teams && row.hide_for_teams.length > 0"
-              type="warning"
-              size="small"
-              style="margin-left: 5px;"
-            >
-              小组: {{ row.hide_for_teams.length }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleEdit(row)">
               编辑
-            </el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(row)">
-              删除
             </el-button>
           </template>
         </el-table-column>
@@ -410,6 +397,50 @@
         <el-button type="primary" @click="handleCopyConfirm">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 版本历史抽屉 -->
+    <el-drawer
+      v-model="historyVisible"
+      title="展示配置版本历史"
+      direction="rtl"
+      size="800px"
+    >
+      <div class="history-content">
+        <el-table :data="versionHistory" border style="width: 100%">
+          <el-table-column prop="version" label="版本号" width="80" align="center">
+            <template #default="{ row }">
+              <el-tag type="primary">v{{ row.version }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="saved_at" label="保存时间" width="180" />
+          <el-table-column prop="operator" label="操作人" width="120" />
+          <el-table-column prop="note" label="备注说明" min-width="200">
+            <template #default="{ row }">
+              {{ row.note || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="字段数" width="80" align="center">
+            <template #default="{ row }">
+              {{ row.configs?.length || 0 }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button 
+                type="primary" 
+                link 
+                size="small" 
+                @click="handleRestoreVersion(row)"
+              >
+                恢复此版本
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        
+        <el-empty v-if="versionHistory.length === 0" description="暂无版本历史" />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -424,7 +455,11 @@ import {
   getCaseListFieldConfigs,
   batchSaveCaseListFieldConfigs,
   copyCaseListScene,
-  getAvailableFieldsForList
+  getAvailableFieldsForList,
+  getCaseListFieldConfigVersion,
+  saveCaseListFieldConfigVersion,
+  getCaseListFieldConfigVersionHistory,
+  activateCaseListFieldConfigVersion
 } from '@/api/caseListFieldConfig'
 import type {
   FieldDisplayConfig,
@@ -447,6 +482,15 @@ const sceneTypes = ref<SceneOption[]>([])
 const currentScene = ref<CaseListSceneType>('admin_case_list')
 const configs = ref<FieldDisplayConfig[]>([])
 const loading = ref(false)
+const versionInfo = ref<{ version: number | string; fetched_at: string; source: string }>({
+  version: 0,
+  fetched_at: '',
+  source: 'mock'
+})
+const saveVersionLoading = ref(false)
+const historyVisible = ref(false)
+const versionHistory = ref<any[]>([])
+const versionNote = ref('')
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const activeTab = ref('basic')
@@ -521,8 +565,18 @@ const isFilterableType = (fieldType?: string) => {
 // 判断是否是可范围检索的类型（数字和时间类型）
 const isRangeSearchableType = (fieldType?: string) => {
   if (!fieldType) return false
-  const rangeTypes = ['Integer', 'Decimal', 'Date', 'Datetime']
+  const rangeTypes = ['Integer', 'Number', 'Decimal', 'Date', 'Datetime']
   return rangeTypes.includes(fieldType)
+}
+
+// 展示枚举值文本
+const getEnumOptionsLabel = (row: any) => {
+  if (row?.field_data_type !== 'Enum') return '-'
+  const options = row.enum_options || row.enum_values || row.enumValues
+  if (Array.isArray(options) && options.length) {
+    return options.join('、')
+  }
+  return '-'
 }
 
 // 分组的字段列表
@@ -632,6 +686,7 @@ const loadConfigs = async () => {
       sceneType: currentScene.value
     })
     configs.value = Array.isArray(data) ? data : (data?.data ?? [])
+    await loadVersionInfo()
     
     // 初始化拖拽排序
     initDragSort()
@@ -639,6 +694,24 @@ const loadConfigs = async () => {
     ElMessage.error('加载配置失败：' + error.message)
   } finally {
     loading.value = false
+  }
+}
+
+// 获取映射配置版本信息
+const loadVersionInfo = async () => {
+  try {
+    const data = await getCaseListFieldConfigVersion({
+      tenantId: Number(currentTenantId.value),
+      sceneType: currentScene.value
+    })
+    const payload = Array.isArray(data) ? data : (data?.data ?? {})
+    versionInfo.value = {
+      version: payload.version ?? 0,
+      fetched_at: payload.fetched_at ?? '',
+      source: payload.source ?? 'mock'
+    }
+  } catch (error: any) {
+    console.error(error)
   }
 }
 
@@ -800,10 +873,115 @@ const handleBatchSave = async () => {
   }
 }
 
+// 保存为新版本
+const handleSaveVersion = async () => {
+  if (!configs.value || configs.value.length === 0) {
+    ElMessage.warning('当前没有可保存的配置')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `当前配置包含 ${configs.value.length} 个字段，请填写版本备注（可选）`,
+      '保存为新版本',
+      {
+        confirmButtonText: '确定保存',
+        cancelButtonText: '取消',
+        inputPlaceholder: '描述本次修改内容，如：调整字段宽度、开启范围检索等'
+      }
+    )
+
+    saveVersionLoading.value = true
+
+    const res = await saveCaseListFieldConfigVersion({
+      tenant_id: Number(currentTenantId.value),
+      scene_type: currentScene.value,
+      configs: configs.value.map(c => ({
+        field_key: c.field_key,
+        field_name: c.field_name,
+        field_data_type: c.field_data_type,
+        field_source: c.field_source,
+        enum_options: c.enum_options,
+        sort_order: c.sort_order,
+        display_width: c.display_width,
+        color_type: c.color_type,
+        is_filterable: c.is_filterable,
+        is_range_searchable: c.is_range_searchable
+      })),
+      operator: 'admin',
+      note: value || ''
+    })
+
+    const versionNum = res?.data?.version || '未知'
+    ElMessage.success(`保存成功，新版本号：v${versionNum}`)
+    
+    // 刷新配置和版本信息
+    await loadConfigs()
+    await loadVersionInfo()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('保存失败：' + (error.message || error))
+    }
+  } finally {
+    saveVersionLoading.value = false
+  }
+}
+
+// 显示版本历史
+const handleShowHistory = async () => {
+  historyVisible.value = true
+
+  try {
+    const data = await getCaseListFieldConfigVersionHistory({
+      tenantId: currentTenantId.value,
+      sceneType: currentScene.value
+    })
+    versionHistory.value = Array.isArray(data) ? data : (data?.data || [])
+    
+    // 按版本号倒序排列
+    versionHistory.value.sort((a, b) => b.version - a.version)
+  } catch (error: any) {
+    ElMessage.error('加载版本历史失败：' + error.message)
+  }
+}
+
+// 恢复历史版本
+const handleRestoreVersion = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `您确定要恢复到版本 v${row.version} 吗？\n保存时间：${row.saved_at}\n备注：${row.note || '无'}\n\n恢复后当前配置将被替换，建议先保存当前配置。`,
+      '确认恢复版本',
+      {
+        confirmButtonText: '确定恢复',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    const res = await activateCaseListFieldConfigVersion({
+      tenant_id: Number(currentTenantId.value),
+      scene_type: currentScene.value,
+      version: row.version
+    })
+
+    ElMessage.success('版本恢复成功')
+    historyVisible.value = false
+    
+    // 刷新配置和版本信息
+    await loadConfigs()
+    await loadVersionInfo()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('恢复失败：' + (error.message || error))
+    }
+  }
+}
+
 onMounted(() => {
   loadSceneTypes()
   if (currentTenantId.value) {
     loadConfigs()
+    loadVersionInfo()
   }
   // 初始化拖拽
   initDragSort()
@@ -815,6 +993,27 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.title-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title-block .title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.version-badge {
+  padding: 0 6px;
+}
+
+.version-time {
+  color: #909399;
+  font-size: 12px;
 }
 
 .header-actions {
@@ -840,6 +1039,10 @@ onMounted(() => {
 :deep(.sortable-drag) {
   opacity: 0.8;
   background: #ecf5ff;
+}
+
+.history-content {
+  padding: 0;
 }
 </style>
 

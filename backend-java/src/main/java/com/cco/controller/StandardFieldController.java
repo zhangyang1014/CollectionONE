@@ -2,15 +2,16 @@ package com.cco.controller;
 
 import com.cco.common.constant.Constants;
 import com.cco.common.response.ResponseData;
+import com.cco.model.dto.CaseStandardFieldVO;
 import com.cco.model.entity.StandardField;
 import com.cco.service.StandardFieldService;
+import com.cco.support.CaseStandardFieldProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 标准字段管理Controller
@@ -52,10 +53,11 @@ public class StandardFieldController {
     /**
      * 获取标准字段详情
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public ResponseData<StandardField> getStandardField(@PathVariable Long id) {
         log.info("========== 获取标准字段详情，id={} ==========", id);
         
+        // 按字段Key查询（历史实现习惯），仅用于只读查看
         StandardField field = standardFieldService.getByFieldKey(String.valueOf(id));
         if (field == null) {
             return ResponseData.error("字段不存在");
@@ -71,39 +73,38 @@ public class StandardFieldController {
     public ResponseData<String> createStandardField(@RequestBody StandardField standardField) {
         log.info("========== 创建标准字段，request={} ==========", standardField);
         
-        // TODO: 实现创建功能
-        log.warn("创建功能尚未实现，当前为只读模式");
-        
-        return ResponseData.success("创建功能尚未实现");
+        // 只读模式：禁止新增，保留提示
+        log.warn("标准字段处于只读模式，禁止新增");
+        return ResponseData.error("标准字段为统一定义，仅支持查看，禁止新增");
     }
 
     /**
      * 更新标准字段
      */
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     public ResponseData<String> updateStandardField(
             @PathVariable Long id,
             @RequestBody StandardField standardField
     ) {
         log.info("========== 更新标准字段，id={}, request={} ==========", id, standardField);
         
-        // TODO: 实现更新功能
-        log.warn("更新功能尚未实现，当前为只读模式");
+        // 只读模式：禁止修改，保留提示
+        log.warn("标准字段处于只读模式，禁止修改");
         
-        return ResponseData.success("更新功能尚未实现");
+        return ResponseData.error("标准字段为统一定义，仅支持查看，禁止修改");
     }
 
     /**
      * 删除标准字段（软删除）
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     public ResponseData<String> deleteStandardField(@PathVariable Long id) {
         log.info("========== 删除标准字段，id={} ==========", id);
         
-        // TODO: 实现删除功能
-        log.warn("删除功能尚未实现，当前为只读模式");
+        // 只读模式：禁止删除，保留提示
+        log.warn("标准字段处于只读模式，禁止删除");
         
-        return ResponseData.success("删除功能尚未实现");
+        return ResponseData.error("标准字段为统一定义，仅支持查看，禁止删除");
     }
 
     /**
@@ -120,10 +121,28 @@ public class StandardFieldController {
             log.info("更新{}个字段的排序", fields.size());
         }
         
-        // TODO: 实现排序功能
-        log.warn("排序功能尚未实现，当前为只读模式");
+        // 只读模式：禁止调整排序
+        log.warn("标准字段处于只读模式，禁止调整排序");
         
-        return ResponseData.success("排序功能尚未实现");
+        return ResponseData.error("标准字段为统一定义，仅支持查看，禁止调整排序");
+    }
+
+    /**
+     * 案件列表标准字段（只读）
+     */
+    @GetMapping("/case-list")
+    public ResponseData<List<CaseStandardFieldVO>> getCaseListStandardFields() {
+        log.info("获取案件列表标准字段（只读）");
+        return ResponseData.success(CaseStandardFieldProvider.getCaseListFields());
+    }
+
+    /**
+     * 案件详情标准字段（只读）
+     */
+    @GetMapping("/case-detail")
+    public ResponseData<List<CaseStandardFieldVO>> getCaseDetailStandardFields() {
+        log.info("获取案件详情标准字段（只读）");
+        return ResponseData.success(CaseStandardFieldProvider.getCaseDetailFields());
     }
 
 }

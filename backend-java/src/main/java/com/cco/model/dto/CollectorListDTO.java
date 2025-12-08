@@ -1,6 +1,7 @@
 package com.cco.model.dto;
 
 import lombok.Data;
+import java.util.List;
 
 /**
  * 催员列表DTO（用于分案弹窗）
@@ -62,7 +63,29 @@ public class CollectorListDTO {
      * 状态
      */
     private String status;
+
+    /**
+     * 商户限制
+     */
+    private List<String> allowedMerchants;
+
+    /**
+     * APP限制
+     */
+    private List<String> allowedApps;
+
+    /**
+     * 产品限制
+     */
+    private List<String> allowedProducts;
+
+    /**
+     * 队列限制
+     */
+    private List<String> allowedQueues;
 }
+
+
 
 
 

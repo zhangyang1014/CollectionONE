@@ -54,6 +54,35 @@
         <el-table-column prop="agency_name" label="所属机构" width="150" />
         <el-table-column prop="team_group_name" label="所属小组群" width="150" />
         <el-table-column prop="queue_name" label="催收队列" width="150" />
+        <el-table-column prop="password_rotate_days" label="密码自动更换" width="140">
+          <template #default="{ row }">
+            <span>{{ formatPasswordRotate(row.password_rotate_days) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="催收限制" min-width="260">
+          <template #default="{ row }">
+            <div class="limit-cell">
+              <template v-if="hasRestriction(row)">
+                <div v-if="normalizeToArray(row.allowed_systems).length">
+                  所属系统：{{ formatArrayDisplay(row.allowed_systems) }}
+                </div>
+                <div v-if="normalizeToArray(row.allowed_term_days).length">
+                  当期天数：{{ formatArrayDisplay(row.allowed_term_days, '天') }}
+                </div>
+                <div v-if="normalizeToArray(row.allowed_products).length">
+                  产品：{{ formatArrayDisplay(row.allowed_products) }}
+                </div>
+                <div v-if="normalizeToArray(row.allowed_apps).length">
+                  APP：{{ formatArrayDisplay(row.allowed_apps) }}
+                </div>
+                <div v-if="normalizeToArray(row.allowed_merchants).length">
+                  商户：{{ formatArrayDisplay(row.allowed_merchants) }}
+                </div>
+              </template>
+              <span v-else class="limit-empty">全部</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="collector_count" label="催员数" width="100" align="center">
           <template #default="{ row }">
             <el-button 
@@ -150,6 +179,119 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="密码自动更换">
+          <el-select
+            v-model="form.password_rotate_days"
+            placeholder="请选择"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in passwordRotateOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <div class="tip-text">到期后自动生成新密码；“永久”表示不自动更换</div>
+        </el-form-item>
+
+        <el-divider content-position="left">催收范围限制</el-divider>
+
+        <el-form-item label="所属系统">
+          <el-select
+            v-model="form.limit_systems"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="留空表示不限制"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in systemOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="当期天数">
+          <el-select
+            v-model="form.limit_term_days"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="留空表示不限制"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in termDayOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="产品">
+          <el-select
+            v-model="form.limit_products"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="留空表示不限制"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in productOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="APP">
+          <el-select
+            v-model="form.limit_apps"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="留空表示不限制"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in appOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="商户">
+          <el-select
+            v-model="form.limit_merchants"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="留空表示不限制"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in merchantOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="备注">
           <el-input 
             v-model="form.remark" 
@@ -177,6 +319,7 @@ import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
+import request from '@/utils/request'
 
 const router = useRouter()
 const route = useRoute()
@@ -196,6 +339,176 @@ const dialogTitle = ref('')
 const saving = ref(false)
 const formRef = ref<FormInstance>()
 const isEdit = ref(false)
+const optionPreset = {
+  system: [
+    { label: 'iOS', value: 'ios' },
+    { label: 'Android', value: 'android' },
+    { label: 'Web', value: 'web' }
+  ],
+  termDays: ['1', '3', '7', '15', '30']
+}
+const defaultTermDayOptions = ['1', '3', '7', '15', '30']
+const restrictionOptions = reactive({
+  system: [] as { label: string; value: string }[],
+  termDays: [] as { label: string; value: string }[],
+  product: [] as { label: string; value: string }[],
+  app: [] as { label: string; value: string }[],
+  merchant: [] as { label: string; value: string }[]
+})
+const passwordRotateOptions = [
+  { label: '永久', value: 0 },
+  { label: '1天', value: 1 },
+  { label: '2天', value: 2 },
+  { label: '3天', value: 3 },
+  { label: '4天', value: 4 },
+  { label: '5天', value: 5 },
+  { label: '6天', value: 6 },
+  { label: '7天', value: 7 },
+  { label: '8天', value: 8 },
+  { label: '9天', value: 9 },
+  { label: '10天', value: 10 },
+  { label: '15天', value: 15 },
+  { label: '30天', value: 30 }
+]
+
+// 将任意值安全转换为字符串数组，便于统一展示和提交
+const normalizeToArray = (value: any): string[] => {
+  if (!value) return []
+  if (Array.isArray(value)) return value.map(v => String(v))
+  return [String(value)]
+}
+
+// 去除空值并做简单清洗，避免提交脏数据
+const cleanArray = (value: any): string[] => {
+  return normalizeToArray(value)
+    .map(item => item.trim())
+    .filter(item => item.length > 0)
+}
+
+// 显示用的数组格式化，支持附加后缀（例如“天”）
+const formatArrayDisplay = (value: any, suffix = ''): string => {
+  const list = normalizeToArray(value)
+  if (!list.length) return ''
+  return list.map(item => `${item}${suffix ? suffix : ''}`).join('、')
+}
+
+// 格式化密码自动更换天数
+const formatPasswordRotate = (days: any): string => {
+  const num = Number(days)
+  if (!days || num === 0) return '永久'
+  return `${num}天`
+}
+
+// 判断行是否设置了任何限制
+const hasRestriction = (row: any): boolean => {
+  return [
+    row?.allowed_systems,
+    row?.allowed_term_days,
+    row?.allowed_products,
+    row?.allowed_apps,
+    row?.allowed_merchants
+  ].some(item => normalizeToArray(item).length > 0)
+}
+
+// 从“案件列表字段映射配置”读取下拉选项，保证与映射一致
+const loadRestrictionOptionsFromMapping = async () => {
+  restrictionOptions.system = []
+  restrictionOptions.termDays = []
+  restrictionOptions.product = []
+  restrictionOptions.app = []
+  restrictionOptions.merchant = []
+
+  if (!currentTenantId.value) return
+
+  try {
+    const { getApiUrl } = await import('@/config/api')
+    const url = getApiUrl(`tenants/${currentTenantId.value}/fields-json`)
+    const resp = await request({
+      url,
+      method: 'get'
+    })
+    const fields = Array.isArray(resp?.fields) ? resp.fields : (Array.isArray(resp) ? resp : [])
+
+    const pickOptions = (fieldKey: string, appendSuffix?: string) => {
+      const field = fields.find((f: any) => f.field_key === fieldKey || f.fieldKey === fieldKey)
+      if (!field) return []
+      const enums = field.enum_values || field.enumValues || field.enum_options
+      if (!Array.isArray(enums)) return []
+      return enums
+        .map((item: any) => {
+          const value = item.value ?? item.standard_value ?? item.standardValue ?? item.label ?? item.standard_name
+          if (!value && value !== 0) return null
+          const label = item.label ?? item.standard_name ?? item.standardName ?? value
+          return {
+            label: appendSuffix ? `${label}${appendSuffix}` : String(label),
+            value: String(value)
+          }
+        })
+        .filter(Boolean) as { label: string; value: string }[]
+    }
+
+    restrictionOptions.system = pickOptions('system_name')
+    restrictionOptions.termDays = pickOptions('term_days', '天')
+    restrictionOptions.product = pickOptions('product_name')
+    restrictionOptions.app = pickOptions('app_name')
+    restrictionOptions.merchant = pickOptions('merchant_name')
+
+    // 如果映射未提供枚举，回退到默认预设，确保仍可选择/输入
+    if (restrictionOptions.system.length === 0) {
+      restrictionOptions.system = optionPreset.system
+    }
+    if (restrictionOptions.termDays.length === 0) {
+      restrictionOptions.termDays = optionPreset.termDays.map(v => ({ label: `${v}天`, value: v }))
+    }
+  } catch (error) {
+    console.error('加载字段映射选项失败：', error)
+    // 失败时仍保留预设，避免界面空白
+    restrictionOptions.system = optionPreset.system
+    restrictionOptions.termDays = optionPreset.termDays.map(v => ({ label: `${v}天`, value: v }))
+  }
+}
+
+// 动态下拉选项，基于已有小组的限制值做提示，同时保留可自由输入
+const systemOptions = computed(() => {
+  if (restrictionOptions.system.length > 0) return restrictionOptions.system
+  return optionPreset.system
+})
+
+const termDayOptions = computed(() => {
+  if (restrictionOptions.termDays.length > 0) return restrictionOptions.termDays
+  const set = new Set<string>(defaultTermDayOptions)
+  allTeams.value.forEach(team => {
+    normalizeToArray(team.allowed_term_days).forEach((day: string) => set.add(String(day)))
+  })
+  return Array.from(set).map(v => ({ label: `${v}天`, value: v }))
+})
+
+const productOptions = computed(() => {
+  if (restrictionOptions.product.length > 0) return restrictionOptions.product
+  const set = new Set<string>()
+  allTeams.value.forEach(team => {
+    normalizeToArray(team.allowed_products).forEach((item: string) => set.add(String(item)))
+  })
+  return Array.from(set).map(v => ({ label: v, value: v }))
+})
+
+const appOptions = computed(() => {
+  if (restrictionOptions.app.length > 0) return restrictionOptions.app
+  const set = new Set<string>()
+  allTeams.value.forEach(team => {
+    normalizeToArray(team.allowed_apps).forEach((item: string) => set.add(String(item)))
+  })
+  return Array.from(set).map(v => ({ label: v, value: v }))
+})
+
+const merchantOptions = computed(() => {
+  if (restrictionOptions.merchant.length > 0) return restrictionOptions.merchant
+  const set = new Set<string>()
+  allTeams.value.forEach(team => {
+    normalizeToArray(team.allowed_merchants).forEach((item: string) => set.add(String(item)))
+  })
+  return Array.from(set).map(v => ({ label: v, value: v }))
+})
 
 // 计算属性：用于小组选择器的选项（根据选择的机构筛选）
 const filteredTeams = computed(() => {
@@ -218,6 +531,7 @@ watch(
     queues.value = []
     
     if (newTenantId) {
+      await loadRestrictionOptionsFromMapping()
       await loadAgencies()
       await loadQueues()
       await loadAllTeams() // 默认加载所有小组
@@ -229,6 +543,7 @@ watch(
 // 初始加载
 onMounted(async () => {
   if (currentTenantId.value) {
+    await loadRestrictionOptionsFromMapping()
     await loadAgencies()
     await loadQueues()
     await loadAllTeams() // 默认加载所有小组
@@ -259,6 +574,12 @@ const form = ref({
   queue_id: undefined as number | undefined,
   leader_id: undefined as number | undefined,
   target_performance: 0,
+  password_rotate_days: 0,
+  limit_systems: [] as string[],
+  limit_term_days: [] as string[],
+  limit_products: [] as string[],
+  limit_apps: [] as string[],
+  limit_merchants: [] as string[],
   remark: '',
   is_active: true
 })
@@ -445,6 +766,12 @@ const handleAdd = () => {
     queue_id: undefined,
     leader_id: undefined,
     target_performance: 0,
+    password_rotate_days: 0,
+    limit_systems: [],
+    limit_term_days: [],
+    limit_products: [],
+    limit_apps: [],
+    limit_merchants: [],
     remark: '',
     is_active: true
   }
@@ -476,6 +803,12 @@ const handleEdit = async (row: any) => {
     queue_id: row.queue_id,
     leader_id: row.leader_id,
     target_performance: row.target_performance || 0,
+    password_rotate_days: row.password_rotate_days ?? 0,
+    limit_systems: normalizeToArray(row.allowed_systems || row.allowedSystems),
+    limit_term_days: normalizeToArray(row.allowed_term_days || row.allowedTermDays),
+    limit_products: normalizeToArray(row.allowed_products || row.allowedProducts),
+    limit_apps: normalizeToArray(row.allowed_apps || row.allowedApps),
+    limit_merchants: normalizeToArray(row.allowed_merchants || row.allowedMerchants),
     remark: row.remark || '',
     is_active: row.is_active
   }
@@ -509,8 +842,14 @@ const handleSave = async () => {
       team_leader_id: form.value.leader_id || null,
       description: form.value.remark || null,
       max_case_count: form.value.target_performance || 0,
+      password_rotate_days: Number(form.value.password_rotate_days || 0),
       sort_order: 0,
-      is_active: form.value.is_active
+      is_active: form.value.is_active,
+      allowed_systems: cleanArray(form.value.limit_systems),
+      allowed_term_days: cleanArray(form.value.limit_term_days),
+      allowed_products: cleanArray(form.value.limit_products),
+      allowed_apps: cleanArray(form.value.limit_apps),
+      allowed_merchants: cleanArray(form.value.limit_merchants)
     }
     
     if (isEdit.value && form.value.id) {
@@ -590,6 +929,17 @@ const handleToggleStatus = async (row: any) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.limit-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+
+.limit-empty {
+  color: #909399;
 }
 </style>
 

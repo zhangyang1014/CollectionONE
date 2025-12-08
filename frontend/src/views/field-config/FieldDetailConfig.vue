@@ -3,43 +3,51 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>案件详情字段配置</span>
+          <div class="header-info">
+            <span class="title">案件详情字段展示配置</span>
+            <div class="data-source-info">
+              <el-tag type="info" size="small">数据来源：{{ dataSourceInfo.source }}</el-tag>
+              <el-tag type="success" size="small">版本：{{ dataSourceInfo.version }}</el-tag>
+              <span class="info-text">拉取时间：{{ dataSourceInfo.fetchTime }}</span>
+            </div>
+          </div>
           <div class="header-actions">
+            <el-button @click="handleManageGroups">
+              <el-icon><Setting /></el-icon>
+              分组管理
+            </el-button>
             <el-button type="primary" @click="handleAdd">添加字段配置</el-button>
-            <el-button @click="handleCopyScene">复制场景配置</el-button>
-            <el-button @click="handleBatchSave">批量保存</el-button>
+            <el-button type="success" @click="handleBatchSave">保存到服务器</el-button>
+            <el-button @click="handleSaveVersion">保存为本地版本</el-button>
+            <el-button @click="handleShowVersions">版本管理</el-button>
           </div>
         </div>
       </template>
 
-      <!-- 场景选择 -->
-      <el-row :gutter="20" style="margin-bottom: 20px;">
-        <el-col :span="8">
-          <el-select
-            v-model="currentScene"
-            placeholder="请选择场景"
-            style="width: 100%"
-            @change="handleSceneChange"
-          >
-            <el-option
-              v-for="scene in sceneTypes"
-              :key="scene.key"
-              :label="scene.name"
-              :value="scene.key"
-            >
-              <span>{{ scene.name }}</span>
-              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">
-                {{ scene.description }}
-              </span>
-            </el-option>
-          </el-select>
+      <el-row :gutter="20">
+        <!-- 左侧分组树 -->
+        <el-col :span="5">
+          <el-card shadow="never">
+            <template #header>字段分组</template>
+            <el-tree
+              :data="groupTree"
+              :props="{ label: 'label', children: 'children' }"
+              node-key="key"
+              :default-expand-all="true"
+              :expand-on-click-node="false"
+              highlight-current
+              @node-click="handleGroupClick"
+              class="field-group-tree"
+            />
+          </el-card>
         </el-col>
-      </el-row>
 
+        <!-- 右侧配置表格 -->
+        <el-col :span="19">
       <!-- 配置表格 -->
       <el-table
         ref="tableRef"
-        :data="configs"
+        :data="filteredConfigs"
         border
         style="width: 100%"
         v-loading="loading"
@@ -111,28 +119,6 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="可筛选" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch 
-              v-if="isFilterableType(row.field_data_type)"
-              v-model="row.is_filterable" 
-              size="small" 
-            />
-            <span v-else style="color: #c0c4cc;">-</span>
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="范围检索" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch 
-              v-if="isRangeSearchableType(row.field_data_type)"
-              v-model="row.is_range_searchable" 
-              size="small"
-            />
-            <span v-else style="color: #c0c4cc;">-</span>
-          </template>
-        </el-table-column>
-        
         <el-table-column label="隐藏规则" width="150">
           <template #default="{ row }">
             <el-tag
@@ -172,6 +158,8 @@
           </template>
         </el-table-column>
       </el-table>
+        </el-col>
+      </el-row>
     </el-card>
 
     <!-- 添加/编辑对话框 -->
@@ -186,14 +174,7 @@
           <!-- 基本信息 -->
           <el-tab-pane label="基本信息" name="basic">
             <el-form-item label="场景类型" required>
-              <el-select v-model="form.scene_type" disabled style="width: 100%">
-                <el-option
-                  v-for="scene in sceneTypes"
-                  :key="scene.key"
-                  :label="scene.name"
-                  :value="scene.key"
-                />
-              </el-select>
+              <el-input v-model="form.scene_name" disabled />
             </el-form-item>
             
             <el-form-item label="选择字段" required v-if="!isEditMode">
@@ -279,36 +260,6 @@
             </el-form-item>
           </el-tab-pane>
 
-          <!-- 搜索筛选配置 -->
-          <el-tab-pane label="搜索筛选" name="search">
-            <el-form-item 
-              label="是否可筛选"
-              v-if="isFilterableType(form.field_data_type)"
-            >
-              <el-switch v-model="form.is_filterable" />
-              <span style="margin-left: 10px; color: #909399;">针对枚举字段，启用后可在列表中筛选</span>
-            </el-form-item>
-            
-            <el-form-item 
-              label="是否支持范围检索"
-              v-if="isRangeSearchableType(form.field_data_type)"
-            >
-              <el-switch v-model="form.is_range_searchable" />
-              <span style="margin-left: 10px; color: #909399;">
-                针对数字和时间字段，支持最小-最大值或开始-结束时间范围筛选
-              </span>
-            </el-form-item>
-            
-            <!-- 如果没有可配置的搜索筛选项，显示提示 -->
-            <el-alert
-              v-if="!isFilterableType(form.field_data_type) && 
-                    !isRangeSearchableType(form.field_data_type)"
-              title="当前字段类型不支持筛选或范围检索功能"
-              type="info"
-              :closable="false"
-            />
-          </el-tab-pane>
-
           <!-- 隐藏规则（仅催员端） -->
           <el-tab-pane
             label="隐藏规则"
@@ -379,72 +330,146 @@
       </template>
     </el-dialog>
 
-    <!-- 复制场景对话框 -->
-    <el-dialog v-model="copyDialogVisible" title="复制场景配置" width="500px">
-      <el-form label-width="100px">
-        <el-form-item label="源场景">
-          <el-select v-model="copyForm.fromScene" style="width: 100%">
-            <el-option
-              v-for="scene in sceneTypes"
-              :key="scene.key"
-              :label="scene.name"
-              :value="scene.key"
+    <!-- 分组管理对话框 -->
+    <el-dialog
+      v-model="groupManageDialogVisible"
+      title="分组管理"
+      width="700px"
+    >
+      <el-alert
+        title="提示：配置分组的显示顺序和默认折叠状态，应用于案件详情页面的分组卡片展示"
+        type="info"
+        :closable="false"
+        style="margin-bottom: 15px"
+      />
+
+      <el-table :data="groupConfigs" border row-key="group_key">
+        <el-table-column label="拖拽" width="60" align="center">
+          <template #default>
+            <el-icon class="drag-handle" style="cursor: move;">
+              <Rank />
+            </el-icon>
+          </template>
+        </el-table-column>
+        <el-table-column prop="group_name" label="分组名称" width="150" />
+        <el-table-column prop="group_key" label="分组标识" width="150" />
+        <el-table-column label="排序" width="100" align="center">
+          <template #default="{ row }">
+            <el-input-number 
+              v-model="row.sort_order" 
+              :min="1" 
+              size="small"
+              style="width: 80px"
             />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="目标场景">
-          <el-select v-model="copyForm.toScene" style="width: 100%">
-            <el-option
-              v-for="scene in sceneTypes"
-              :key="scene.key"
-              :label="scene.name"
-              :value="scene.key"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      
+          </template>
+        </el-table-column>
+        <el-table-column label="默认折叠" width="100" align="center">
+          <template #default="{ row }">
+            <el-switch v-model="row.is_collapsed_default" />
+          </template>
+        </el-table-column>
+        <el-table-column label="字段数" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag size="small">{{ getGroupFieldCount(row.group_key) }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+
       <template #footer>
-        <el-button @click="copyDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCopyConfirm">确定</el-button>
+        <el-button @click="groupManageDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveGroupConfig">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 版本管理抽屉 -->
+    <el-drawer
+      v-model="versionDrawerVisible"
+      title="版本管理 - 案件详情字段展示配置"
+      size="500px"
+    >
+      <div class="version-list">
+        <el-alert
+          title="提示：版本文件保存在本地 case-detail-display-versions 目录"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 15px"
+        />
+        
+        <div v-if="localVersions.length === 0">
+          <el-empty description="暂无保存的版本" />
+        </div>
+        
+        <div v-else>
+          <div 
+            v-for="version in localVersions" 
+            :key="version.version"
+            class="version-item"
+            :class="{ active: version.is_active }"
+          >
+            <div class="version-header">
+              <el-tag :type="version.is_active ? 'success' : 'info'">
+                版本{{ version.version }}
+              </el-tag>
+              <el-tag v-if="version.is_active" type="success" size="small">当前使用</el-tag>
+            </div>
+            <div class="version-body">
+              <div>保存时间：{{ formatDate(version.created_at) }}</div>
+              <div>操作人：{{ version.operator }}</div>
+              <div>备注：{{ version.note || '-' }}</div>
+            </div>
+            <div class="version-actions">
+              <el-button 
+                v-if="!version.is_active"
+                link 
+                type="primary" 
+                size="small"
+                @click="handleActivateLocalVersion(version)"
+              >
+                激活
+              </el-button>
+              <el-button link type="danger" size="small" @click="handleDeleteLocalVersion(version)">
+                删除
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Rank } from '@element-plus/icons-vue'
+import { Rank, Setting } from '@element-plus/icons-vue'
 import { useTenantStore } from '@/stores/tenant'
 import Sortable from 'sortablejs'
 import {
-  getCaseDetailSceneTypes,
   getCaseDetailFieldConfigs,
   batchSaveCaseDetailFieldConfigs,
-  copyCaseDetailScene,
   getAvailableFieldsForDetail
 } from '@/api/caseDetailFieldConfig'
+import { getDetailFieldGroups } from '@/api/detailFieldGroup'
 import type {
   FieldDisplayConfig,
   FieldDisplayConfigCreate,
   AvailableFieldOption
 } from '@/types/fieldDisplay'
 
-type CaseDetailSceneType = 'admin_case_detail' | 'collector_case_detail'
-interface SceneOption {
-  key: CaseDetailSceneType
-  name: string
-  description?: string
-}
-
 const tenantStore = useTenantStore()
 const currentTenantId = computed(() => tenantStore.currentTenantId)
 const tableRef = ref()
 
-const sceneTypes = ref<SceneOption[]>([])
-const currentScene = ref<CaseDetailSceneType>('admin_case_detail')
+// 常量：统一场景
+const SCENE_TYPE = 'admin_case_detail'
+const SCENE_NAME = '控台案件详情'
+
+// 分组相关
+const allGroups = ref<any[]>([])
+const activeGroupId = ref<string | number>('all')
+const groupConfigs = ref<any[]>([]) // 分组配置（排序、折叠状态）
+
 const configs = ref<FieldDisplayConfig[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -462,11 +487,25 @@ const queues = ref<any[]>([])
 const agencies = ref<any[]>([])
 const teams = ref<any[]>([])
 
+// 分组管理
+const groupManageDialogVisible = ref(false)
+
+// 版本管理
+const versionDrawerVisible = ref(false)
+const localVersions = ref<any[]>([])
+
+// 数据来源信息
+const dataSourceInfo = ref({
+  source: '映射配置',
+  version: 'v1',
+  fetchTime: new Date().toLocaleString('zh-CN')
+})
+
 // 表单数据
 const form = ref<FieldDisplayConfigCreate>({
   tenant_id: '',
-  scene_type: 'admin_case_detail',
-  scene_name: '',
+  scene_type: SCENE_TYPE,
+  scene_name: SCENE_NAME,
   field_key: '',
   field_name: '',
   field_data_type: '',
@@ -474,23 +513,14 @@ const form = ref<FieldDisplayConfigCreate>({
   sort_order: 0,
   display_width: 0,
   color_type: 'normal',
-  is_filterable: false,
+  field_group_id: undefined as any,
   hide_for_queues: [],
   hide_for_agencies: [],
   hide_for_teams: []
 })
 
-// 复制场景表单
-const copyDialogVisible = ref(false)
-const copyForm = ref({
-  fromScene: '',
-  toScene: ''
-})
-
-// 是否是催员端场景
-const isCollectorScene = computed(() => {
-  return form.value.scene_type?.includes('collector')
-})
+// 是否是催员端场景（统一场景后始终为 false）
+const isCollectorScene = computed(() => false)
 
 // 字段来源标签
 const getFieldSourceLabel = (source?: string) => {
@@ -512,19 +542,6 @@ const getFieldSourceType = (source?: string) => {
   return types[source || ''] || ''
 }
 
-// 判断是否是可筛选的类型（枚举类型）
-const isFilterableType = (fieldType?: string) => {
-  if (!fieldType) return false
-  return fieldType === 'Enum'
-}
-
-// 判断是否是可范围检索的类型（数字和时间类型）
-const isRangeSearchableType = (fieldType?: string) => {
-  if (!fieldType) return false
-  const rangeTypes = ['Integer', 'Decimal', 'Date', 'Datetime']
-  return rangeTypes.includes(fieldType)
-}
-
 // 分组的字段列表
 const groupedFields = computed(() => {
   const groups: Record<string, AvailableFieldOption[]> = {}
@@ -541,6 +558,61 @@ const groupedFields = computed(() => {
     label,
     options: groups[label]
   }))
+})
+
+// 加载分组
+const loadGroups = async () => {
+  try {
+    const data = await getDetailFieldGroups({
+      tenantId: currentTenantId.value ? Number(currentTenantId.value) : undefined
+    })
+    allGroups.value = Array.isArray(data) ? data : (data?.data ?? [])
+  } catch (error) {
+    console.error('加载分组失败：', error)
+    allGroups.value = []
+  }
+}
+
+// 分组树
+const groupTree = computed(() => {
+  const roots = allGroups.value.filter(g => !g.parent_id)
+  const buildChildren = (parentId: number) => {
+    return allGroups.value
+      .filter(g => g.parent_id === parentId)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      .map(g => ({
+        key: g.id,
+        label: g.group_name,
+        groupKey: g.group_key,
+        children: buildChildren(g.id)
+      }))
+  }
+
+  const tree = roots
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    .map(g => ({
+      key: g.id,
+      label: g.group_name,
+      groupKey: g.group_key,
+      children: buildChildren(g.id)
+    }))
+
+  return [{ key: 'all', label: '全部', children: tree }]
+})
+
+// 获取选中分组及子分组ID
+const getGroupAndChildrenIds = (groupId: number): number[] => {
+  const ids = [groupId]
+  const children = allGroups.value.filter(g => g.parent_id === groupId)
+  children.forEach(child => ids.push(...getGroupAndChildrenIds(child.id)))
+  return ids
+}
+
+// 分组过滤后的配置
+const filteredConfigs = computed(() => {
+  if (activeGroupId.value === 'all') return configs.value
+  const ids = getGroupAndChildrenIds(Number(activeGroupId.value))
+  return configs.value.filter(c => !c.field_group_id || ids.includes(Number(c.field_group_id)))
 })
 
 // 加载可用字段
@@ -563,29 +635,13 @@ const handleFieldSelect = (fieldKey: string) => {
     form.value.field_name = field.field_name
     form.value.field_data_type = field.field_type
     form.value.field_source = field.field_source
-    
-    // 根据字段类型自动设置筛选和范围检索选项
-    if (field.field_type === 'Enum') {
-      form.value.is_filterable = true
-      form.value.is_range_searchable = false
-    } else if (['Integer', 'Decimal', 'Date', 'Datetime'].includes(field.field_type)) {
-      form.value.is_filterable = false
-      form.value.is_range_searchable = true
-    } else {
-      form.value.is_filterable = false
-      form.value.is_range_searchable = false
-    }
+    form.value.field_group_id = field.field_group_id ?? null
   }
 }
 
-// 加载场景类型
-const loadSceneTypes = async () => {
-  try {
-    const data = await getCaseDetailSceneTypes()
-    sceneTypes.value = Array.isArray(data) ? data : (data?.data ?? [])
-  } catch (error: any) {
-    ElMessage.error('加载场景类型失败：' + error.message)
-  }
+// 分组点击
+const handleGroupClick = (node: any) => {
+  activeGroupId.value = node.key
 }
 
 // 初始化拖拽排序
@@ -629,7 +685,7 @@ const loadConfigs = async () => {
   try {
     const data = await getCaseDetailFieldConfigs({
       tenantId: Number(currentTenantId.value),
-      sceneType: currentScene.value
+      sceneType: SCENE_TYPE
     })
     configs.value = Array.isArray(data) ? data : (data?.data ?? [])
     
@@ -642,13 +698,6 @@ const loadConfigs = async () => {
   }
 }
 
-// 场景切换
-const handleSceneChange = () => {
-  loadConfigs()
-  // 重新初始化拖拽
-  initDragSort()
-}
-
 // 添加配置
 const handleAdd = () => {
   isEditMode.value = false
@@ -656,8 +705,8 @@ const handleAdd = () => {
   selectedFieldKey.value = ''
   form.value = {
     tenant_id: currentTenantId.value || '',
-    scene_type: currentScene.value,
-    scene_name: sceneTypes.value.find(s => s.key === currentScene.value)?.name || '',
+    scene_type: SCENE_TYPE,
+    scene_name: SCENE_NAME,
     field_key: '',
     field_name: '',
     field_data_type: '',
@@ -665,8 +714,7 @@ const handleAdd = () => {
     sort_order: configs.value.length,
     display_width: 0,
     color_type: 'normal',
-    is_filterable: false,
-    is_range_searchable: false,
+    field_group_id: activeGroupId.value === 'all' ? null as any : Number(activeGroupId.value),
     hide_for_queues: [],
     hide_for_agencies: [],
     hide_for_teams: []
@@ -746,51 +794,12 @@ const handleDialogClose = () => {
   selectedFieldKey.value = ''
 }
 
-// 复制场景
-const handleCopyScene = () => {
-  copyForm.value = {
-    fromScene: currentScene.value,
-    toScene: ''
-  }
-  copyDialogVisible.value = true
-}
-
-// 确认复制
-const handleCopyConfirm = async () => {
-  if (!copyForm.value.fromScene || !copyForm.value.toScene) {
-    ElMessage.warning('请选择源场景和目标场景')
-    return
-  }
-  
-  if (copyForm.value.fromScene === copyForm.value.toScene) {
-    ElMessage.warning('源场景和目标场景不能相同')
-    return
-  }
-  
-  try {
-    await copyCaseDetailScene({
-      tenant_id: Number(currentTenantId.value || 0),
-      from_scene: copyForm.value.fromScene as CaseDetailSceneType,
-      to_scene: copyForm.value.toScene as CaseDetailSceneType
-    })
-    ElMessage.success('复制成功')
-    copyDialogVisible.value = false
-    
-    // 如果当前场景是目标场景，重新加载
-    if (currentScene.value === copyForm.value.toScene) {
-      loadConfigs()
-    }
-  } catch (error: any) {
-    ElMessage.error('复制失败：' + error.message)
-  }
-}
-
 // 批量保存
 const handleBatchSave = async () => {
   try {
     await batchSaveCaseDetailFieldConfigs({
       tenant_id: Number(currentTenantId.value || 0),
-      scene_type: currentScene.value,
+      scene_type: SCENE_TYPE,
       configs: configs.value as any
     })
     ElMessage.success('批量保存成功')
@@ -800,11 +809,117 @@ const handleBatchSave = async () => {
   }
 }
 
-onMounted(() => {
-  loadSceneTypes()
-  if (currentTenantId.value) {
-    loadConfigs()
+// 分组管理
+const handleManageGroups = () => {
+  // 初始化分组配置
+  groupConfigs.value = allGroups.value
+    .filter(g => !g.parent_id)
+    .map(g => ({
+      group_key: g.group_key,
+      group_name: g.group_name,
+      sort_order: g.sort_order || 0,
+      is_collapsed_default: g.is_collapsed_default || false
+    }))
+  
+  groupManageDialogVisible.value = true
+}
+
+const getGroupFieldCount = (groupKey: string) => {
+  return configs.value.filter(c => {
+    const group = allGroups.value.find(g => g.id === c.field_group_id)
+    return group?.group_key === groupKey
+  }).length
+}
+
+const handleSaveGroupConfig = () => {
+  // 更新allGroups中的分组配置
+  groupConfigs.value.forEach(gc => {
+    const group = allGroups.value.find(g => g.group_key === gc.group_key)
+    if (group) {
+      group.sort_order = gc.sort_order
+      group.is_collapsed_default = gc.is_collapsed_default
+    }
+  })
+  
+  groupManageDialogVisible.value = false
+  ElMessage.success('分组配置已更新，请保存为新版本')
+}
+
+// 版本管理
+const handleSaveVersion = async () => {
+  try {
+    const note = await ElMessageBox.prompt('请输入版本说明', '保存为新版本', {
+      inputPlaceholder: '例如：调整分组排序和字段宽度',
+      inputType: 'textarea'
+    })
+    
+    // TODO: 保存到本地JSON文件
+    const versionData = {
+      version: localVersions.value.length + 1,
+      tenant_id: Number(currentTenantId.value),
+      scene_type: SCENE_TYPE,
+      groups: buildGroupsWithFields(),
+      created_at: new Date().toISOString(),
+      operator: 'admin',
+      note: note.value,
+      is_active: true
+    }
+    
+    console.log('保存版本：', versionData)
+    ElMessage.success('版本保存成功')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error('保存失败')
+    }
   }
+}
+
+const buildGroupsWithFields = () => {
+  return groupConfigs.value.map(gc => {
+    const groupFields = configs.value.filter(c => {
+      const group = allGroups.value.find(g => g.id === c.field_group_id)
+      return group?.group_key === gc.group_key
+    })
+    
+    return {
+      group_key: gc.group_key,
+      group_name: gc.group_name,
+      sort_order: gc.sort_order,
+      is_collapsed_default: gc.is_collapsed_default,
+      fields: groupFields.map(f => ({
+        field_key: f.field_key,
+        field_name: f.field_name,
+        sort_order: f.sort_order,
+        display_width: f.display_width,
+        color_type: f.color_type
+      }))
+    }
+  })
+}
+
+const handleShowVersions = () => {
+  // TODO: 加载本地版本列表
+  localVersions.value = []
+  versionDrawerVisible.value = true
+}
+
+const handleActivateLocalVersion = (version: any) => {
+  ElMessage.info('激活版本功能开发中...')
+}
+
+const handleDeleteLocalVersion = (version: any) => {
+  ElMessage.info('删除版本功能开发中...')
+}
+
+const formatDate = (date: string) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleString('zh-CN')
+}
+
+onMounted(() => {
+  loadGroups()
+  loadAvailableFields()
+  loadConfigs()
   // 初始化拖拽
   initDragSort()
 })
@@ -814,7 +929,29 @@ onMounted(() => {
 .card-header {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-info {
+  flex: 1;
+}
+
+.header-info .title {
+  font-size: 18px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.data-source-info {
+  display: flex;
   align-items: center;
+  gap: 15px;
+}
+
+.info-text {
+  color: #606266;
+  font-size: 14px;
 }
 
 .header-actions {
@@ -840,6 +977,61 @@ onMounted(() => {
 :deep(.sortable-drag) {
   opacity: 0.8;
   background: #ecf5ff;
+}
+
+.version-list {
+  padding: 0 10px;
+}
+
+.version-item {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.version-item.active {
+  background-color: #f0f9ff;
+  border-color: #67c23a;
+}
+
+.version-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.version-body {
+  font-size: 14px;
+  color: #606266;
+  margin: 10px 0;
+}
+
+.version-body > div {
+  margin: 5px 0;
+}
+
+.version-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ebeef5;
+}
+
+.field-cell {
+  padding: 4px 0;
+}
+
+.field-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.field-key {
+  font-size: 12px;
+  color: #909399;
 }
 </style>
 

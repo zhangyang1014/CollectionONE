@@ -87,19 +87,19 @@ const routes: RouteRecordRaw[] = [
         path: 'field-config/standard',
         name: 'StandardFields',
         component: () => import('@/views/field-config/StandardFields.vue'),
-        meta: { title: '标准字段管理', requiresAuth: true },
+        meta: { title: '案件列表标准字段管理', requiresAuth: true },
       },
       {
         path: 'field-config/tenant-fields-view',
         name: 'TenantFieldsView',
         component: () => import('@/views/field-config/TenantFieldsView.vue'),
-        meta: { title: '甲方字段查看', requiresAuth: true },
+        meta: { title: '案件列表甲方字段查看', requiresAuth: true },
       },
       {
         path: 'field-config/custom',
         name: 'CustomFields',
-        component: () => import('@/views/field-config/CustomFields.vue'),
-        meta: { title: '字段映射配置', requiresAuth: true },
+        component: () => import('@/views/field-config/FieldMappingConfigSimple.vue'),
+        meta: { title: '案件列表字段映射配置', requiresAuth: true },
       },
       {
         path: 'field-config/groups',

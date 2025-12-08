@@ -13,6 +13,9 @@ import com.cco.mapper.TeamAdminAccountMapper;
 import com.cco.mapper.AgencyWorkingHoursMapper;
 import com.cco.mapper.CaseReassignConfigMapper;
 import com.cco.mapper.CollectorLoginWhitelistMapper;
+import com.cco.mapper.TenantFieldDisplayConfigMapper;
+import com.cco.mapper.CustomFieldMapper;
+import com.cco.mapper.TenantFieldUploadMapper;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.mapper.MapperFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -168,6 +171,39 @@ public class MapperConfig {
     public MapperFactoryBean<StandardFieldMapper> standardFieldMapper() {
         MapperFactoryBean<StandardFieldMapper> factoryBean = new MapperFactoryBean<>();
         factoryBean.setMapperInterface(StandardFieldMapper.class);
+        factoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return factoryBean;
+    }
+
+    /**
+     * 手动注册TenantFieldDisplayConfigMapper
+     */
+    @Bean
+    public MapperFactoryBean<TenantFieldDisplayConfigMapper> tenantFieldDisplayConfigMapper() {
+        MapperFactoryBean<TenantFieldDisplayConfigMapper> factoryBean = new MapperFactoryBean<>();
+        factoryBean.setMapperInterface(TenantFieldDisplayConfigMapper.class);
+        factoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return factoryBean;
+    }
+
+    /**
+     * 手动注册TenantFieldUploadMapper
+     */
+    @Bean
+    public MapperFactoryBean<TenantFieldUploadMapper> tenantFieldUploadMapper() {
+        MapperFactoryBean<TenantFieldUploadMapper> factoryBean = new MapperFactoryBean<>();
+        factoryBean.setMapperInterface(TenantFieldUploadMapper.class);
+        factoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return factoryBean;
+    }
+
+    /**
+     * 手动注册CustomFieldMapper
+     */
+    @Bean
+    public MapperFactoryBean<CustomFieldMapper> customFieldMapper() {
+        MapperFactoryBean<CustomFieldMapper> factoryBean = new MapperFactoryBean<>();
+        factoryBean.setMapperInterface(CustomFieldMapper.class);
         factoryBean.setSqlSessionFactory(sqlSessionFactory);
         return factoryBean;
     }

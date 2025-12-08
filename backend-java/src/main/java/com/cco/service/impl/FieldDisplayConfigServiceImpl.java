@@ -7,25 +7,40 @@ import com.cco.model.dto.FieldDisplayConfigDTO;
 import com.cco.model.entity.TenantFieldDisplayConfig;
 import com.cco.service.CustomFieldService;
 import com.cco.service.FieldDisplayConfigService;
-import com.cco.service.IStandardFieldService;
+import com.cco.service.StandardFieldService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
 public class FieldDisplayConfigServiceImpl implements FieldDisplayConfigService {
 
+    /**
+     * 案件列表必须展示的字段key列表
+     */
+    private static final Set<String> REQUIRED_FIELD_KEYS = new HashSet<>(Set.of(
+            "case_code",
+            "user_name",
+            "loan_amount",
+            "outstanding_amount",
+            "overdue_days",
+            "case_status",
+            "due_date"
+    ));
+
     private final TenantFieldDisplayConfigMapper mapper;
-    private final IStandardFieldService standardFieldService;
+    private final StandardFieldService standardFieldService;
     private final CustomFieldService customFieldService;
 
     public FieldDisplayConfigServiceImpl(TenantFieldDisplayConfigMapper mapper,
-                                         IStandardFieldService standardFieldService,
+                                         StandardFieldService standardFieldService,
                                          CustomFieldService customFieldService) {
         this.mapper = mapper;
         this.standardFieldService = standardFieldService;
@@ -48,7 +63,27 @@ public class FieldDisplayConfigServiceImpl implements FieldDisplayConfigService 
 
         wrapper.orderByAsc(TenantFieldDisplayConfig::getSortOrder);
 
-        return mapper.selectList(wrapper);
+        List<TenantFieldDisplayConfig> configs = mapper.selectList(wrapper);
+
+        // 填充必显标记以及空值默认值，避免前端字段判空出错
+        if (configs != null) {
+            for (TenantFieldDisplayConfig config : configs) {
+                boolean required = REQUIRED_FIELD_KEYS.contains(config.getFieldKey());
+                config.setIsRequired(required);
+
+                if (config.getIsSearchable() == null) {
+                    config.setIsSearchable(false);
+                }
+                if (config.getIsFilterable() == null) {
+                    config.setIsFilterable(false);
+                }
+                if (config.getIsRangeSearchable() == null) {
+                    config.setIsRangeSearchable(false);
+                }
+            }
+        }
+
+        return configs;
     }
 
     @Override
@@ -141,7 +176,7 @@ public class FieldDisplayConfigServiceImpl implements FieldDisplayConfigService 
         // 标准字段
         if (standardFieldService != null) {
             try {
-                List<com.cco.model.entity.StandardField> standardFields = standardFieldService.listActiveFields();
+                List<com.cco.model.entity.StandardField> standardFields = standardFieldService.listActive();
                 for (com.cco.model.entity.StandardField field : standardFields) {
                     fields.add(FieldDisplayConfigDTO.AvailableField.builder()
                             .fieldKey(field.getFieldKey())

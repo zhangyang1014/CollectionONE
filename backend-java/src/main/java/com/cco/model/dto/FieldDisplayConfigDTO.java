@@ -2,6 +2,7 @@ package com.cco.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -39,6 +40,8 @@ public class FieldDisplayConfigDTO {
      */
     @Data
     @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "可用字段")
     public static class AvailableField {
         @Schema(description = "字段标识")
@@ -188,6 +191,15 @@ public class FieldDisplayConfigDTO {
     @NoArgsConstructor
     @Schema(description = "批量更新字段展示配置")
     public static class BatchUpdate {
+        @Schema(description = "甲方ID", required = true)
+        private Long tenantId;
+
+        @Schema(description = "场景类型", required = true)
+        private String sceneType;
+
+        @Schema(description = "场景名称")
+        private String sceneName;
+
         @Schema(description = "配置项列表", required = true)
         private List<ConfigUpdate> configs;
     }

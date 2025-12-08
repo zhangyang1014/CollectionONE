@@ -31,7 +31,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getCase } from '@/api/case'
 import { useTenantStore } from '@/stores/tenant'
-import { useCaseDetailFieldConfig } from '@/composables/useCaseDetailFieldConfig'
+import { useCaseListFieldConfig } from '@/composables/useCaseListFieldConfig'
 
 const route = useRoute()
 const caseId = Number(route.params.id)
@@ -47,7 +47,7 @@ const {
   visibleConfigs,
   formatFieldValue,
   loadConfigs
-} = useCaseDetailFieldConfig({
+} = useCaseListFieldConfig({
   tenantId: currentTenantId,
   sceneType: 'admin_case_detail',
   autoLoad: true

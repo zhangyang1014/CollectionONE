@@ -2,52 +2,29 @@
 -- 为甲方A创建三个场景的默认配置
 
 -- ============================================
--- 场景1: 控台案件管理列表 (admin_case_list)
+-- 场景1: 控台案件管理列表 (admin_case_list) - 按当前案件列表字段生成
 -- ============================================
+
+DELETE FROM `tenant_field_display_configs` WHERE `scene_type` = 'admin_case_list' AND `tenant_id` = 1;
 
 INSERT INTO `tenant_field_display_configs` 
 (`tenant_id`, `scene_type`, `scene_name`, `field_key`, `field_name`, `field_data_type`, `field_source`, 
  `sort_order`, `display_width`, `color_type`, `format_rule`, `is_searchable`, `is_filterable`, `is_range_searchable`, `created_by`) 
 VALUES
--- 案件编号
-(1, 'admin_case_list', '控台案件管理列表', 'case_code', '案件编号', 'String', 'standard', 
- 1, 180, 'normal', NULL, 1, 0, 0, 'system'),
-
--- 客户（客户姓名，列名显示为"客户"）
-(1, 'admin_case_list', '控台案件管理列表', 'user_name', '客户', 'String', 'standard', 
- 2, 120, 'normal', NULL, 1, 0, 0, 'system'),
-
--- 手机号码（不在列表中展示，但支持搜索功能）
--- (1, 'admin_case_list', '控台案件管理列表', 'mobile', '手机号码', 'String', 'standard', 
---  3, 140, 'normal', NULL, 1, 0, 0, 'system'),
-
--- 贷款金额
-(1, 'admin_case_list', '控台案件管理列表', 'loan_amount', '贷款金额', 'Decimal', 'standard', 
- 4, 120, 'normal', '{"format_type": "currency", "prefix": "¥", "suffix": ""}', 0, 0, 1, 'system'),
-
--- 未还金额
-(1, 'admin_case_list', '控台案件管理列表', 'outstanding_amount', '未还金额', 'Decimal', 'standard', 
- 5, 120, 'red', '{"format_type": "currency", "prefix": "¥", "suffix": ""}', 0, 0, 1, 'system'),
-
--- 逾期天数
-(1, 'admin_case_list', '控台案件管理列表', 'overdue_days', '逾期天数', 'Integer', 'standard', 
- 6, 100, 'red', NULL, 0, 0, 1, 'system'),
-
--- 案件状态
-(1, 'admin_case_list', '控台案件管理列表', 'case_status', '案件状态', 'Enum', 'standard', 
- 7, 110, 'normal', NULL, 0, 1, 0, 'system'),
-
--- 产品名称
-(1, 'admin_case_list', '控台案件管理列表', 'product_name', '产品名称', 'String', 'standard', 
- 8, 130, 'normal', NULL, 1, 0, 0, 'system'),
-
--- App名称
-(1, 'admin_case_list', '控台案件管理列表', 'app_name', 'App名称', 'String', 'standard', 
- 9, 130, 'normal', NULL, 1, 0, 0, 'system'),
-
--- 到期日期
-(1, 'admin_case_list', '控台案件管理列表', 'due_date', '到期日期', 'Date', 'standard', 
- 10, 120, 'normal', NULL, 0, 0, 1, 'system');
+(1, 'admin_case_list', '控台案件管理列表', 'case_code', '案件编号', 'String', 'standard', 1, 140, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'user_name', '客户', 'String', 'standard', 2, 140, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'mobile_number', '手机号', 'String', 'standard', 3, 150, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'loan_amount', '贷款金额', 'Decimal', 'standard', 4, 120, 'normal', '{"format_type": "currency", "prefix": "¥", "suffix": ""}', 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'outstanding_amount', '未还金额', 'Decimal', 'standard', 5, 120, 'normal', '{"format_type": "currency", "prefix": "¥", "suffix": ""}', 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'overdue_days', '逾期天数', 'Integer', 'standard', 6, 100, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'case_status', '案件状态', 'Enum', 'standard', 7, 110, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'due_date', '到期日期', 'Date', 'standard', 8, 120, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'total_installments', '期数', 'Integer', 'standard', 9, 100, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'term_days', '当期天数', 'Integer', 'standard', 10, 110, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'system_name', '所属系统', 'String', 'standard', 11, 120, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'product_name', '产品', 'String', 'standard', 12, 130, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'app_name', 'APP', 'String', 'standard', 13, 120, 'normal', NULL, 0, 0, 0, 'system'),
+(1, 'admin_case_list', '控台案件管理列表', 'merchant_name', '商户', 'String', 'standard', 14, 120, 'normal', NULL, 0, 0, 0, 'system');
 
 
 -- ============================================

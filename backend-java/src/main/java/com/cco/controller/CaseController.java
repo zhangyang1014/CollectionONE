@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,6 +123,10 @@ public class CaseController {
                 dto.setQueueName("M1队列");
                 dto.setCurrentCaseCount(i * 10);
                 dto.setStatus("active");
+                dto.setAllowedMerchants(Arrays.asList("商户A", "商户B"));
+                dto.setAllowedApps(Arrays.asList("AppOne", "AppTwo"));
+                dto.setAllowedProducts(Arrays.asList("产品A", "产品B"));
+                dto.setAllowedQueues(Arrays.asList("M1队列"));
                 collectors.add(dto);
             }
         } else {
@@ -142,6 +147,10 @@ public class CaseController {
                     dto.setQueueName("队列" + ((collectorIndex % 5) + 1));
                     dto.setCurrentCaseCount(collectorIndex * 10);
                     dto.setStatus("active");
+                    dto.setAllowedMerchants(Arrays.asList("商户" + agency));
+                    dto.setAllowedApps(Arrays.asList("App" + team));
+                    dto.setAllowedProducts(Arrays.asList("产品" + ((collectorIndex % 3) + 1)));
+                    dto.setAllowedQueues(Arrays.asList(dto.getQueueName()));
                     collectors.add(dto);
                     collectorIndex++;
                 }

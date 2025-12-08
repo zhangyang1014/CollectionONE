@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 催收小组Controller - Mock实现
@@ -44,6 +45,12 @@ public class TeamController {
         team1.put("max_case_count", 200);
         team1.put("sort_order", 1);
         team1.put("is_active", true);
+        team1.put("password_rotate_days", 7);
+        team1.put("allowed_systems", Arrays.asList("ios", "android"));
+        team1.put("allowed_term_days", Arrays.asList(1, 3, 7));
+        team1.put("allowed_products", Arrays.asList("产品A", "产品B"));
+        team1.put("allowed_apps", Arrays.asList("AppOne"));
+        team1.put("allowed_merchants", Arrays.asList("商户A"));
         team1.put("agency_name", "测试机构1");
         team1.put("team_group_name", "测试小组群1");
         team1.put("queue_name", "C队列");
@@ -68,6 +75,12 @@ public class TeamController {
         team2.put("max_case_count", 300);
         team2.put("sort_order", 2);
         team2.put("is_active", true);
+        team2.put("password_rotate_days", 0); // 0表示永久
+        team2.put("allowed_systems", Collections.singletonList("web"));
+        team2.put("allowed_term_days", Arrays.asList(5, 10, 15));
+        team2.put("allowed_products", Arrays.asList("产品C"));
+        team2.put("allowed_apps", Arrays.asList("AppTwo", "AppThree"));
+        team2.put("allowed_merchants", Arrays.asList("商户B", "商户C"));
         team2.put("agency_name", "测试机构1");
         team2.put("team_group_name", "测试小组群1");
         team2.put("queue_name", "S0队列");
@@ -112,6 +125,12 @@ public class TeamController {
         team.put("max_case_count", 200);
         team.put("sort_order", id.intValue());
         team.put("is_active", true);
+        team.put("password_rotate_days", 7);
+        team.put("allowed_systems", Arrays.asList("ios", "android"));
+        team.put("allowed_term_days", Arrays.asList(1, 3, 7));
+        team.put("allowed_products", Arrays.asList("产品A"));
+        team.put("allowed_apps", Arrays.asList("AppOne"));
+        team.put("allowed_merchants", Arrays.asList("商户A"));
         team.put("collector_count", 0);
         team.put("case_count", 0);
         team.put("created_at", "2025-01-01T00:00:00");
@@ -141,6 +160,12 @@ public class TeamController {
         team.put("max_case_count", request.getOrDefault("max_case_count", request.getOrDefault("maxCaseCount", 200)));
         team.put("sort_order", request.getOrDefault("sort_order", request.getOrDefault("sortOrder", 0)));
         team.put("is_active", request.getOrDefault("is_active", request.getOrDefault("isActive", true)));
+        team.put("password_rotate_days", request.getOrDefault("password_rotate_days", request.getOrDefault("passwordRotateDays", 0)));
+        team.put("allowed_systems", toList(request.getOrDefault("allowed_systems", request.get("allowedSystems"))));
+        team.put("allowed_term_days", toList(request.getOrDefault("allowed_term_days", request.get("allowedTermDays"))));
+        team.put("allowed_products", toList(request.getOrDefault("allowed_products", request.get("allowedProducts"))));
+        team.put("allowed_apps", toList(request.getOrDefault("allowed_apps", request.get("allowedApps"))));
+        team.put("allowed_merchants", toList(request.getOrDefault("allowed_merchants", request.get("allowedMerchants"))));
         team.put("collector_count", 0);
         team.put("case_count", 0);
         team.put("created_at", new Date().toString());
@@ -172,6 +197,12 @@ public class TeamController {
         team.put("max_case_count", request.getOrDefault("max_case_count", request.getOrDefault("maxCaseCount", 200)));
         team.put("sort_order", request.getOrDefault("sort_order", request.getOrDefault("sortOrder", id.intValue())));
         team.put("is_active", request.getOrDefault("is_active", request.getOrDefault("isActive", true)));
+        team.put("password_rotate_days", request.getOrDefault("password_rotate_days", request.getOrDefault("passwordRotateDays", 0)));
+        team.put("allowed_systems", toList(request.getOrDefault("allowed_systems", request.get("allowedSystems"))));
+        team.put("allowed_term_days", toList(request.getOrDefault("allowed_term_days", request.get("allowedTermDays"))));
+        team.put("allowed_products", toList(request.getOrDefault("allowed_products", request.get("allowedProducts"))));
+        team.put("allowed_apps", toList(request.getOrDefault("allowed_apps", request.get("allowedApps"))));
+        team.put("allowed_merchants", toList(request.getOrDefault("allowed_merchants", request.get("allowedMerchants"))));
         team.put("updated_at", new Date().toString());
         
         return ResponseData.success(team);
@@ -315,6 +346,33 @@ public class TeamController {
         
         log.info("========== 返回小组催员列表，数量={} ==========", collectors.size());
         return ResponseData.success(collectors);
+    }
+
+    /**
+     * 将请求中的字段转换为列表格式，便于Mock数据透传
+     */
+    private List<Object> toList(Object value) {
+        if (value == null) {
+            return new ArrayList<>();
+        }
+        if (value instanceof List<?> list) {
+            return new ArrayList<>(list);
+        }
+        if (value.getClass().isArray()) {
+            if (value instanceof Object[] arr) {
+                return Arrays.asList(arr);
+            }
+            if (value instanceof int[] arr) {
+                return Arrays.stream(arr).boxed().collect(Collectors.toList());
+            }
+            if (value instanceof long[] arr) {
+                return Arrays.stream(arr).boxed().collect(Collectors.toList());
+            }
+            if (value instanceof double[] arr) {
+                return Arrays.stream(arr).boxed().collect(Collectors.toList());
+            }
+        }
+        return Collections.singletonList(value);
     }
 }
 
