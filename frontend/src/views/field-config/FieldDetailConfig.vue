@@ -1,9 +1,9 @@
 <template>
-  <div class="case-list-field-config">
+  <div class="case-detail-field-config">
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>案件列表字段配置</span>
+          <span>案件详情字段配置</span>
           <div class="header-actions">
             <el-button type="primary" @click="handleAdd">添加字段配置</el-button>
             <el-button @click="handleCopyScene">复制场景配置</el-button>
@@ -420,26 +420,31 @@ import { Rank } from '@element-plus/icons-vue'
 import { useTenantStore } from '@/stores/tenant'
 import Sortable from 'sortablejs'
 import {
-  getCaseListSceneTypes,
-  getCaseListFieldConfigs,
-  batchSaveCaseListFieldConfigs,
-  copyCaseListSceneConfig,
-  getAvailableFieldsForList,
-  type CaseListSceneType
-} from '@/api/caseListFieldConfig'
+  getCaseDetailSceneTypes,
+  getCaseDetailFieldConfigs,
+  batchSaveCaseDetailFieldConfigs,
+  copyCaseDetailScene,
+  getAvailableFieldsForDetail
+} from '@/api/caseDetailFieldConfig'
 import type {
   FieldDisplayConfig,
   FieldDisplayConfigCreate,
-  SceneType,
   AvailableFieldOption
 } from '@/types/fieldDisplay'
+
+type CaseDetailSceneType = 'admin_case_detail' | 'collector_case_detail'
+interface SceneOption {
+  key: CaseDetailSceneType
+  name: string
+  description?: string
+}
 
 const tenantStore = useTenantStore()
 const currentTenantId = computed(() => tenantStore.currentTenantId)
 const tableRef = ref()
 
-const sceneTypes = ref<SceneType[]>([])
-const currentScene = ref<CaseListSceneType>('admin_case_list')
+const sceneTypes = ref<SceneOption[]>([])
+const currentScene = ref<CaseDetailSceneType>('admin_case_detail')
 const configs = ref<FieldDisplayConfig[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -460,7 +465,7 @@ const teams = ref<any[]>([])
 // 表单数据
 const form = ref<FieldDisplayConfigCreate>({
   tenant_id: '',
-  scene_type: 'admin_case_list',
+  scene_type: 'admin_case_detail',
   scene_name: '',
   field_key: '',
   field_name: '',
@@ -541,8 +546,10 @@ const groupedFields = computed(() => {
 // 加载可用字段
 const loadAvailableFields = async () => {
   try {
-    const data = await getAvailableFieldsForList(currentTenantId.value)
-    availableFields.value = data
+    const data = await getAvailableFieldsForDetail({
+      tenantId: currentTenantId.value ? Number(currentTenantId.value) : undefined
+    })
+    availableFields.value = Array.isArray(data) ? data : (data?.data ?? [])
   } catch (error: any) {
     ElMessage.error('加载可用字段失败：' + error.message)
   }
@@ -574,8 +581,8 @@ const handleFieldSelect = (fieldKey: string) => {
 // 加载场景类型
 const loadSceneTypes = async () => {
   try {
-    const data = await getCaseListSceneTypes()
-    sceneTypes.value = data
+    const data = await getCaseDetailSceneTypes()
+    sceneTypes.value = Array.isArray(data) ? data : (data?.data ?? [])
   } catch (error: any) {
     ElMessage.error('加载场景类型失败：' + error.message)
   }
@@ -620,11 +627,11 @@ const loadConfigs = async () => {
 
   loading.value = true
   try {
-    const data = await getCaseListFieldConfigs({
-      tenant_id: currentTenantId.value,
-      scene_type: currentScene.value
+    const data = await getCaseDetailFieldConfigs({
+      tenantId: Number(currentTenantId.value),
+      sceneType: currentScene.value
     })
-    configs.value = data
+    configs.value = Array.isArray(data) ? data : (data?.data ?? [])
     
     // 初始化拖拽排序
     initDragSort()
@@ -761,11 +768,11 @@ const handleCopyConfirm = async () => {
   }
   
   try {
-    await copyCaseListSceneConfig(
-      copyForm.value.fromScene as CaseListSceneType,
-      copyForm.value.toScene as CaseListSceneType,
-      currentTenantId.value || ''
-    )
+    await copyCaseDetailScene({
+      tenant_id: Number(currentTenantId.value || 0),
+      from_scene: copyForm.value.fromScene as CaseDetailSceneType,
+      to_scene: copyForm.value.toScene as CaseDetailSceneType
+    })
     ElMessage.success('复制成功')
     copyDialogVisible.value = false
     
@@ -781,11 +788,11 @@ const handleCopyConfirm = async () => {
 // 批量保存
 const handleBatchSave = async () => {
   try {
-    await batchSaveCaseListFieldConfigs(
-      currentTenantId.value || '',
-      currentScene.value,
-      configs.value as any
-    )
+    await batchSaveCaseDetailFieldConfigs({
+      tenant_id: Number(currentTenantId.value || 0),
+      scene_type: currentScene.value,
+      configs: configs.value as any
+    })
     ElMessage.success('批量保存成功')
     loadConfigs()
   } catch (error: any) {

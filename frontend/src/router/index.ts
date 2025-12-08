@@ -119,6 +119,30 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/field-config/FieldDetailConfig.vue'),
         meta: { title: '案件详情字段配置', requiresAuth: true },
       },
+      {
+        path: 'field-config/detail/standard',
+        name: 'DetailStandardFields',
+        component: () => import('@/views/field-config/DetailStandardFields.vue'),
+        meta: { title: '案件详情标准字段管理', requiresAuth: true },
+      },
+      {
+        path: 'field-config/detail/tenant-fields-view',
+        name: 'DetailTenantFieldsView',
+        component: () => import('@/views/field-config/DetailTenantFieldsView.vue'),
+        meta: { title: '案件详情甲方字段查看', requiresAuth: true },
+      },
+      {
+        path: 'field-config/detail/custom',
+        name: 'DetailCustomFields',
+        component: () => import('@/views/field-config/DetailCustomFields.vue'),
+        meta: { title: '案件详情字段映射配置', requiresAuth: true },
+      },
+      {
+        path: 'field-config/detail/groups',
+        name: 'DetailFieldGroups',
+        component: () => import('@/views/field-config/DetailFieldGroups.vue'),
+        meta: { title: '案件详情字段分组管理', requiresAuth: true },
+      },
       // 旧路由 - 保留以兼容旧链接
       {
         path: 'field-config/display',

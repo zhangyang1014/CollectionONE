@@ -31,6 +31,8 @@ export default {
     customerList: '客户列表',
     customerDetail: '客户详情',
     fieldConfig: '字段配置',
+    caseListFieldConfig: '案件列表字段配置',
+    caseDetailFieldConfig: '案件详情字段配置',
     standardFields: '标准字段管理',
     customFields: '字段映射配置',
     fieldGroups: '字段分组管理',

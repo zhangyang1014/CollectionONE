@@ -17,6 +17,11 @@ public interface CustomFieldService {
      * 根据甲方ID和字段Key获取自定义字段
      */
     CustomField getByTenantIdAndFieldKey(Long tenantId, String fieldKey);
+
+    /**
+     * 保存/更新
+     */
+    CustomField save(CustomField field);
 }
 
 

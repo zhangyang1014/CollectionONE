@@ -1,6 +1,6 @@
 <template>
   <div class="case-detail">
-    <el-card>
+    <el-card v-loading="loading || configLoading">
       <template #header>
         <div class="card-header">
           <span>案件详情</span>
@@ -9,35 +9,14 @@
       </template>
 
       <el-tabs v-model="activeTab">
-        <el-tab-pane label="基本信息" name="basic">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="案件编号">{{ caseData.case_id }}</el-descriptions-item>
-            <el-descriptions-item label="贷款编号">{{ caseData.loan_id }}</el-descriptions-item>
-            <el-descriptions-item label="用户ID">{{ caseData.user_id }}</el-descriptions-item>
-            <el-descriptions-item label="案件状态">{{ caseData.case_status }}</el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-
-        <el-tab-pane label="标准字段" name="standard">
+        <el-tab-pane label="字段信息" name="fields">
           <el-descriptions :column="2" border>
             <el-descriptions-item
-              v-for="(value, key) in caseData.standard_fields"
-              :key="key"
-              :label="key"
+              v-for="config in visibleConfigs"
+              :key="config.field_key"
+              :label="config.field_name"
             >
-              {{ value }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-
-        <el-tab-pane label="自定义字段" name="custom">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item
-              v-for="(value, key) in caseData.custom_fields"
-              :key="key"
-              :label="key"
-            >
-              {{ value }}
+              {{ formatFieldValue(config.field_key, getFieldValue(config.field_key)) }}
             </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
@@ -47,29 +26,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getCase } from '@/api/case'
+import { useTenantStore } from '@/stores/tenant'
+import { useCaseDetailFieldConfig } from '@/composables/useCaseDetailFieldConfig'
 
 const route = useRoute()
 const caseId = Number(route.params.id)
-const activeTab = ref('basic')
-const caseData = ref({
-  case_id: '',
-  loan_id: '',
-  user_id: '',
-  case_status: '',
-  standard_fields: {},
-  custom_fields: {},
+const activeTab = ref('fields')
+const loading = ref(false)
+const caseData = ref<Record<string, any>>({})
+
+const tenantStore = useTenantStore()
+const currentTenantId = computed(() => tenantStore.currentTenantId)
+
+const {
+  loading: configLoading,
+  visibleConfigs,
+  formatFieldValue,
+  loadConfigs
+} = useCaseDetailFieldConfig({
+  tenantId: currentTenantId,
+  sceneType: 'admin_case_detail',
+  autoLoad: true
 })
+
+const getFieldValue = (fieldKey: string) => {
+  const data = caseData.value || {}
+  if (fieldKey in data) return data[fieldKey]
+  if (data.standard_fields && fieldKey in data.standard_fields) return data.standard_fields[fieldKey]
+  if (data.custom_fields && fieldKey in data.custom_fields) return data.custom_fields[fieldKey]
+  return '-'
+}
 
 const loadCase = async () => {
   try {
+    loading.value = true
     const res = await getCase(caseId)
-    caseData.value = res.data
+    // 兼容接口直接返回对象或 data 包装
+    caseData.value = res?.data || res || {}
+    // 重新加载字段配置（确保依赖当前租户）
+    loadConfigs()
   } catch (error) {
     ElMessage.error('加载案件详情失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -85,4 +88,3 @@ onMounted(() => {
   align-items: center;
 }
 </style>
-

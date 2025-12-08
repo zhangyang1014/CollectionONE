@@ -151,7 +151,7 @@ public class CollectorLoginWhitelistServiceImpl extends ServiceImpl<CollectorLog
     @Override
     public Boolean isWhitelistEnabled(Long tenantId) {
         try {
-            return whitelistMapper.checkWhitelistEnabled(tenantId);
+        return whitelistMapper.checkWhitelistEnabled(tenantId);
         } catch (Exception e) {
             // 数据库表不存在或查询失败时，默认禁用白名单（允许所有IP登录）
             log.warn("查询白名单状态失败（可能表不存在），默认禁用白名单，tenantId={}, error={}", tenantId, e.getMessage());
@@ -164,30 +164,30 @@ public class CollectorLoginWhitelistServiceImpl extends ServiceImpl<CollectorLog
         log.info("检查IP地址是否在白名单中，tenantId={}, ipAddress={}", tenantId, ipAddress);
         
         try {
-            // 如果未启用白名单，允许所有IP
-            if (!isWhitelistEnabled(tenantId)) {
-                log.info("该甲方未启用白名单IP登录管理，允许登录");
+        // 如果未启用白名单，允许所有IP
+        if (!isWhitelistEnabled(tenantId)) {
+            log.info("该甲方未启用白名单IP登录管理，允许登录");
+            return true;
+        }
+        
+        // 查询该甲方下所有启用的白名单IP
+        List<CollectorLoginWhitelist> whitelists = whitelistMapper.selectEnabledWhitelistByTenantId(tenantId);
+        
+        if (whitelists.isEmpty()) {
+            log.warn("该甲方启用了白名单但没有任何白名单IP，拒绝登录");
+            return false;
+        }
+        
+        // 检查IP是否匹配任何白名单规则
+        for (CollectorLoginWhitelist whitelist : whitelists) {
+            if (isIpMatch(ipAddress, whitelist.getIpAddress())) {
+                log.info("IP地址匹配白名单规则，允许登录，ipAddress={}, whitelist={}", ipAddress, whitelist.getIpAddress());
                 return true;
             }
-            
-            // 查询该甲方下所有启用的白名单IP
-            List<CollectorLoginWhitelist> whitelists = whitelistMapper.selectEnabledWhitelistByTenantId(tenantId);
-            
-            if (whitelists.isEmpty()) {
-                log.warn("该甲方启用了白名单但没有任何白名单IP，拒绝登录");
-                return false;
-            }
-            
-            // 检查IP是否匹配任何白名单规则
-            for (CollectorLoginWhitelist whitelist : whitelists) {
-                if (isIpMatch(ipAddress, whitelist.getIpAddress())) {
-                    log.info("IP地址匹配白名单规则，允许登录，ipAddress={}, whitelist={}", ipAddress, whitelist.getIpAddress());
-                    return true;
-                }
-            }
-            
-            log.warn("IP地址不在白名单中，拒绝登录，ipAddress={}", ipAddress);
-            return false;
+        }
+        
+        log.warn("IP地址不在白名单中，拒绝登录，ipAddress={}", ipAddress);
+        return false;
         } catch (Exception e) {
             // 数据库查询失败时，默认允许登录（降级策略）
             log.warn("检查IP白名单失败（可能数据库表不存在），默认允许登录，tenantId={}, ipAddress={}, error={}", 

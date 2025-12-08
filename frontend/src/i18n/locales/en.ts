@@ -31,6 +31,8 @@ export default {
     customerList: 'Customer List',
     customerDetail: 'Customer Detail',
     fieldConfig: 'Field Configuration',
+    caseListFieldConfig: 'Case List Field Config',
+    caseDetailFieldConfig: 'Case Detail Field Config',
     standardFields: 'Standard Fields',
     customFields: 'Field Mapping Config',
     fieldGroups: 'Field Groups',
