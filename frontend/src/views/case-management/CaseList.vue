@@ -5,6 +5,13 @@
         <div class="card-header">
           <span>案件列表</span>
           <el-space>
+            <el-button
+              type="primary"
+              plain
+              @click="goCaseUpdateLog"
+            >
+              更新日志
+            </el-button>
             <el-button 
               v-if="canManageFilters"
               type="success" 
@@ -627,6 +634,11 @@ const router = useRouter()
 const tenantStore = useTenantStore()
 const userStore = useUserStore()
 const currentTenantId = computed(() => tenantStore.currentTenantId)
+
+// 跳转到案件更新日志
+const goCaseUpdateLog = () => {
+  router.push('/logs/case-update')
+}
 
 // 使用案件列表字段配置Hook - 控台案件列表场景
 const {

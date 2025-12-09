@@ -103,6 +103,22 @@
           <el-menu-item index="/system/notification-config">通知配置</el-menu-item>
           <el-menu-item v-if="isSuperAdmin" index="/system/i18n">国际化配置</el-menu-item>
         </el-sub-menu>
+
+        <el-sub-menu index="logs">
+          <template #title>
+            <el-icon><Document /></el-icon>
+            <span>日志记录</span>
+          </template>
+          <el-menu-item index="/logs/case-update">案件更新日志</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="ai-quality">
+          <template #title>
+            <el-icon><Finished /></el-icon>
+            <span>AI质检</span>
+          </template>
+          <el-menu-item index="/ai-quality/face-compare">人脸比对</el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
 
@@ -154,7 +170,7 @@
 import { computed, ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { HomeFilled, Document, Setting, OfficeBuilding, User, Connection, Lock, DataAnalysis, ChatDotRound } from '@element-plus/icons-vue'
+import { HomeFilled, Document, Setting, OfficeBuilding, User, Connection, Lock, DataAnalysis, ChatDotRound, Finished } from '@element-plus/icons-vue'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 import { getTenants } from '@/api/tenant'
@@ -216,9 +232,18 @@ const loadTenants = async () => {
     // 从localStorage恢复之前的选择
     tenantStore.restoreFromStorage()
     
+    // ✅ 如果没有选择甲方，默认选择第一个甲方
+    if (!tenantStore.currentTenantId && tenants.value.length > 0) {
+      const firstTenant = tenants.value[0]
+      tenantStore.setCurrentTenant(firstTenant.id, firstTenant)
+      console.log('自动选择第一个甲方：', firstTenant.tenant_name)
+      ElMessage.success(`已自动选择甲方: ${firstTenant.tenant_name}`)
+    }
+    
     // 如果没有数据，显示友好提示
     if (tenants.value.length === 0) {
       console.warn('当前没有可用的甲方数据')
+      ElMessage.warning('当前没有可用的甲方，请先创建甲方')
     }
   } catch (error: any) {
     console.error('加载甲方列表失败：', error)

@@ -5,6 +5,8 @@
 | 版本号 | 日期 | 作者 | 变更说明 |
 |--------|------|------|---------|
 | v1.0.0 | 2025-12-08 | 产品大象 | 初始版本，详情字段分组管理 |
+| v2.0.0 | 2025-12-08 | 产品大象 | 基于CCO催收字段集合CSV重构，定义5个一级分组+5个子分组 |
+| v2.1.0 | 2025-12-08 | 产品大象 | 新增"影像资料"分组，共6个一级分组+5个子分组，并调整默认顺序 |
 
 ---
 
@@ -123,21 +125,38 @@
 
 ### 4.3 标准分组（系统内置）
 
-系统预定义5个标准分组（`is_standard=true`）：
+系统预定义7个一级分组 + 5个子分组（基于CCO催收字段集合CSV文件定义，且排序为默认展示顺序）：
 
-| 分组标识 | 分组名称 | 排序 | 字段数 | 说明 |
-|---------|---------|------|--------|------|
-| basic_info | 基本信息 | 1 | 4 | 案件基础信息 |
-| loan_info | 借款信息 | 2 | 7 | 借款相关信息 |
-| collection_info | 催收信息 | 3 | 3 | 催收相关信息 |
-| contact_info | 联系信息 | 4 | 3 | 联系方式信息 |
-| product_info | 产品信息 | 5 | 4 | 产品相关信息 |
+**一级分组**（`is_standard=true`，`parent_id=NULL`）：
+
+| 分组标识 | 分组名称 | 英文名 | 排序 | 字段数 | 说明 |
+|---------|---------|--------|------|--------|------|
+| customer_info | 客户基础信息 | Customer Information | 1 | 37 | 包含5个子分组 |
+| image_materials | 影像资料 | Image Materials | 2 | 8 | 证件照及资料图片 |
+| loan_detail | 贷款详情 | Loan Detail | 3 | 23 | 贷款订单信息 |
+| installment_detail | 分期详情 | Installment Detail | 4 | 16 | 分期还款信息 |
+| repayment_record | 还款记录 | Repayment Record | 5 | 13 | 还款记录信息 |
+| loan_history | 历史借款记录 | Loan History | 6 | 26 | 历史借款信息 |
+| disbursement_record | 放款记录 | Disbursement Record | 7 | 5 | 记录放款相关信息，包括金额、订单号、收款机构等 |
+
+**子分组**（`is_standard=true`，`parent_id=customer_info的ID`）：
+
+| 分组标识 | 分组名称 | 英文名 | 排序 | 字段数 | 说明 |
+|---------|---------|--------|------|--------|------|
+| identity_info | 基础身份信息 | Identity Information | 1 | 11 | 用户身份信息 |
+| education_info | 教育信息 | Education | 2 | 3 | 学历信息 |
+| employment_info | 职业信息 | Employment | 3 | 11 | 工作收入信息 |
+| behavior_credit | 用户行为与信用 | User Behavior & Credit | 4 | 10 | 行为和信用评分 |
+| contact_info | 联系方式 | Contact Information | 5 | 2 | 联系电话 |
 
 **标准分组特点**：
 - 不可删除
 - 不可修改group_key
 - 可修改group_name（多语言场景）
 - 可调整sort_order
+- 子分组不可改变parent_id
+
+> **注意**：影像资料分组（image_materials）无子分组，所有字段均为图片类型（Image），且为选填字段。
 
 ---
 
@@ -146,23 +165,28 @@
 ### 5.1 页面布局
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ 案件详情字段分组管理                    [+ 新建分组] │
-├───────────┬─────────────────────────────────────────┤
-│ 分组树     │ 分组详情/编辑表单                        │
-│           │                                          │
-│ 标准分组： │ 【分组详情】                             │
-│ ▼ 基本信息│ 分组名称：[基本信息_______________]      │
-│   (4字段) │ 分组标识：basic_info (只读)             │
-│ ▼ 借款信息│ 英文名称：[Basic Information_______]     │
-│   (7字段) │ 父分组：[无▼]                           │
-│ ▼ 催收信息│ 排序序号：[1_]                          │
-│   (3字段) │ 分组类型：[✓] 标准分组 (只读)           │
-│           │ 关联字段：4个字段                        │
-│ 自定义：   │                                          │
-│ ▼ 其他信息│ [保存] [取消] [删除]                     │
-│   (2字段) │                                          │
-└───────────┴─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ 案件详情字段分组管理                          [+ 新建分组]   │
+├─────────────┬───────────────────────────────────────────────┤
+│ 分组树       │ 分组详情/编辑表单                             │
+│             │                                                │
+│ 标准分组：   │ 【分组详情】                                  │
+│ ▼ 客户基础信息│ 分组名称：[客户基础信息_____________]         │
+│   ├ 身份信息 │ 分组标识：customer_info (只读)               │
+│   ├ 教育信息 │ 英文名称：[Customer Information______]        │
+│   ├ 职业信息 │ 父分组：[无▼]                                │
+│   ├ 行为信用 │ 排序序号：[1_]                               │
+│   └ 联系方式 │ 分组类型：[✓] 标准分组 (只读)                │
+│ ▶ 贷款详情  │ 关联字段：37个字段（含子分组）                 │
+│ ▶ 分期详情  │                                                │
+│ ▶ 历史借款  │ [保存] [取消]                                  │
+│ ▶ 还款记录  │                                                │
+│ ▶ 影像资料  │                                                │
+│             │                                                │
+│ 自定义分组： │                                                │
+│ ▼ 风控信息  │                                                │
+│   (5字段)   │                                                │
+└─────────────┴───────────────────────────────────────────────┘
 ```
 
 ### 5.2 分组树设计
@@ -176,10 +200,17 @@
 **示例**：
 ```
 标准分组：
-▼ 基本信息 (4字段) [标准]
-▼ 借款信息 (7字段) [标准]
-  ▶ 借款明细 (3字段) [标准子组]
-▼ 催收信息 (3字段) [标准]
+▼ 客户基础信息 (37字段) [标准]
+  ├ 基础身份信息 (11字段) [标准子组]
+  ├ 教育信息 (3字段) [标准子组]
+  ├ 职业信息 (11字段) [标准子组]
+  ├ 用户行为与信用 (10字段) [标准子组]
+  └ 联系方式 (2字段) [标准子组]
+▶ 贷款详情 (23字段) [标准]
+▶ 分期详情 (16字段) [标准]
+▶ 历史借款记录 (26字段) [标准]
+▶ 还款记录 (13字段) [标准]
+▶ 影像资料 (8字段) [标准]
 
 自定义分组：
 ▼ 风控信息 (5字段) [自定义]
@@ -278,14 +309,47 @@ GET /api/v1/field-groups?scene=detail
     "groups": [
       {
         "id": 1,
-        "group_key": "basic_info",
-        "group_name": "基本信息",
-        "group_name_en": "Basic Information",
+        "group_key": "customer_info",
+        "group_name": "客户基础信息",
+        "group_name_en": "Customer Information",
         "parent_id": null,
         "sort_order": 1,
         "is_standard": true,
         "is_active": true,
-        "fields_count": 4,
+        "fields_count": 37,
+        "children": [
+          {
+            "id": 6,
+            "group_key": "identity_info",
+            "group_name": "基础身份信息",
+            "group_name_en": "Identity Information",
+            "parent_id": 1,
+            "sort_order": 1,
+            "is_standard": true,
+            "fields_count": 11
+          },
+          {
+            "id": 7,
+            "group_key": "education_info",
+            "group_name": "教育信息",
+            "group_name_en": "Education",
+            "parent_id": 1,
+            "sort_order": 2,
+            "is_standard": true,
+            "fields_count": 3
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "group_key": "loan_detail",
+        "group_name": "贷款详情",
+        "group_name_en": "Loan Detail",
+        "parent_id": null,
+        "sort_order": 2,
+        "is_standard": true,
+        "is_active": true,
+        "fields_count": 23,
         "children": []
       }
     ]
@@ -429,17 +493,28 @@ CREATE TABLE field_groups_detail (
 );
 ```
 
-**初始化数据**（5个标准分组）：
+**初始化数据**（6个一级分组 + 5个子分组，基于CCO催收字段集合CSV，按默认展示顺序）：
 
 ```sql
 INSERT INTO field_groups_detail 
-  (group_key, group_name, group_name_en, parent_id, sort_order, is_standard, scene) 
+  (id, group_key, group_name, group_name_en, parent_id, sort_order, is_standard, scene) 
 VALUES
-  ('basic_info', '基本信息', 'Basic Information', NULL, 1, TRUE, 'detail'),
-  ('loan_info', '借款信息', 'Loan Information', NULL, 2, TRUE, 'detail'),
-  ('collection_info', '催收信息', 'Collection Information', NULL, 3, TRUE, 'detail'),
-  ('contact_info', '联系信息', 'Contact Information', NULL, 4, TRUE, 'detail'),
-  ('product_info', '产品信息', 'Product Information', NULL, 5, TRUE, 'detail');
+  (1, 'customer_info', '客户基础信息', 'Customer Information', NULL, 1, TRUE, 'detail'),
+  (2, 'image_materials', '影像资料', 'Image Materials', NULL, 2, TRUE, 'detail'),
+  (3, 'loan_detail', '贷款详情', 'Loan Detail', NULL, 3, TRUE, 'detail'),
+  (4, 'installment_detail', '分期详情', 'Installment Detail', NULL, 4, TRUE, 'detail'),
+  (5, 'repayment_record', '还款记录', 'Repayment Record', NULL, 5, TRUE, 'detail'),
+  (6, 'loan_history', '历史借款记录', 'Loan History', NULL, 6, TRUE, 'detail');
+
+-- 子分组（5个，隶属于customer_info）
+INSERT INTO field_groups_detail 
+  (id, group_key, group_name, group_name_en, parent_id, sort_order, is_standard, scene) 
+VALUES
+  (6, 'identity_info', '基础身份信息', 'Identity Information', 1, 1, TRUE, 'detail'),
+  (7, 'education_info', '教育信息', 'Education', 1, 2, TRUE, 'detail'),
+  (8, 'employment_info', '职业信息', 'Employment', 1, 3, TRUE, 'detail'),
+  (9, 'behavior_credit', '用户行为与信用', 'User Behavior & Credit', 1, 4, TRUE, 'detail'),
+  (10, 'contact_info', '联系方式', 'Contact Information', 1, 5, TRUE, 'detail');
 ```
 
 ---

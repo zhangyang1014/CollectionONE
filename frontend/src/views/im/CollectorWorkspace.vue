@@ -292,13 +292,23 @@
             <!-- 第一行：主要筛选（默认显示4个） -->
             <div class="filter-row">
               <div class="filter-item">
-                <el-select v-model="filters.caseStatus" placeholder="案件状态" size="small" clearable multiple collapse-tags collapse-tags-tooltip :max-collapse-tags="1" @change="handleFilterChange">
-                  <el-option label="全部" value="" />
-                  <el-option label="待催收" value="pending" />
-                  <el-option label="新入催" value="new" />
-                  <el-option label="催收中" value="collecting" />
-                  <el-option label="承诺还款" value="promised" />
-                  <el-option label="已结清" value="settled" />
+                <el-select
+                  v-model="filters.caseStatus"
+                  placeholder="案件状态"
+                  size="small"
+                  clearable
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  :max-collapse-tags="1"
+                  @change="handleFilterChange"
+                >
+                  <el-option
+                    v-for="opt in caseStatusOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </div>
               <div class="filter-item">
@@ -464,9 +474,9 @@
             <!-- 自定义贷款编号 - 显示未读消息标记 -->
             <template #cell-loan_id="{ row }">
               <div class="loan-id-cell">
-                <span>{{ row.loan_id || '-' }}</span>
+                <span>{{ getCaseCode(row) }}</span>
                 <span 
-                  v-if="row.loan_id && hasUnreadMessagesForLoan(row.loan_id)" 
+                  v-if="getLoanIdForUnread(row) && hasUnreadMessagesForLoan(getLoanIdForUnread(row))" 
                   class="case-unread-dot"
                 ></span>
               </div>
@@ -482,7 +492,12 @@
 
             <!-- 自定义状态 -->
             <template #cell-case_status="{ row }">
-              <el-tag size="small">{{ row.case_status }}</el-tag>
+              <el-tag
+                size="small"
+                :type="getCaseStatusTag(row.case_status)"
+              >
+                {{ getCaseStatusText(row.case_status) }}
+              </el-tag>
             </template>
 
             <!-- 自定义应答渠道 -->
@@ -1195,6 +1210,15 @@ const filters = ref({
   sortBy: '' // 排序方式：'collection_value' 表示催回价值排序
 })
 
+// 案件状态选项（对齐后端返回的编码，显示中文）
+const caseStatusOptions = [
+  { label: '全部', value: '' },
+  { label: '待还款', value: 'pending_repayment' },
+  { label: '部分还款', value: 'partial_repayment' },
+  { label: '正常结清', value: 'normal_settlement' },
+  { label: '展期结清', value: 'extension_settlement' },
+]
+
 const productList = ref(['Préstamo Rápido', 'Cash Express', 'Dinero Ya'])
 const appList = ref(['PesoMex', 'DineroFácil', 'CashMexico'])
 
@@ -1505,6 +1529,49 @@ const getOverdueType = (days: number) => {
   if (days < 0) return 'success'
   if (days === 0) return 'warning'
   return 'danger'
+}
+
+// 案件编号兜底显示（兼容 loan_id / case_code / case_id / id）
+const getCaseCode = (row: Case) => {
+  return row.loan_id || row.case_code || row.case_id || row.id || '-'
+}
+
+// 未读逻辑使用的编号（优先 loan_id，其次 case_code）
+const getLoanIdForUnread = (row: Case) => {
+  return row.loan_id || row.case_code || ''
+}
+
+// 案件状态展示映射（兼容后端可能的拼写差异）
+const caseStatusTextMap: Record<string, string> = {
+  pending_repayment: '待还款',
+  pending_repaymen: '待还款', // 兼容少写一个t的情况
+  partial_repayment: '部分还款',
+  partial_repaymen: '部分还款',
+  normal_settlement: '正常结清',
+  extension_settlement: '展期结清',
+}
+
+const caseStatusTagMap: Record<string, string> = {
+  待还款: 'danger',
+  部分还款: 'warning',
+  正常结清: 'success',
+  展期结清: 'success',
+  pending_repayment: 'danger',
+  pending_repaymen: 'danger',
+  partial_repayment: 'warning',
+  partial_repaymen: 'warning',
+  normal_settlement: 'success',
+  extension_settlement: 'success',
+}
+
+const getCaseStatusText = (status: string) => {
+  if (!status) return '-'
+  return caseStatusTextMap[status] || status
+}
+
+const getCaseStatusTag = (status: string) => {
+  if (!status) return 'info'
+  return caseStatusTagMap[status] || caseStatusTagMap[getCaseStatusText(status)] || 'info'
 }
 
 // 未读消息状态映射（loan_id -> hasUnread）

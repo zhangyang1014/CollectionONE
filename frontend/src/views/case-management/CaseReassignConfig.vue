@@ -4,13 +4,12 @@
       <template #header>
         <div class="card-header">
           <span>案件重新分案配置</span>
-          <el-button 
-            type="primary" 
-            @click="handleAdd" 
-            :disabled="!currentTenantId"
-          >
-            创建配置
-          </el-button>
+          <el-alert 
+            title="说明：系统将按配置的天数自动检查案件停留时间，并重新分配给其他催员"
+            type="info"
+            :closable="false"
+            style="margin-left: 20px;"
+          />
         </div>
       </template>
 
@@ -21,51 +20,82 @@
         </el-form-item>
       </el-form>
 
-      <!-- 配置列表 -->
-      <el-table :data="configs" border style="width: 100%" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="target_name" label="队列名称" width="200">
+      <!-- 配置列表（树形） -->
+      <el-table 
+        :data="treeData" 
+        border 
+        style="width: 100%" 
+        v-loading="loading"
+        row-key="id"
+        :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+        default-expand-all
+      >
+        <el-table-column prop="name" label="队列名称" width="200" tree-node>
           <template #default="{ row }">
-            {{ row.target_name || `队列ID: ${row.targetId || row.target_id}` }}
+            <span v-if="row.type === 'queue'" style="font-weight: 600;">{{ row.queue_name }}</span>
+            <span v-else-if="row.type === 'placeholder'" style="color: #909399; font-style: italic;">(无策略)</span>
+            <span v-else></span>
           </template>
         </el-table-column>
-        <el-table-column prop="reassignDays" label="重新分案天数" width="120" align="center">
+        <el-table-column prop="team_names" label="生效小组" min-width="200">
           <template #default="{ row }">
-            <el-tag type="warning">{{ row.reassignDays || row.reassign_days }} 天</el-tag>
+            <template v-if="row.type === 'config'">
+              <span v-if="!row.team_names || row.team_names.length === 0">-</span>
+              <el-tag v-else v-for="(name, index) in row.team_names" :key="index" size="small" style="margin: 2px;">
+                {{ name }}
+              </el-tag>
+            </template>
+            <span v-else-if="row.type === 'placeholder'" style="color: #909399;">-</span>
+            <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="effectiveDate" label="生效日期" width="120" align="center">
+        <el-table-column prop="reassignDays" label="重新分案天数" width="130" align="center">
           <template #default="{ row }">
-            <span :class="{ 'effective-today': isEffectiveToday(row.effectiveDate || row.effective_date) }">
+            <el-tag v-if="row.type === 'config'" type="warning" size="small">
+              {{ row.reassignDays || row.reassign_days }} 天
+            </el-tag>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="effectiveDate" label="生效日期" width="110" align="center">
+          <template #default="{ row }">
+            <span v-if="row.type === 'config'" :class="{ 'effective-today': isEffectiveToday(row.effectiveDate || row.effective_date) }">
               {{ formatDate(row.effectiveDate || row.effective_date) }}
             </span>
+            <span v-else style="color: #909399;">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="isActive" label="状态" width="100" align="center">
+        <el-table-column prop="isActive" label="状态" width="80" align="center">
           <template #default="{ row }">
-            <el-tag :type="(row.isActive !== undefined ? row.isActive : row.is_active) ? 'success' : 'info'">
+            <el-tag v-if="row.type === 'config'" :type="(row.isActive !== undefined ? row.isActive : row.is_active) ? 'success' : 'info'" size="small">
               {{ (row.isActive !== undefined ? row.isActive : row.is_active) ? '启用' : '禁用' }}
             </el-tag>
+            <el-tag v-else-if="row.type === 'placeholder'" type="info" size="small">停用</el-tag>
+            <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180">
+        <el-table-column prop="createdAt" label="创建时间" width="160">
           <template #default="{ row }">
-            {{ row.createdAt || row.created_at }}
+            <span v-if="row.type === 'config'">{{ row.createdAt || row.created_at }}</span>
+            <span v-else style="color: #909399;">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)" size="small">
-              编辑
+            <!-- 队列行：显示"添加策略"按钮 -->
+            <el-button v-if="row.type === 'queue'" type="primary" size="small" @click="handleAddStrategy(row)">
+              添加策略
             </el-button>
-            <el-button 
-              link 
-              type="danger" 
-              @click="handleDelete(row)" 
-              size="small"
-            >
-              删除
-            </el-button>
+            
+            <!-- 策略行：显示"编辑"和"删除"按钮 -->
+            <template v-else-if="row.type === 'config'">
+              <el-button link type="primary" size="small" @click="handleEdit(row)">
+                编辑
+              </el-button>
+              <el-button link type="danger" size="small" @click="handleDelete(row)">
+                删除
+              </el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -74,24 +104,8 @@
     <!-- 创建/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
       <el-form :model="form" label-width="140px" :rules="rules" ref="formRef">
-        <el-form-item label="队列" prop="target_id">
-          <el-select 
-            v-model="form.target_id" 
-            placeholder="请选择队列"
-            style="width: 100%"
-            :loading="targetLoading"
-            @change="handleQueueChange"
-          >
-            <el-option
-              v-for="item in targetOptions"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
-            />
-          </el-select>
-          <div style="margin-top: 5px; color: #909399; font-size: 12px;">
-            选择要配置重新分案规则的队列
-          </div>
+        <el-form-item label="队列" v-if="false">
+          <!-- 队列已在标题中显示，不再需要选择 -->
         </el-form-item>
 
         <el-form-item label="生效小组" prop="team_ids" v-if="form.target_id">
@@ -101,6 +115,7 @@
             style="width: 100%"
             multiple
             :loading="teamLoading"
+            :disabled="queueHasNoTeams"
             clearable
             collapse-tags
             collapse-tags-tooltip
@@ -112,9 +127,16 @@
               :value="team.id"
             />
           </el-select>
-          <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+          <div v-if="!queueHasNoTeams" style="margin-top: 5px; color: #909399; font-size: 12px;">
             选择针对哪些小组生效，不选择则针对该队列下所有小组
           </div>
+          <el-alert 
+            v-if="queueHasNoTeams" 
+            title="该队列下没有小组，无法创建重新分案配置" 
+            type="error" 
+            :closable="false"
+            style="margin-top: 5px;"
+          />
         </el-form-item>
 
         <el-form-item label="重新分案天数" prop="reassign_days">
@@ -156,7 +178,12 @@
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">
+        <el-button 
+          type="primary" 
+          @click="handleSubmit" 
+          :loading="submitting"
+          :disabled="queueHasNoTeams"
+        >
           确定
         </el-button>
       </template>
@@ -183,6 +210,7 @@ const currentTenantId = computed(() => tenantStore.currentTenantId)
 // 数据
 const loading = ref(false)
 const configs = ref<any[]>([])
+const treeData = ref<any[]>([])  // 树形数据
 const filters = reactive({})
 
 // 对话框
@@ -210,6 +238,7 @@ const targetLoading = ref(false)
 // 队列下的小组
 const queueTeams = ref<any[]>([])
 const teamLoading = ref(false)
+const queueHasNoTeams = ref(false)  // 标记队列是否没有小组
 
 // 表单验证规则
 const rules = {
@@ -262,6 +291,7 @@ const loadTargetOptions = async () => {
 const handleQueueChange = async (queueId: number | null) => {
   form.team_ids = []
   queueTeams.value = []
+  queueHasNoTeams.value = false
   
   if (!queueId || !currentTenantId.value) {
     return
@@ -292,7 +322,14 @@ const handleQueueChange = async (queueId: number | null) => {
     }
     
     queueTeams.value = allTeams
+    queueHasNoTeams.value = allTeams.length === 0
+    
     console.log(`队列 ${queueId} 下的小组数量:`, allTeams.length)
+    
+    // 如果队列下没有小组，提示用户
+    if (queueHasNoTeams.value) {
+      ElMessage.warning('该队列下没有小组，无法创建重新分案配置')
+    }
   } catch (error) {
     console.error('加载队列小组失败:', error)
     ElMessage.error('加载队列小组失败')
@@ -310,15 +347,19 @@ const handleQuery = async () => {
 
   loading.value = true
   try {
+    // 1. 加载所有队列
+    const queues = await getTenantQueues(currentTenantId.value)
+    const queueList = Array.isArray(queues) ? queues : (queues.items || [])
+    console.log('队列列表:', queueList)
+    
+    // 2. 加载所有配置
     const params: any = {
       tenant_id: currentTenantId.value,
-      config_type: 'queue'  // 固定查询队列配置
+      config_type: 'queue'
     }
-
     const response = await getCaseReassignConfigs(params)
     console.log('查询配置列表响应:', response)
     
-    // request.ts 已经提取了 data 字段，所以 response 就是 data 数组
     let configList: any[] = []
     if (Array.isArray(response)) {
       configList = response
@@ -327,24 +368,83 @@ const handleQuery = async () => {
     } else if (response && response.data && Array.isArray(response.data)) {
       configList = response.data
     }
-    
     console.log('解析后的配置列表:', configList)
     
-    // 加载队列名称
-    const queues = await getTenantQueues(currentTenantId.value)
-    const queueList = Array.isArray(queues) ? queues : (queues.items || [])
-    console.log('队列列表:', queueList)
-    
-    for (const config of configList) {
-      // 后端返回的是驼峰命名 targetId，需要兼容处理
-      const targetId = config.targetId || config.target_id
-      const queue = queueList.find((q: any) => q.id === targetId)
-      config.target_name = queue?.queue_name || queue?.queueCode || `队列ID: ${targetId}`
-      console.log(`配置 ${config.id}: targetId=${targetId}, queue=`, queue, 'target_name=', config.target_name)
+    // 3. 加载所有小组（用于显示小组名称）
+    const agencies = await getTenantAgencies(currentTenantId.value)
+    const agencyList = Array.isArray(agencies) ? agencies : []
+    const allTeams: any[] = []
+    for (const agency of agencyList) {
+      try {
+        const teams = await getAgencyTeams(agency.id)
+        const teamList = Array.isArray(teams) ? teams : (teams.data || [])
+        allTeams.push(...teamList)
+      } catch (e) {
+        console.error(`加载机构 ${agency.id} 的小组失败:`, e)
+      }
     }
-
+    console.log('所有小组:', allTeams)
+    
+    // 4. 构建树形数据
+    const treeNodes = queueList.map((queue: any) => {
+      // 找到该队列的所有配置
+      const queueConfigs = configList.filter((c: any) => 
+        (c.targetId || c.target_id) === queue.id
+      )
+      
+      // 为每个配置添加小组名称
+      const children = queueConfigs.length > 0
+        ? queueConfigs.map((config: any) => {
+            // 解析小组名称
+            const teamIdsStr = config.teamIds || config.team_ids
+            let team_names: string[] = []
+            if (teamIdsStr) {
+              try {
+                const teamIds = typeof teamIdsStr === 'string' ? JSON.parse(teamIdsStr) : teamIdsStr
+                if (Array.isArray(teamIds) && teamIds.length > 0) {
+                  team_names = teamIds.map((id: number) => {
+                    const team = allTeams.find((t: any) => t.id === id)
+                    return team ? (team.team_name || team.teamName || `小组${id}`) : `小组${id}`
+                  })
+                }
+              } catch (e) {
+                console.error('解析teamIds失败:', e)
+              }
+            }
+            
+            return {
+              ...config,
+              type: 'config',
+              team_names,
+              queue_id: queue.id,
+              queue_name: queue.queue_name || queue.queueCode
+            }
+          })
+        : [{
+            id: `placeholder-${queue.id}`,
+            type: 'placeholder',
+            is_placeholder: true,
+            team_names: [],
+            reassignDays: null,
+            is_active: false,
+            queue_id: queue.id,
+            queue_name: queue.queue_name || queue.queueCode
+          }]
+      
+      return {
+        id: `queue-${queue.id}`,
+        type: 'queue',
+        queue_id: queue.id,
+        queue_name: queue.queue_name || queue.queueCode,
+        hasChildren: true,
+        children
+      }
+    })
+    
+    treeData.value = treeNodes
     configs.value = configList
-    console.log('最终配置列表:', configs.value)
+    
+    console.log('树形数据:', treeData.value)
   } catch (error) {
     console.error('查询配置列表失败:', error)
     ElMessage.error('查询配置列表失败')
@@ -353,33 +453,38 @@ const handleQuery = async () => {
   }
 }
 
-// 创建配置
-const handleAdd = () => {
+// 为队列添加策略
+const handleAddStrategy = (queueRow: any) => {
   if (!currentTenantId.value) {
     ElMessage.warning('请先选择甲方')
     return
   }
 
   isEdit.value = false
-  dialogTitle.value = '创建配置'
+  dialogTitle.value = `添加策略 - ${queueRow.queue_name}`
   Object.assign(form, {
     id: null,
     tenant_id: currentTenantId.value,
     config_type: 'queue',  // 固定为队列
-    target_id: null,
+    target_id: queueRow.queue_id,  // 队列已确定
     team_ids: [],  // 小组ID列表
     reassign_days: null,
     is_active: true
   })
-  queueTeams.value = []
-  loadTargetOptions()
+  
+  // 加载该队列下的小组
+  handleQueueChange(queueRow.queue_id)
+  
   dialogVisible.value = true
 }
 
 // 编辑配置
 const handleEdit = (row: any) => {
+  if (row.type !== 'config') return
+  
   isEdit.value = true
-  dialogTitle.value = '编辑配置'
+  dialogTitle.value = `编辑策略 - ${row.queue_name}`
+  
   // 后端返回的是驼峰命名，需要兼容处理
   const teamIdsStr = row.teamIds || row.team_ids
   let teamIds: number[] = []
@@ -395,16 +500,17 @@ const handleEdit = (row: any) => {
     id: row.id,
     tenant_id: row.tenantId || row.tenant_id,
     config_type: row.configType || row.config_type || 'queue',
-    target_id: row.targetId || row.target_id,
+    target_id: row.queue_id || row.targetId || row.target_id,
     team_ids: teamIds,
     reassign_days: row.reassignDays || row.reassign_days,
     is_active: row.isActive !== undefined ? row.isActive : (row.is_active !== undefined ? row.is_active : true)
   })
-  loadTargetOptions()
+  
   // 加载队列下的小组
   if (form.target_id) {
     handleQueueChange(form.target_id)
   }
+  
   dialogVisible.value = true
 }
 
@@ -439,6 +545,12 @@ const handleSubmit = async () => {
   // 确保 tenantId 存在
   if (!currentTenantId.value) {
     ElMessage.warning('请先选择甲方')
+    return
+  }
+
+  // 检查队列是否有小组
+  if (queueHasNoTeams.value) {
+    ElMessage.error('该队列下没有小组，无法创建重新分案配置')
     return
   }
 

@@ -58,6 +58,11 @@ public class CaseReassignConfigController {
                 return ResponseData.error(400, "configType必须是queue（队列）");
             }
             
+            // TODO: 连接真实数据库后，需要添加验证逻辑：
+            // 1. 验证队列是否存在
+            // 2. 验证队列下是否有小组（如果队列下没有小组，应拒绝创建配置）
+            // 3. 如果指定了teamIds，验证这些小组是否确实属于该队列
+            
             // 检查是否有冲突配置（队列-小组维度）
             List<Long> teamIds = parseTeamIds(config.getTeamIds());
             List<CaseReassignConfig> conflicts = configService.checkConflictConfigs(

@@ -4,135 +4,343 @@
 
 | 版本号 | 日期 | 作者 | 变更说明 |
 |--------|------|------|---------|
-| v1.0.0 | 2025-12-08 | 产品大象 | 初始版本，基于分组的标准字段管理 |
+| v1.0.0 | 2025-12-08 | 产品大象 | 初始版本 |
+| v2.0.0 | 2025-12-08 | 产品大象 | 基于CCO催收字段集合CSV完全重构，定义5大分组+子分组 |
+| v2.1.0 | 2025-12-08 | 产品大象 | 新增"影像资料"分组，包含8个图片类型字段 |
+| v2.2.0 | 2025-12-09 | 产品大象 | 新增"放款记录"分组，包含5个字段 |
 
 ---
 
-## 1. 背景与目标
+## 一、产品需求（Product Requirements）
 
-- 提供统一的标准字段定义（含分组结构），所有甲方继承，避免各自维护导致的接口与展示差异。
-- **核心特点**：以分组为核心，标准字段按分组组织，形成官方配置模板。
-- 来源：前端只读展示，后端统一下发，不允许新增、编辑、删除或排序。
-- 用途：用于与甲方上传的字段做映射匹配，保证案件详情字段一致性。
+### 1. 项目背景与目标
 
-## 2. 角色与范围
+案件详情标准字段是CCO催收系统的核心数据模型，定义了案件详情页面应展示的所有字段结构。本PRD完全基于《CCO催收字段集合》5个CSV文件定义，确保字段与实际业务完全对齐。
 
-- 角色：CCO superadmin；甲方运营（只读）。
-- 范围：控台"案件详情标准字段管理"页面，覆盖案件详情场景。
+**数据来源**：
+- `CCO催收字段集合-客户基础信息.csv`
+- `CCO催收字段集合-贷款详情.csv`
+- `CCO催收字段集合-分期详情.csv`
+- `CCO催收字段集合-历史借款记录.csv`
+- `CCO催收字段集合-还款记录.csv`
 
-## 3. 需求概述
+---
 
-- 展示标准字段清单（含分组结构），字段属性：分组名称、字段名称、标识、数据类型、必填、来源、说明。
-- 不展示可搜索/可筛选/范围检索/展示宽度等配置项（前端已去除）。
-- 支持分组折叠/展开查看。
+## 二、标准字段分组结构
 
-## 3.1 字段来源与映射用途
+### 分组架构（7大一级分组 + 子分组，按默认展示顺序）
 
-- **字段来源**：系统统一配置，默认继承给所有甲方，甲方端仅可查看不可编辑/覆盖。
-- **分组结构**：标准字段按业务分组组织，如"基本信息"、"借款信息"、"催收信息"、"联系信息"等。
-- **用途**：用于与甲方上传的字段做映射匹配，保证案件详情字段一致性。
-- **映射匹配逻辑**：
-  - 以标准字段标识 `field_key` 为唯一匹配主键。
-  - 上传文件中的字段标识与标准 `field_key` 进行不区分大小写、下划线/中划线等分隔符的等价匹配；完全匹配则自动绑定。
-  - 如未匹配到，再按预置同义别名表（如"mobile_number" ↔ "phone_number"）进行二级匹配。
-  - 仍未匹配的字段标记为"待人工确认"，提示补充映射或新增甲方自定义字段（不影响标准字段只读）。
-
-## 4. 分组与字段清单（示例）
-
-### 4.1 分组结构
-
-| 分组ID | 分组名称 | 分组标识 | 排序 | 说明 |
-|--------|---------|---------|------|------|
-| 1 | 基本信息 | basic_info | 1 | 案件基础信息 |
-| 2 | 借款信息 | loan_info | 2 | 借款相关信息 |
-| 3 | 催收信息 | collection_info | 3 | 催收过程信息 |
-| 4 | 联系信息 | contact_info | 4 | 联系人信息 |
-| 5 | 产品信息 | product_info | 5 | 产品与商户信息 |
-
-### 4.2 字段清单（按分组）
-
-**分组1：基本信息**
-1) case_code / String / 必填 / 案件编号
-2) user_name / String / 必填 / 客户姓名
-3) id_card / String / 必填 / 身份证号
-4) case_status / Enum / 必填 / 案件状态
-
-**分组2：借款信息**
-5) loan_amount / Decimal / 必填 / 贷款金额
-6) outstanding_amount / Decimal / 必填 / 未还金额
-7) overdue_days / Integer / 必填 / 逾期天数
-8) due_date / Date / 必填 / 到期日期
-9) total_installments / Integer / 必填 / 期数
-10) term_days / Integer / 必填 / 当期天数
-11) loan_id / String / 必填 / 关联借款ID
-
-**分组3：催收信息**
-12) collector_name / String / 可选 / 催收员姓名
-13) collection_stage / Enum / 可选 / 催收阶段
-14) last_contact_time / Datetime / 可选 / 最后联系时间
-
-**分组4：联系信息**
-15) mobile_number / String / 必填 / 手机号
-16) emergency_contact / String / 可选 / 紧急联系人
-17) emergency_phone / String / 可选 / 紧急联系电话
-
-**分组5：产品信息**
-18) system_name / String / 必填 / 所属系统
-19) product_name / String / 必填 / 产品
-20) app_name / String / 必填 / APP
-21) merchant_name / String / 必填 / 商户
-
-## 5. 前端要求
-
-### 5.1 页面布局
-
-- 路由：/field-config/standard-detail（案件详情标准字段管理）。
-- 页面标题：案件详情标准字段管理
-- 布局：左侧分组树 + 右侧字段表格
-
-### 5.2 分组树
-
-```text
-┌─────────────────────────┐
-│ 分组结构                 │
-├─────────────────────────┤
-│ ▼ 基本信息 (4个字段)     │
-│ ▼ 借款信息 (7个字段)     │
-│ ▼ 催收信息 (3个字段)     │
-│ ▼ 联系信息 (3个字段)     │
-│ ▼ 产品信息 (4个字段)     │
-└─────────────────────────┘
+```
+案件详情标准字段
+├── 1. 客户基础信息（customer_info）
+│   ├── 1.1 基础身份信息（identity_info）
+│   ├── 1.2 教育信息（education_info）
+│   ├── 1.3 职业信息（employment_info）
+│   ├── 1.4 用户行为与信用（behavior_credit）
+│   └── 1.5 联系方式（contact_info）
+├── 2. 影像资料（image_materials）
+├── 3. 贷款详情（loan_detail）
+├── 4. 分期详情（installment_detail）
+├── 5. 还款记录（repayment_record）
+├── 6. 历史借款记录（loan_history）
+└── 7. 放款记录（disbursement_record）
 ```
 
-- 支持折叠/展开
-- 点击分组节点，右侧表格显示该分组下的字段
-- 默认展开所有分组，右侧显示全部字段
+---
 
-### 5.3 字段表格
+## 三、标准字段清单（完整版）
 
-表格列：
-- #（序号）
-- 分组名称
-- 字段名称
-- 字段标识
-- 数据类型
-- 必填
-- 来源（固定：系统统一配置）
-- 说明
+### 3.1 客户基础信息（customer_info）
 
-### 5.4 交互规则
+#### 3.1.1 基础身份信息（identity_info）
 
-- 无任何编辑、拖拽、分组管理、搜索配置入口。
-- 表格纯展示，支持分组筛选查看。
-- 支持搜索框按字段名称或标识搜索。
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 用户编号 | user_id | String | 5983 | 系统内部唯一用户标识 | 否 |
+| 2 | 用户姓名 | user_name | String | Juan Dela Cruz | 借款人姓名 | 否 |
+| 3 | 性别 | gender | Enum | Male / Female | 用户性别 | 否 |
+| 4 | 出生日期 | birth_date | Date | 1980/5/5 | 用户生日 | 否 |
+| 5 | 国籍 | nationality | String | Philippines | 国籍或居住国家 | 是 |
+| 6 | 婚姻状况 | marital_status | Enum | Single / Married | 婚姻状态 | 否 |
+| 7 | 证件类型 | id_type | Enum | National ID / Passport / Driver's License | 身份证件类型 | 否 |
+| 8 | 证件号码 | id_number | String | N2319594759 | 证件号码 | 否 |
+| 9 | 居住地址 | address | String | 123 Main St, Quezon City | 包含街道、城市、省份、邮编 | 否 |
+| 10 | 居住年限 | years_at_address | Integer | 5 | 当前居住地年数 | 否 |
+| 11 | 居住类型 | housing_type | Enum | Own / Rent / With Family | 居住情况 | 否 |
 
-## 6. 后端要求
+#### 3.1.2 教育信息（education_info）
 
-### 6.1 接口设计
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 教育程度 | education_level | Enum | University / High School | 最高学历 | 否 |
+| 2 | 学校名称 | school_name | String | University of the Philippines | 毕业学校或当前学校 | 否 |
+| 3 | 专业 | major | String | Business Administration | 学习或毕业专业 | 否 |
 
-**接口**：GET /api/v1/standard-fields/case-detail
+#### 3.1.3 职业信息（employment_info）
 
-**返回字段**：
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 工作状态 | employment_status | Enum | Employed / Self-employed / Student / Unemployed | 当前职业状态 | 否 |
+| 2 | 公司名称 | company_name | String | ABC Transport | 所在公司 | 否 |
+| 3 | 职位 | job_title | String | Driver | 当前职位或职称 | 否 |
+| 4 | 行业类别 | industry | String | Transportation | 所属行业 | 否 |
+| 5 | 工作年限 | years_of_employment | Integer | 3 | 当前岗位工作时长 | 否 |
+| 6 | 工作地址 | work_address | String | 15 Pasay Ave, Manila | 工作地点 | 否 |
+| 7 | 收入类型 | income_type | Enum | Monthly / Weekly / Daily | 工资发放周期 | 否 |
+| 8 | 发薪日 | payday | String | 15th / End of Month | 发薪时间 | 否 |
+| 9 | 收入 | income_range | String | 32000 PHP – 64000 PHP | 每月或每周收入区间 | 否 |
+| 10 | 收入来源 | income_source | Enum | Primary / Secondary | 主或副收入来源 | 否 |
+| 11 | 收入证明文件 | income_proof_files | FileList | payslip.pdf / bank_statement.jpg | 上传的收入凭证文件 | 是 |
+
+#### 3.1.4 用户行为与信用（behavior_credit）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 最近打开时间 | last_app_open_time | Datetime | 2025/10/23 12:02:21 | 用户最近一次打开借款App的时间 | 否 |
+| 2 | 最近访问还款页时间 | last_repayment_page_visit_time | Datetime | 2025/10/26 02:01:51 | 用户最近访问还款页面的时间 | 否 |
+| 3 | 历史借款总笔数 | total_loan_count | Integer | 5 | 统计借款人累计放款次数 | 否 |
+| 4 | 已结清笔数 | cleared_loan_count | Integer | 3 | 已全额还清的贷款订单数量 | 否 |
+| 5 | 历史逾期笔数 | overdue_loan_count | Integer | 2 | 曾经发生逾期的订单数量 | 否 |
+| 6 | 历史最大逾期天数 | max_overdue_days | Integer | 15 | 用户历史上最长一次逾期天数 | 否 |
+| 7 | 平均借款金额 | avg_loan_amount | Decimal | 1500 | 用户历次贷款的平均放款金额 | 否 |
+| 8 | 001信用评分 | credit_score_001 | Enum | A | 系统1计算的信用等级 | 否 |
+| 9 | 002信用评分 | credit_score_002 | Enum | B | 系统2计算的信用等级 | 否 |
+| 10 | 003信用评分 | credit_score_003 | Enum | C | 系统3计算的信用等级 | 否 |
+
+#### 3.1.5 联系方式（contact_info）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 手机号码 | mobile_number | String | +63 9123456789 | 用户注册手机号 | 否 |
+| 2 | 公司联系电话 | company_phone | String | +63 2 9123456 | 公司电话 | 否 |
+
+---
+
+### 3.2 贷款详情（loan_detail）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 贷款编号 | loan_id | String | 123 | 系统生成的唯一标识 | 否 |
+| 2 | 案件状态 | case_status | Enum | 未结清 / 逾期 / 结清 | 当前借款订单状态 | 否 |
+| 3 | 产品类别 | product_type | String | 借款订单 | 区分借款类型（借款 / 展期等） | 否 |
+| 4 | 放款时间 | disbursement_time | Datetime | 2025/2/26 01:00:00 | 实际放款到账时间 | 否 |
+| 5 | 应还金额 | total_due_amount | Decimal | 1460 | 合同约定应还总额 | 否 |
+| 6 | 已还金额 | total_paid_amount | Decimal | 975 | 用户已偿还金额 | 否 |
+| 7 | 应还未还金额 | outstanding_amount | Decimal | 485 | 当前未偿还金额 | 否 |
+| 8 | 应收本金 | principal_due | Decimal | 1000 | 合同本金部分 | 否 |
+| 9 | 应收利息 | interest_due | Decimal | 180 | 合同利息部分 | 否 |
+| 10 | 服务费 | service_fee | Decimal | 270 | 手续费或管理费 | 否 |
+| 11 | 应收罚息 | penalty_fee | Decimal | 10 | 逾期罚息 | 否 |
+| 12 | 代扣账号 | account_number | String | 98546121 | 用户绑定还款账号 | 否 |
+| 13 | 开户行 | bank_name | String | GCash | 代扣银行或电子钱包名称 | 否 |
+| 14 | 借款App | loan_app | String | MegaPeso | 借款来源平台 | 否 |
+| 15 | 合同编号 | contract_no | String | MP20250226001 | 与外部合同匹配的编号 | 是 |
+| 16 | 放款渠道 | disbursement_channel | String | Partner Bank | 资金来源渠道 | 是 |
+| 17 | 入催时间 | collection_entry_time | Datetime | 2025/3/1 00:00:00 | 进入催收系统的时间 | 是 |
+| 18 | 当前逾期天数 | overdue_days | Integer | 3 | 系统自动计算 | 是 |
+| 19 | 下次催收时间 | next_collection_time | Datetime | 2025/3/5 09:00:00 | 系统生成或人工设定 | 是 |
+| 20 | 催收状态 | collection_status | Enum | 未联系 / 承诺还款 / 已结清 | 当前催收进度 | 是 |
+| 21 | 催收阶段 | collection_stage | Enum | 早期 / 中期 / 后期 | 按逾期天数划分 | 是 |
+| 22 | 还款方式 | repayment_method | Enum | 银行转账 / 钱包 / 门店 | 当前订单的还款途径 | 是 |
+| 23 | 最近还款日期 | last_payment_date | Datetime | 2025/2/28 14:33:22 | 上一次部分或全部还款时间 | 是 |
+
+---
+
+### 3.3 分期详情（installment_detail）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 期数 | installment_no | Integer | 1 | 分期编号 | 否 |
+| 2 | 状态 | installment_status | Enum | 待还款 / 已还清 | 当前期状态 | 否 |
+| 3 | 应还款时间 | due_date | Date | 2025/3/13 | 应还日期 | 否 |
+| 4 | 逾期天数 | overdue_days | Integer | 1 | 超过应还日期未还的天数 | 否 |
+| 5 | 应还金额 | due_amount | Decimal | 985 | 当前期应还总额 | 否 |
+| 6 | 实际还款时间 | payment_date | Datetime | 2025/3/14 12:23:36 | 实际还款完成时间 | 否 |
+| 7 | 实际已还金额 | paid_amount | Decimal | 975 | 当前期已还金额 | 否 |
+| 8 | 提前还款标志 | early_repayment_flag | Boolean | FALSE | 是否提前还清该期 | 否 |
+| 9 | 应还未还 | outstanding | Decimal | 10 | 当前期未还金额 | 否 |
+| 10 | 应收本金 | principal | Decimal | 678 | 当前期本金 | 否 |
+| 11 | 应收利息 | interest | Decimal | 30 | 当前期利息 | 否 |
+| 12 | 应收罚息 | penalty | Decimal | 10 | 当前期罚息 | 否 |
+| 13 | 服务费 | service_fee | Decimal | 270 | 当前期服务费 | 否 |
+| 14 | 获取还款码 | repayment_code | Button | 还款码 | 获取二维码或还款链接 | 否 |
+| 15 | 减免金额 | waived_amount | Decimal | 50 | 当前期的费用减免 | 是 |
+| 16 | 分期还款渠道 | installment_channel | String | GCash / Maya | 实际支付渠道 | 是 |
+
+---
+
+### 3.4 历史借款记录（loan_history）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 贷款编号 | loan_id | String | 100023 | 系统内唯一的贷款订单编号 | 否 |
+| 2 | 用户编号 | user_id | String | 5983 | 用户唯一标识 | 否 |
+| 3 | 用户姓名 | user_name | String | Juan Dela Cruz | 借款人姓名 | 否 |
+| 4 | 手机号码 | mobile_number | String | +63 9123456789 | 用户注册手机号 | 否 |
+| 5 | App名称 | app_name | String | MegaPeso | 借款App来源 | 否 |
+| 6 | 产品名称 | product_name | String | Cash Loan | 所属产品类型 | 否 |
+| 7 | 贷超商户 | merchant_name | String | EasyLoan Partner | 放款商户或渠道方名称 | 是 |
+| 8 | 所属系统 | system_name | String | CollectionSystemV2 | 当前数据所属业务系统 | 是 |
+| 9 | App下载链接 | app_download_url | String | https://play.google.com/... | 便于催员发送下载提醒 | 是 |
+| 10 | 首复催类型 | collection_type | Enum | 首催 / 复催 | 标记案件是否为首次或再次催收 | 否 |
+| 11 | 是否复借 | reborrow_flag | Boolean | TRUE | 用户是否为老客再次借款 | 是 |
+| 12 | 自动复借 | auto_reloan | Boolean | FALSE | 是否系统自动生成复借单 | 是 |
+| 13 | 首期期限 | first_term_days | Integer | 14 | 首次借款天数或期限 | 是 |
+| 14 | 应还款日期 | due_date | Date | 2025/3/10 | 应该完成还款的日期 | 否 |
+| 15 | 逾期天数 | overdue_days | Integer | 5 | 超过应还日期的天数 | 否 |
+| 16 | 应还未还金额 | outstanding_amount | Decimal | 850 | 当前待还金额 | 否 |
+| 17 | 绑定人 | binder | String | Agent_001 | 当前负责该案件的催员或分配人 | 否 |
+| 18 | 案件状态 | case_status | Enum | 进行中 / 已结清 / 逾期 | 当前催收案件进度 | 否 |
+| 19 | 结清方式 | settlement_method | Enum | 自动扣款 / 手动转账 / 第三方收款 | 最终还款方式 | 否 |
+| 20 | 结清时间 | settlement_time | Datetime | 2025/3/15 09:33:00 | 最后一次结清操作时间 | 否 |
+| 21 | 最新结果 | latest_result | Enum | 承诺还款 / 无法联系 / 已结清 | 催收最近一次结果 | 否 |
+| 22 | 最近催收时间 | last_collection_time | Datetime | 2025/3/14 18:00:00 | 最近一次催收操作时间 | 否 |
+| 23 | 处理人 | operator | String | Agent_Ana | 执行催收操作的员工 | 否 |
+| 24 | 备注 | remark | String | 电话无人接听 | 催员填写的备注信息 | 是 |
+| 25 | 应还本金 | principal_due | Decimal | 1000 | 当前订单本金 | 是 |
+| 26 | 应收利息 | interest_due | Decimal | 150 | 当前订单利息 | 是 |
+
+---
+
+### 3.5 还款记录（repayment_record）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 还款时间 | repayment_time | Datetime | 2025/3/14 12:23:36 | 实际完成还款的时间 | 否 |
+| 2 | 还款类型 | repayment_type | Enum | 部分还款 / 全额还款 / 提前还款 | 表示还款行为的类型 | 否 |
+| 3 | 还款渠道 | repayment_channel | String | GCash / Maya / Bank Transfer | 用户使用的支付方式或通道 | 否 |
+| 4 | 还款金额 | repayment_amount | Decimal | 500 | 本次实际支付金额 | 否 |
+| 5 | 还款结果 | repayment_result | Enum | 成功 / 失败 / 处理中 | 支付网关返回结果 | 否 |
+| 6 | 对应账单ID | bill_id | String | BILL20250314001 | 系统内账单唯一标识 | 是 |
+| 7 | 对应期数 | installment_no | Integer | 1 | 该笔还款对应的分期编号 | 否 |
+| 8 | 交易流水号 | transaction_id | String | TXN123456789 | 第三方支付或银行流水号 | 是 |
+| 9 | 交易时间 | transaction_time | Datetime | 2025/3/14 12:23:39 | 第三方返回的实际交易完成时间 | 是 |
+| 10 | 手续费 | transaction_fee | Decimal | 5 | 第三方代收通道费用 | 是 |
+| 11 | 实收金额 | received_amount | Decimal | 495 | 平台实际到账金额（扣除手续费后） | 是 |
+| 12 | 减免金额 | waived_amount | Decimal | 10 | 本次还款中被减免的金额 | 是 |
+| 13 | 还款备注 | repayment_remark | String | 用户要求延后 / 手动修正 | 记录异常或说明性信息 | 是 |
+
+---
+
+### 3.6 影像资料（image_materials）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 证件照（正面） | id_photo_front | Image | id_front_001.jpg | 身份证件正面照片 | 否 |
+| 2 | 证件照（反面） | id_photo_back | Image | id_back_001.jpg | 身份证件反面照片 | 否 |
+| 3 | 活体照片 | liveness_photo | Image | liveness_001.jpg | 用户活体认证照片 | 否 |
+| 4 | 资料1 | material_1 | Image | material_1.jpg | 补充资料图片1 | 否 |
+| 5 | 资料2 | material_2 | Image | material_2.jpg | 补充资料图片2 | 否 |
+| 6 | 资料3 | material_3 | Image | material_3.jpg | 补充资料图片3 | 否 |
+| 7 | 资料4 | material_4 | Image | material_4.jpg | 补充资料图片4 | 否 |
+| 8 | 资料5 | material_5 | Image | material_5.jpg | 补充资料图片5 | 否 |
+
+> **注意**：影像资料分组下的所有字段均为**选填**，字段类型均为**Image（图片）**。
+
+---
+
+### 3.7 放款记录（disbursement_record）
+
+| 序号 | 字段名称 | 字段标识 | 字段类型 | 示例值 | 说明 | 是否拓展 |
+|------|---------|---------|---------|--------|------|---------|
+| 1 | 金额 | amount | Decimal | 930.00 | 放款金额 | 否 |
+| 2 | 订单号 | order_no | Text | pay2025112618110003602 | 放款订单号 | 否 |
+| 3 | 收款机构 | receiving_institution | Text | (RCBC)Rizal Commercial Banking Corporation | 银行或金融机构名称 | 否 |
+| 4 | 收款账号 | account_number | Text | 123456789 | 收款银行账号 | 否 |
+| 5 | 收款人姓名 | account_holder_name | Text | SALMODONNA MAE CALAMINOS | 账户持有人姓名 | 否 |
+
+> **注意**：放款记录分组下的所有字段均为**选填**。
+
+---
+
+## 四、字段统计
+
+### 4.1 分组统计
+
+| 一级分组 | 子分组 | 标准字段数 | 拓展字段数 | 合计 |
+|---------|--------|-----------|-----------|------|
+| 客户基础信息 | 基础身份信息 | 10 | 1 | 11 |
+| 客户基础信息 | 教育信息 | 3 | 0 | 3 |
+| 客户基础信息 | 职业信息 | 10 | 1 | 11 |
+| 客户基础信息 | 用户行为与信用 | 10 | 0 | 10 |
+| 客户基础信息 | 联系方式 | 2 | 0 | 2 |
+| 影像资料 | - | 8 | 0 | 8 |
+| 贷款详情 | - | 14 | 9 | 23 |
+| 分期详情 | - | 14 | 2 | 16 |
+| 还款记录 | - | 7 | 6 | 13 |
+| 历史借款记录 | - | 18 | 8 | 26 |
+| 放款记录 | - | 5 | 0 | 5 |
+| **合计** | - | **101** | **27** | **128** |
+
+### 4.2 字段类型统计
+
+| 字段类型 | 数量 | 占比 |
+|---------|------|------|
+| String/Text | 46 | 35.9% |
+| Decimal | 29 | 22.7% |
+| Enum | 22 | 17.2% |
+| Integer | 12 | 9.4% |
+| Datetime | 9 | 7.0% |
+| Image | 8 | 6.3% |
+| Date | 4 | 3.1% |
+| Boolean | 4 | 3.3% |
+| FileList | 1 | 0.8% |
+| Button | 1 | 0.8% |
+
+---
+
+## 五、分组数据库设计
+
+### 5.1 分组表（field_groups_detail）
+
+```sql
+CREATE TABLE field_groups_detail (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id INT NOT NULL COMMENT '甲方ID',
+    group_key VARCHAR(50) NOT NULL COMMENT '分组标识',
+    group_name VARCHAR(100) NOT NULL COMMENT '分组名称',
+    group_name_en VARCHAR(100) COMMENT '分组英文名',
+    parent_id INT DEFAULT NULL COMMENT '父分组ID',
+    sort_order INT DEFAULT 0 COMMENT '排序顺序',
+    is_standard BOOLEAN DEFAULT TRUE COMMENT '是否标准分组',
+    is_active BOOLEAN DEFAULT TRUE COMMENT '是否启用',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_tenant_group (tenant_id, group_key)
+) COMMENT '案件详情字段分组表';
+```
+
+### 5.2 初始化数据
+
+```sql
+-- 一级分组
+INSERT INTO field_groups_detail (tenant_id, group_key, group_name, group_name_en, sort_order, is_standard) VALUES
+(0, 'customer_info', '客户基础信息', 'Customer Information', 1, TRUE),
+(0, 'image_materials', '影像资料', 'Image Materials', 2, TRUE),
+(0, 'loan_detail', '贷款详情', 'Loan Detail', 3, TRUE),
+(0, 'installment_detail', '分期详情', 'Installment Detail', 4, TRUE),
+(0, 'repayment_record', '还款记录', 'Repayment Record', 5, TRUE),
+(0, 'loan_history', '历史借款记录', 'Loan History', 6, TRUE),
+(0, 'disbursement_record', '放款记录', 'Disbursement Record', 7, TRUE);
+
+-- 客户基础信息的子分组
+INSERT INTO field_groups_detail (tenant_id, group_key, group_name, group_name_en, parent_id, sort_order, is_standard) VALUES
+(0, 'identity_info', '基础身份信息', 'Identity Information', 1, 1, TRUE),
+(0, 'education_info', '教育信息', 'Education', 2, 2, TRUE),
+(0, 'employment_info', '职业信息', 'Employment', 3, 3, TRUE),
+(0, 'behavior_credit', '用户行为与信用', 'User Behavior & Credit', 4, 4, TRUE),
+(0, 'contact_info', '联系方式', 'Contact Information', 5, 5, TRUE);
+```
+
+---
+
+## 六、接口设计
+
+### 6.1 获取标准字段（含分组结构）
+
+**接口**：`GET /api/v1/standard-fields/case-detail`
+
+**响应**：
 ```json
 {
   "code": 200,
@@ -140,96 +348,156 @@
   "data": {
     "groups": [
       {
-        "group_id": 1,
-        "group_name": "基本信息",
-        "group_key": "basic_info",
+        "group_key": "customer_info",
+        "group_name": "客户基础信息",
+        "group_name_en": "Customer Information",
         "sort_order": 1,
-        "description": "案件基础信息",
+        "is_standard": true,
+        "children": [
+          {
+            "group_key": "identity_info",
+            "group_name": "基础身份信息",
+            "group_name_en": "Identity Information",
+            "sort_order": 1,
+            "fields": [
+              {
+                "field_key": "user_id",
+                "field_name": "用户编号",
+                "field_data_type": "String",
+                "is_required": true,
+                "is_extended": false,
+                "description": "系统内部唯一用户标识",
+                "example": "5983"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "group_key": "loan_detail",
+        "group_name": "贷款详情",
+        "group_name_en": "Loan Detail",
+        "sort_order": 2,
+        "is_standard": true,
         "fields": [
           {
-            "id": 1,
-            "field_key": "case_code",
-            "field_name": "案件编号",
+            "field_key": "loan_id",
+            "field_name": "贷款编号",
             "field_data_type": "String",
-            "field_source": "system_unified",
             "is_required": true,
-            "sort_order": 1,
-            "description": "案件唯一标识"
+            "is_extended": false,
+            "description": "系统生成的唯一标识"
           }
         ]
       }
-    ]
+    ],
+    "total_groups": 5,
+    "total_sub_groups": 5,
+    "total_fields": 115
   }
 }
 ```
 
-### 6.2 业务规则
+---
 
-- field_source 固定为 system_unified（系统统一配置），不可被甲方覆盖。
-- 分组结构固定，不可新增/删除/编辑分组。
-- 映射逻辑：甲方上传字段时按"3.1 字段来源与映射用途"中的匹配规则返回匹配状态（自动匹配/别名匹配/待人工确认）。
-- 只读：POST/PUT/DELETE/排序接口需返回错误提示"标准字段为统一定义，仅支持查看"。
+## 七、UI展示要求
 
-## 7. 数据库设计
+### 7.1 页面布局
 
-### 7.1 标准字段表
-
-```sql
-CREATE TABLE standard_fields_detail (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-  group_id BIGINT NOT NULL COMMENT '分组ID',
-  field_key VARCHAR(100) NOT NULL COMMENT '字段标识',
-  field_name VARCHAR(200) NOT NULL COMMENT '字段名称',
-  field_data_type VARCHAR(20) NOT NULL COMMENT '数据类型',
-  field_source VARCHAR(20) DEFAULT 'system_unified' COMMENT '字段来源',
-  is_required BOOLEAN DEFAULT FALSE COMMENT '是否必填',
-  sort_order INT DEFAULT 0 COMMENT '排序顺序',
-  description TEXT COMMENT '字段说明',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-  UNIQUE KEY uk_field_key (field_key),
-  INDEX idx_group_id (group_id)
-) COMMENT '案件详情标准字段表';
+```
+┌────────────────────────────────────────────────────────────────┐
+│  案件详情标准字段管理                                           │
+├────────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌─────────────────────────────────────────────┐ │
+│  │ 分组树    │  │ 字段列表                                    │ │
+│  │          │  │                                             │ │
+│  │ ▼ 客户基础│  │ [基础身份信息] 11个字段                     │ │
+│  │   • 身份  │  │ ┌───────────────────────────────────────┐  │ │
+│  │   • 教育  │  │ │ 用户编号 | user_id | String | 必填    │  │ │
+│  │   • 职业  │  │ │ 用户姓名 | user_name | String | 必填  │  │ │
+│  │   • 行为  │  │ │ 性别 | gender | Enum | 必填           │  │ │
+│  │   • 联系  │  │ │ ...                                   │  │ │
+│  │ ▶ 贷款详情│  │ └───────────────────────────────────────┘  │ │
+│  │ ▶ 分期详情│  │                                             │ │
+│  │ ▶ 历史借款│  │ [教育信息] 3个字段                          │ │
+│  │ ▶ 还款记录│  │ ┌───────────────────────────────────────┐  │ │
+│  │          │  │ │ 教育程度 | education_level | Enum      │  │ │
+│  │          │  │ │ ...                                   │  │ │
+│  └──────────┘  │ └───────────────────────────────────────┘  │ │
+│                └─────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 字段分组表
+### 7.2 字段卡片展示
 
-```sql
-CREATE TABLE field_groups_detail (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-  group_key VARCHAR(100) NOT NULL COMMENT '分组标识',
-  group_name VARCHAR(200) NOT NULL COMMENT '分组名称',
-  sort_order INT DEFAULT 0 COMMENT '排序顺序',
-  description TEXT COMMENT '分组说明',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+每个分组下的字段以卡片形式展示：
 
-  UNIQUE KEY uk_group_key (group_key)
-) COMMENT '案件详情字段分组表';
 ```
-
-## 8. 验收标准
-
-- 页面展示标准字段清单（含分组结构），顺序与案件详情一致。
-- 左侧分组树正确显示，支持折叠/展开。
-- 点击分组节点，右侧表格显示对应分组字段。
-- 不出现可搜索/可筛选/范围检索/展示宽度列。
-- 所有操作按钮均禁用或不存在；接口只读。
-- 搜索功能正常工作。
-
-## 9. 与列表字段管理的区别
-
-| 项目 | 列表字段管理 | 详情字段管理 |
-|-----|------------|------------|
-| 分组结构 | 无分组 | 有分组（核心） |
-| 字段数量 | 15个 | 约20个 |
-| 页面布局 | 单表格 | 分组树+表格 |
-| 场景 | 案件列表页 | 案件详情页 |
+┌─────────────────────────────────────────────────────────┐
+│  📋 基础身份信息（Identity Information）     [11个字段]  │
+├─────────────────────────────────────────────────────────┤
+│  序号 | 字段名称 | 字段标识 | 类型 | 是否拓展 | 说明    │
+│  ─────────────────────────────────────────────────────  │
+│   1  | 用户编号 | user_id | String | ✗ | 系统唯一标识  │
+│   2  | 用户姓名 | user_name | String | ✗ | 借款人姓名  │
+│   3  | 性别 | gender | Enum | ✗ | Male/Female          │
+│   4  | 出生日期 | birth_date | Date | ✗ | 用户生日    │
+│   5  | 国籍 | nationality | String | ✓ | 国籍        │
+│   ...                                                   │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
-**文档版本**: v1.0.0  
-**最后更新**: 2025-12-08  
-**更新人**: 产品大象  
-**变更说明**: 初始版本，基于分组的标准字段管理
+## 八、验收标准
+
+### 8.1 数据完整性
+
+- [ ] 5个一级分组全部定义
+- [ ] 5个子分组（客户基础信息下）全部定义
+- [ ] 115个标准字段全部收录
+- [ ] 字段类型与CSV文件一致
+- [ ] 字段说明与CSV文件一致
+- [ ] 拓展字段标识正确
+
+### 8.2 功能验收
+
+- [ ] 分组树正确展示层级关系
+- [ ] 点击分组可查看对应字段
+- [ ] 字段信息完整显示
+- [ ] 只读模式，不可编辑标准字段
+- [ ] 分组可折叠/展开
+
+---
+
+## 九、附录
+
+### 9.1 数据来源文件
+
+| 文件名 | 对应分组 | 字段数量 |
+|--------|---------|---------|
+| CCO催收字段集合-客户基础信息.csv | customer_info + 5个子分组 | 37 |
+| CCO催收字段集合-贷款详情.csv | loan_detail | 23 |
+| CCO催收字段集合-分期详情.csv | installment_detail | 16 |
+| CCO催收字段集合-历史借款记录.csv | loan_history | 26 |
+| CCO催收字段集合-还款记录.csv | repayment_record | 13 |
+
+### 9.2 字段类型映射
+
+| CSV类型 | 系统类型 | 说明 |
+|---------|---------|------|
+| String | String | 字符串 |
+| Integer | Integer | 整数 |
+| Decimal | Decimal | 小数 |
+| Date | Date | 日期（不含时间） |
+| Datetime | Datetime | 日期时间 |
+| Enum | Enum | 枚举值 |
+| Boolean | Boolean | 布尔值 |
+| FileList | FileList | 文件列表 |
+| Button | Button | 按钮（功能字段） |
+
+---
+
+**文档版本**：v2.0.0  
+**最后更新**：2025-12-08  
+**数据来源**：CCO催收字段集合CSV文件

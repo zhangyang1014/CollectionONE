@@ -53,6 +53,31 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/dashboard/IdleMonitor.vue'),
         meta: { title: '空闲催员监控', requiresAuth: true },
       },
+      // 案件列表字段管理（列表场景）
+      {
+        path: 'field-config/standard',
+        name: 'CaseListStandardFields',
+        component: () => import('@/views/field-config/StandardFields.vue'),
+        meta: { title: '案件列表标准字段管理', requiresAuth: true },
+      },
+      {
+        path: 'field-config/tenant-fields-view',
+        name: 'CaseListTenantFieldsView',
+        component: () => import('@/views/field-config/TenantFieldsView.vue'),
+        meta: { title: '案件列表甲方字段查看', requiresAuth: true },
+      },
+      {
+        path: 'field-config/custom',
+        name: 'CaseListCustomFields',
+        component: () => import('@/views/field-config/CustomFields.vue'),
+        meta: { title: '案件列表字段映射配置', requiresAuth: true },
+      },
+      {
+        path: 'field-config/list',
+        name: 'CaseListFieldDisplayConfig',
+        component: () => import('@/views/field-config/FieldListConfig.vue'),
+        meta: { title: '案件列表字段展示配置', requiresAuth: true },
+      },
       {
         path: 'cases',
         name: 'CaseList',
@@ -257,6 +282,18 @@ const routes: RouteRecordRaw[] = [
         name: 'I18nManagement',
         component: () => import('@/views/system/I18nManagement.vue'),
         meta: { title: '国际化配置', requiresAuth: true, roles: ['SuperAdmin', 'super_admin'] },
+      },
+      {
+        path: 'ai-quality/face-compare',
+        name: 'AiQualityFaceCompare',
+        component: () => import('@/views/ai-quality/FaceCompare.vue'),
+        meta: { title: 'AI质检 - 人脸比对', requiresAuth: true },
+      },
+      {
+        path: 'logs/case-update',
+        name: 'CaseUpdateLog',
+        component: () => import('@/views/logs/CaseUpdateLog.vue'),
+        meta: { title: '案件更新日志', requiresAuth: true },
       },
     ],
   },

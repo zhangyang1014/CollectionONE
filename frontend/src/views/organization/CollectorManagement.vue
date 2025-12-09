@@ -266,58 +266,6 @@
       </template>
     </el-dialog>
 
-    <!-- 登录人脸查询对话框 -->
-    <el-dialog
-      v-model="faceRecordsDialogVisible"
-      :title="`${currentCollectorForFace?.collector_name || ''} - 登录人脸查询`"
-      width="80%"
-      destroy-on-close
-    >
-      <div v-loading="loadingFaceRecords">
-        <el-empty v-if="faceRecords.length === 0 && !loadingFaceRecords" description="暂无登录记录" />
-        
-        <el-timeline v-else>
-          <el-timeline-item
-            v-for="record in faceRecords"
-            :key="record.id"
-            :timestamp="record.login_time"
-            placement="top"
-            size="large"
-          >
-            <el-card shadow="hover">
-              <div class="face-record-item">
-                <div class="face-image-container">
-                  <img
-                    :src="record.face_image"
-                    alt="人脸照片"
-                    class="face-image"
-                    @error="handleImageError"
-                  />
-                </div>
-                <div class="face-info">
-                  <div class="info-row">
-                    <span class="label">登录时间：</span>
-                    <span class="value">{{ formatDateTime(record.login_time) }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="label">人脸ID：</span>
-                    <el-tag type="primary" size="small">{{ record.face_id }}</el-tag>
-                  </div>
-                  <div class="info-row">
-                    <span class="label">记录时间：</span>
-                    <span class="value">{{ formatDateTime(record.created_at) }}</span>
-                  </div>
-                </div>
-              </div>
-            </el-card>
-          </el-timeline-item>
-        </el-timeline>
-      </div>
-      
-      <template #footer>
-        <el-button @click="faceRecordsDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -325,12 +273,13 @@
 import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 // import { getCollectorLoginFaceRecords } from '@/api/organization' // TODO: 后续替换Mock数据时使用
 
 const route = useRoute()
+const router = useRouter()
 
 const tenantStore = useTenantStore()
 const userStore = useUserStore()
@@ -347,24 +296,13 @@ const searchKeyword = ref('') // 搜索关键词
 const statusFilter = ref<boolean | undefined>(true) // 状态筛选：true=启用, false=禁用, undefined=全部
 const dialogVisible = ref(false)
 const passwordDialogVisible = ref(false)
-const faceRecordsDialogVisible = ref(false)
 const dialogTitle = ref('')
 const saving = ref(false)
 const savingPassword = ref(false)
-const loadingFaceRecords = ref(false)
 const formRef = ref<FormInstance>()
 const passwordFormRef = ref<FormInstance>()
 const isEdit = ref(false)
 const currentCollector = ref<any>(null)
-const currentCollectorForFace = ref<any>(null)
-const faceRecords = ref<Array<{
-  id: number
-  collector_id: number
-  login_time: string
-  face_image: string
-  face_id: string
-  created_at: string
-}>>([])
 
 // 获取当前用户信息
 const currentUser = computed(() => userStore.userInfo)
@@ -910,52 +848,27 @@ const handleViewIm = (row: any) => {
 }
 
 // 查看登录人脸记录
-const handleViewLoginFaces = async (row: any) => {
-  currentCollectorForFace.value = row
-  faceRecordsDialogVisible.value = true
-  faceRecords.value = []
-  
-  try {
-    loadingFaceRecords.value = true
-    
-    // TODO: 调用实际API
-    // const records = await getCollectorLoginFaceRecords(row.id)
-    // faceRecords.value = records
-    
-    // Mock 数据
-    await new Promise(resolve => setTimeout(resolve, 500))
-    faceRecords.value = [
-      {
-        id: 1,
-        collector_id: row.id,
-        login_time: '2025-11-12T09:15:30Z',
-        face_image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
-        face_id: 'FACE_20251112_001',
-        created_at: '2025-11-12T09:15:35Z'
-      },
-      {
-        id: 2,
-        collector_id: row.id,
-        login_time: '2025-11-11T08:30:20Z',
-        face_image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
-        face_id: 'FACE_20251111_001',
-        created_at: '2025-11-11T08:30:25Z'
-      },
-      {
-        id: 3,
-        collector_id: row.id,
-        login_time: '2025-11-10T09:00:10Z',
-        face_image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
-        face_id: 'FACE_20251110_001',
-        created_at: '2025-11-10T09:00:15Z'
-      },
-    ]
-  } catch (error) {
-    console.error('加载登录人脸记录失败：', error)
-    ElMessage.error('加载登录人脸记录失败')
-  } finally {
-    loadingFaceRecords.value = false
+const handleViewLoginFaces = (row: any) => {
+  const query: Record<string, string | number> = {}
+
+  const collectorId = row.id ?? row.collector_id
+  if (collectorId) {
+    query.collectorId = collectorId
   }
+  if (row.agency_id) {
+    query.agencyId = row.agency_id
+  }
+  if (row.team_group_id) {
+    query.teamGroupId = row.team_group_id
+  }
+  if (row.team_id) {
+    query.teamId = row.team_id
+  }
+
+  router.push({
+    path: '/ai-quality/face-compare',
+    query
+  })
 }
 
 // 格式化日期（年-月-日）
@@ -978,26 +891,6 @@ const formatTime = (dateTime: string) => {
     minute: '2-digit',
     second: '2-digit'
   })
-}
-
-// 格式化日期时间
-const formatDateTime = (dateTime: string) => {
-  if (!dateTime) return '--'
-  const date = new Date(dateTime)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
-
-// 处理图片加载错误
-const handleImageError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTA5Mzk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+5Zu+54mH5pyq5Yqg6L29PC90ZXh0Pjwvc3ZnPg=='
 }
 
 // 启用/禁用催员

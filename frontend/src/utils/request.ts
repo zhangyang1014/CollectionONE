@@ -57,6 +57,9 @@ service.interceptors.response.use(
   },
   (error) => {
     console.error('[Admin Request] Response error:', error)
+    const cfg = error.config as (AxiosRequestConfig & { meta?: Record<string, any> }) | undefined
+    const silentNotFound = cfg?.meta?.silentNotFound
+
     if (error.response) {
       const status = error.response.status
       if (status === 401) {
@@ -70,7 +73,9 @@ service.interceptors.response.use(
       } else if (status === 403) {
         ElMessage.error('权限不足')
       } else if (status === 404) {
-        ElMessage.error('请求的资源不存在')
+        if (!silentNotFound) {
+          ElMessage.error('请求的资源不存在')
+        }
       } else if (status >= 500) {
         ElMessage.error('服务器错误')
       } else {

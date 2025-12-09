@@ -12,10 +12,6 @@
             </div>
           </div>
           <div class="header-actions">
-            <el-button @click="handleManageGroups">
-              <el-icon><Setting /></el-icon>
-              分组管理
-            </el-button>
             <el-button type="primary" @click="handleAdd">添加字段配置</el-button>
             <el-button type="success" @click="handleBatchSave">保存到服务器</el-button>
             <el-button @click="handleSaveVersion">保存为本地版本</el-button>
@@ -24,7 +20,29 @@
         </div>
       </template>
 
-      <el-row :gutter="20">
+      <!-- 未选择甲方提示 -->
+      <el-alert
+        v-if="!currentTenantId"
+        title="请先在页面右上角选择甲方"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 20px;"
+      >
+        <template #default>
+          <div>您需要先选择一个甲方，才能查看和配置该甲方的案件详情字段。</div>
+          <div style="margin-top: 10px;">
+            <strong>操作步骤：</strong>
+            <ol style="margin: 5px 0 0 20px; padding: 0;">
+              <li>点击页面右上角的"当前甲方"下拉框</li>
+              <li>选择一个甲方</li>
+              <li>页面将自动加载该甲方的字段配置</li>
+            </ol>
+          </div>
+        </template>
+      </el-alert>
+
+      <el-row :gutter="20" v-if="currentTenantId">
         <!-- 左侧分组树 -->
         <el-col :span="5">
           <el-card shadow="never">
@@ -53,14 +71,6 @@
         v-loading="loading"
         row-key="id"
       >
-        <el-table-column label="拖拽" width="60" align="center">
-          <template #default>
-            <el-icon class="drag-handle" style="cursor: move;">
-              <Rank />
-            </el-icon>
-          </template>
-        </el-table-column>
-        
         <el-table-column type="index" label="序号" width="60" />
         
         <el-table-column prop="field_name" label="字段名称" width="150">
@@ -85,18 +95,6 @@
             >
               {{ getFieldSourceLabel(row.field_source) }}
             </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="display_width" label="显示宽度（0=自动）" width="150">
-          <template #default="{ row }">
-            <el-input-number
-              v-model="row.display_width"
-              :min="0"
-              :max="500"
-              size="small"
-              placeholder="0"
-            />
           </template>
         </el-table-column>
         
@@ -228,16 +226,6 @@
             <el-form-item label="排序顺序">
               <el-input-number v-model="form.sort_order" :min="0" />
             </el-form-item>
-            
-            <el-form-item label="显示宽度">
-              <el-input-number
-                v-model="form.display_width"
-                :min="0"
-                :max="500"
-                placeholder="0表示自动"
-              />
-              <span style="margin-left: 10px; color: #909399;">像素（0表示自动）</span>
-            </el-form-item>
           </el-tab-pane>
 
           <!-- 样式配置 -->
@@ -330,57 +318,6 @@
       </template>
     </el-dialog>
 
-    <!-- 分组管理对话框 -->
-    <el-dialog
-      v-model="groupManageDialogVisible"
-      title="分组管理"
-      width="700px"
-    >
-      <el-alert
-        title="提示：配置分组的显示顺序和默认折叠状态，应用于案件详情页面的分组卡片展示"
-        type="info"
-        :closable="false"
-        style="margin-bottom: 15px"
-      />
-
-      <el-table :data="groupConfigs" border row-key="group_key">
-        <el-table-column label="拖拽" width="60" align="center">
-          <template #default>
-            <el-icon class="drag-handle" style="cursor: move;">
-              <Rank />
-            </el-icon>
-          </template>
-        </el-table-column>
-        <el-table-column prop="group_name" label="分组名称" width="150" />
-        <el-table-column prop="group_key" label="分组标识" width="150" />
-        <el-table-column label="排序" width="100" align="center">
-          <template #default="{ row }">
-            <el-input-number 
-              v-model="row.sort_order" 
-              :min="1" 
-              size="small"
-              style="width: 80px"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="默认折叠" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch v-model="row.is_collapsed_default" />
-          </template>
-        </el-table-column>
-        <el-table-column label="字段数" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag size="small">{{ getGroupFieldCount(row.group_key) }}</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <template #footer>
-        <el-button @click="groupManageDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveGroupConfig">保存</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 版本管理抽屉 -->
     <el-drawer
       v-model="versionDrawerVisible"
@@ -440,11 +377,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Rank, Setting } from '@element-plus/icons-vue'
+import { Setting } from '@element-plus/icons-vue'
 import { useTenantStore } from '@/stores/tenant'
-import Sortable from 'sortablejs'
 import {
   getCaseDetailFieldConfigs,
   batchSaveCaseDetailFieldConfigs,
@@ -487,9 +423,6 @@ const queues = ref<any[]>([])
 const agencies = ref<any[]>([])
 const teams = ref<any[]>([])
 
-// 分组管理
-const groupManageDialogVisible = ref(false)
-
 // 版本管理
 const versionDrawerVisible = ref(false)
 const localVersions = ref<any[]>([])
@@ -511,7 +444,6 @@ const form = ref<FieldDisplayConfigCreate>({
   field_data_type: '',
   field_source: '',
   sort_order: 0,
-  display_width: 0,
   color_type: 'normal',
   field_group_id: undefined as any,
   hide_for_queues: [],
@@ -608,11 +540,42 @@ const getGroupAndChildrenIds = (groupId: number): number[] => {
   return ids
 }
 
+// 根据可用字段与分组映射出字段的分组ID，兼容后端Mock数据缺少field_group_id的情况
+const fieldGroupMap = computed(() => {
+  const map = new Map<string, number>()
+
+  availableFields.value.forEach(field => {
+    // 优先使用字段自带的分组ID
+    const rawGroupId = (field as any).field_group_id
+    const normalizedId = Number(rawGroupId)
+    if (Number.isFinite(normalizedId)) {
+      map.set(field.field_key, normalizedId)
+      return
+    }
+
+    // 其次尝试通过group_key匹配分组
+    const groupKey = (field as any).group_key
+    if (groupKey) {
+      const matchedGroup = allGroups.value.find(g => g.group_key === groupKey)
+      if (matchedGroup?.id) {
+        map.set(field.field_key, Number(matchedGroup.id))
+      }
+    }
+  })
+
+  return map
+})
+
 // 分组过滤后的配置
 const filteredConfigs = computed(() => {
   if (activeGroupId.value === 'all') return configs.value
   const ids = getGroupAndChildrenIds(Number(activeGroupId.value))
-  return configs.value.filter(c => !c.field_group_id || ids.includes(Number(c.field_group_id)))
+  return configs.value.filter(c => {
+    const directGroupId = Number(c.field_group_id)
+    const mappedGroupId = fieldGroupMap.value.get(c.field_key)
+    const finalGroupId = Number.isFinite(directGroupId) ? directGroupId : mappedGroupId
+    return finalGroupId ? ids.includes(Number(finalGroupId)) : false
+  })
 })
 
 // 加载可用字段
@@ -644,40 +607,11 @@ const handleGroupClick = (node: any) => {
   activeGroupId.value = node.key
 }
 
-// 初始化拖拽排序
-const initDragSort = () => {
-  nextTick(() => {
-    const table = tableRef.value?.$el
-    if (!table) return
-    
-    const tbody = table.querySelector('.el-table__body-wrapper tbody')
-    if (!tbody) return
-    
-    Sortable.create(tbody, {
-      handle: '.drag-handle',
-      animation: 150,
-      onEnd: ({ oldIndex, newIndex }) => {
-        if (oldIndex === newIndex) return
-        
-        // 重新排列数组
-        const movedItem = configs.value.splice(oldIndex!, 1)[0]
-        configs.value.splice(newIndex!, 0, movedItem)
-        
-        // 更新所有项的sort_order
-        configs.value.forEach((config, index) => {
-          config.sort_order = index + 1
-        })
-        
-        ElMessage.success('拖拽成功，请点击"批量保存"保存更改')
-      }
-    })
-  })
-}
-
 // 加载配置列表
 const loadConfigs = async () => {
   if (!currentTenantId.value) {
-    ElMessage.warning('请先选择甲方')
+    console.log('未选择甲方，跳过加载配置')
+    configs.value = []
     return
   }
 
@@ -688,11 +622,10 @@ const loadConfigs = async () => {
       sceneType: SCENE_TYPE
     })
     configs.value = Array.isArray(data) ? data : (data?.data ?? [])
-    
-    // 初始化拖拽排序
-    initDragSort()
+    console.log('成功加载配置，数量:', configs.value.length)
   } catch (error: any) {
     ElMessage.error('加载配置失败：' + error.message)
+    configs.value = []
   } finally {
     loading.value = false
   }
@@ -712,7 +645,6 @@ const handleAdd = () => {
     field_data_type: '',
     field_source: '',
     sort_order: configs.value.length,
-    display_width: 0,
     color_type: 'normal',
     field_group_id: activeGroupId.value === 'all' ? null as any : Number(activeGroupId.value),
     hide_for_queues: [],
@@ -776,8 +708,8 @@ const handleSubmit = async () => {
     } else {
       // 创建
       configs.value.push({
-        ...form.value,
-        id: Date.now()
+    ...form.value,
+    id: Date.now()
       } as any)
       ElMessage.success('创建成功，请点击"批量保存"保存更改')
     }
@@ -890,7 +822,6 @@ const buildGroupsWithFields = () => {
         field_key: f.field_key,
         field_name: f.field_name,
         sort_order: f.sort_order,
-        display_width: f.display_width,
         color_type: f.color_type
       }))
     }
@@ -916,12 +847,20 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleString('zh-CN')
 }
 
+// 监听甲方切换，自动重新加载数据
+watch(currentTenantId, (newTenantId, oldTenantId) => {
+  if (newTenantId && newTenantId !== oldTenantId) {
+    console.log('甲方切换：', oldTenantId, '->', newTenantId)
+    loadGroups()
+    loadAvailableFields()
+    loadConfigs()
+  }
+})
+
 onMounted(() => {
   loadGroups()
   loadAvailableFields()
   loadConfigs()
-  // 初始化拖拽
-  initDragSort()
 })
 </script>
 
