@@ -3,7 +3,7 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>甲方渠道管理</span>
+          <span>甲方触达渠道管理</span>
           <el-space v-if="isSuperAdmin">
             <span>当前甲方:</span>
             <el-select 
@@ -37,10 +37,25 @@
               @refresh="loadSuppliers"
             />
           </el-tab-pane>
+          <el-tab-pane label="电话外呼" name="call">
+            <!-- 电话外呼子渠道 -->
+            <el-tabs v-model="activeCallSubChannel">
+              <el-tab-pane label="Infinity外呼配置" name="infinity">
+                <infinity-call-config-content />
+              </el-tab-pane>
+            </el-tabs>
+          </el-tab-pane>
           <el-tab-pane label="RCS" name="rcs">
             <supplier-list 
               :tenant-id="currentTenantId"
               channel-type="rcs"
+              @refresh="loadSuppliers"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="WABA" name="waba">
+            <supplier-list 
+              :tenant-id="currentTenantId"
+              channel-type="waba"
               @refresh="loadSuppliers"
             />
           </el-tab-pane>
@@ -51,15 +66,19 @@
               @refresh="loadSuppliers"
             />
           </el-tab-pane>
-          <el-tab-pane label="电话外呼" name="call">
+          <el-tab-pane label="邮件" name="email">
             <supplier-list 
               :tenant-id="currentTenantId"
-              channel-type="call"
+              channel-type="email"
               @refresh="loadSuppliers"
             />
           </el-tab-pane>
-          <el-tab-pane label="Infinity外呼配置" name="infinity">
-            <infinity-call-config-content />
+          <el-tab-pane label="手机日历" name="mobile_calendar">
+            <supplier-list 
+              :tenant-id="currentTenantId"
+              channel-type="mobile_calendar"
+              @refresh="loadSuppliers"
+            />
           </el-tab-pane>
         </el-tabs>
       </div>
@@ -81,6 +100,7 @@ const tenantStore = useTenantStore()
 const userStore = useUserStore()
 
 const activeChannel = ref<ChannelType>('sms')
+const activeCallSubChannel = ref<ChannelType>('infinity')
 const tenants = ref<any[]>([])
 const currentTenantId = ref<number | undefined>(tenantStore.currentTenantId)
 

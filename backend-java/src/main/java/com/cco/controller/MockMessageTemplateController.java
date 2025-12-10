@@ -28,11 +28,13 @@ public class MockMessageTemplateController {
     // Mock数据存储
     private final Map<Long, MessageTemplate> templateStore = new HashMap<>();
     private Long idCounter = 8L; // 从8开始，因为初始化数据有7条
+    private final Map<Long, String> teamNameMap = new HashMap<>();
     
     /**
      * 初始化Mock数据
      */
     public MockMessageTemplateController() {
+        initTeamDict();
         initMockData();
     }
     
@@ -47,9 +49,11 @@ public class MockMessageTemplateController {
             @Parameter(description = "甲方ID") @RequestParam Long tenantId,
             @Parameter(description = "模板类型") @RequestParam(required = false) String templateType,
             @Parameter(description = "机构ID") @RequestParam(required = false) Long agencyId,
+            @Parameter(description = "小组ID") @RequestParam(required = false) Long teamId,
             @Parameter(description = "案件阶段") @RequestParam(required = false) String caseStage,
             @Parameter(description = "场景") @RequestParam(required = false) String scene,
             @Parameter(description = "时间点") @RequestParam(required = false) String timeSlot,
+            @Parameter(description = "渠道类型") @RequestParam(required = false) String channelType,
             @Parameter(description = "启用状态") @RequestParam(required = false) Boolean isEnabled,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword
     ) {
@@ -62,8 +66,10 @@ public class MockMessageTemplateController {
                 .filter(t -> caseStage == null || t.getCaseStage().equals(caseStage))
                 .filter(t -> scene == null || t.getScene().equals(scene))
                 .filter(t -> timeSlot == null || t.getTimeSlot().equals(timeSlot))
+                .filter(t -> channelType == null || t.getChannelType().equals(channelType))
                 .filter(t -> isEnabled == null || t.getIsEnabled().equals(isEnabled))
                 .filter(t -> agencyId == null || (t.getAgencyIds() != null && t.getAgencyIds().contains(agencyId)))
+                .filter(t -> teamId == null || (t.getTeamIds() != null && t.getTeamIds().contains(teamId)))
                 .filter(t -> keyword == null || t.getTemplateName().contains(keyword) || t.getContent().contains(keyword))
                 .sorted(Comparator.comparing(MessageTemplate::getSortOrder)
                         .thenComparing(Comparator.comparing(MessageTemplate::getCreatedAt).reversed()))
@@ -118,10 +124,13 @@ public class MockMessageTemplateController {
         template.setTenantId(request.getTenantId());
         template.setTemplateName(request.getTemplateName());
         template.setTemplateType(request.getTemplateType());
+        template.setTeamIds(request.getTeamIds());
         template.setAgencyIds(request.getAgencyIds());
         template.setCaseStage(request.getCaseStage());
         template.setScene(request.getScene());
         template.setTimeSlot(request.getTimeSlot());
+        template.setChannelType(request.getChannelType());
+        template.setSupplierTemplateMappings(request.getSupplierTemplateMappings());
         template.setContent(request.getContent());
         template.setVariables(request.getVariables());
         template.setIsEnabled(request.getIsEnabled() != null ? request.getIsEnabled() : true);
@@ -165,10 +174,13 @@ public class MockMessageTemplateController {
         // 更新模板
         template.setTemplateName(request.getTemplateName());
         template.setTemplateType(request.getTemplateType());
+        template.setTeamIds(request.getTeamIds());
         template.setAgencyIds(request.getAgencyIds());
         template.setCaseStage(request.getCaseStage());
         template.setScene(request.getScene());
         template.setTimeSlot(request.getTimeSlot());
+        template.setChannelType(request.getChannelType());
+        template.setSupplierTemplateMappings(request.getSupplierTemplateMappings());
         template.setContent(request.getContent());
         template.setVariables(request.getVariables());
         template.setIsEnabled(request.getIsEnabled());
@@ -238,6 +250,7 @@ public class MockMessageTemplateController {
             @RequestParam Long tenantId,
             @RequestParam Long collectorId,
             @RequestParam Long agencyId,
+            @RequestParam(required = false) Long teamId,
             @RequestParam(required = false) String caseStage,
             @RequestParam(required = false) String templateType,
             @RequestParam(required = false) String scene,
@@ -251,7 +264,9 @@ public class MockMessageTemplateController {
                 .filter(t -> {
                     // 组织模板：检查机构权限
                     if ("organization".equals(t.getTemplateType())) {
-                        return t.getAgencyIds() == null || t.getAgencyIds().contains(agencyId);
+                        boolean agencyMatch = t.getAgencyIds() == null || t.getAgencyIds().contains(agencyId);
+                        boolean teamMatch = teamId == null || t.getTeamIds() == null || t.getTeamIds().contains(teamId);
+                        return agencyMatch && teamMatch;
                     }
                     // 个人模板：仅创建人可见
                     return collectorId.equals(t.getCreatedBy());
@@ -323,11 +338,15 @@ public class MockMessageTemplateController {
         vo.setTenantId(template.getTenantId());
         vo.setTemplateName(template.getTemplateName());
         vo.setTemplateType(template.getTemplateType());
+        vo.setTeamIds(template.getTeamIds());
+        vo.setTeamNames(formatTeamNames(template.getTeamIds()));
         vo.setAgencyIds(template.getAgencyIds());
         vo.setAgencyNames(formatAgencyNames(template.getAgencyIds()));
         vo.setCaseStage(template.getCaseStage());
         vo.setScene(template.getScene());
         vo.setTimeSlot(template.getTimeSlot());
+        vo.setChannelType(template.getChannelType());
+        vo.setSupplierTemplateMappings(template.getSupplierTemplateMappings());
         vo.setContent(template.getContent());
         vo.setVariables(template.getVariables());
         vo.setIsEnabled(template.getIsEnabled());
@@ -351,6 +370,8 @@ public class MockMessageTemplateController {
         vo.setStage(template.getCaseStage());
         vo.setScene(template.getScene());
         vo.setTimeSlot(template.getTimeSlot());
+        vo.setChannelType(template.getChannelType());
+        vo.setSupplierTemplateMappings(template.getSupplierTemplateMappings());
         vo.setContent(template.getContent());
         vo.setVariables(template.getVariables());
         return vo;
@@ -367,6 +388,35 @@ public class MockMessageTemplateController {
     }
     
     /**
+     * 格式化小组名称显示
+     */
+    private String formatTeamNames(List<Long> teamIds) {
+        if (teamIds == null || teamIds.isEmpty()) {
+            return "全部小组";
+        }
+        List<String> names = teamIds.stream()
+                .map(teamNameMap::get)
+                .filter(Objects::nonNull)
+                .toList();
+        if (names.isEmpty()) {
+            return teamIds.size() + "个小组";
+        }
+        return String.join("、", names);
+    }
+    
+    /**
+     * 初始化小组名称与机构映射（含队列信息）
+     */
+    private void initTeamDict() {
+        teamNameMap.put(1L, "催收一部-早班队列");
+        teamNameMap.put(2L, "催收一部-晚班队列");
+        teamNameMap.put(3L, "催收二部-早班队列");
+        teamNameMap.put(4L, "催收二部-晚班队列");
+        teamNameMap.put(5L, "催收三部-高风险队列");
+        teamNameMap.put(6L, "催收三部-外呼队列");
+    }
+    
+    /**
      * 初始化Mock数据
      */
     private void initMockData() {
@@ -376,10 +426,26 @@ public class MockMessageTemplateController {
         t1.setTenantId(1L);
         t1.setTemplateName("早安问候 + 还款提醒");
         t1.setTemplateType("organization");
+        t1.setTeamIds(null);
         t1.setAgencyIds(null);
         t1.setCaseStage("S0");
         t1.setScene("greeting");
         t1.setTimeSlot("morning");
+        t1.setChannelType("whatsapp");
+        List<MessageTemplate.SupplierTemplateMapping> mappings1 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping1_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping1_1.setSupplierId(1L);
+        mapping1_1.setSupplierName("WhatsApp供应商A");
+        mapping1_1.setTemplateId("wa_greeting_morning_001");
+        mapping1_1.setPriority(1);
+        mappings1.add(mapping1_1);
+        MessageTemplate.SupplierTemplateMapping mapping1_2 = new MessageTemplate.SupplierTemplateMapping();
+        mapping1_2.setSupplierId(2L);
+        mapping1_2.setSupplierName("WhatsApp供应商B");
+        mapping1_2.setTemplateId("wa_greeting_morning_002");
+        mapping1_2.setPriority(2);
+        mappings1.add(mapping1_2);
+        t1.setSupplierTemplateMappings(mappings1);
         t1.setContent("您好{客户名}，早上好！您在{App名称}的{产品名称}（贷款编号：{贷款编号}）已逾期{逾期天数}天，应还金额{应还金额}，请在{到期日期}前完成还款。谢谢您的配合！");
         t1.setVariables(Arrays.asList("客户名", "App名称", "产品名称", "贷款编号", "逾期天数", "应还金额", "到期日期"));
         t1.setIsEnabled(true);
@@ -396,10 +462,20 @@ public class MockMessageTemplateController {
         t2.setTenantId(1L);
         t2.setTemplateName("下午催款提醒");
         t2.setTemplateType("organization");
+        t2.setTeamIds(Arrays.asList(3L, 4L, 5L));
         t2.setAgencyIds(Arrays.asList(1L, 2L, 3L));
         t2.setCaseStage("S1-3");
         t2.setScene("reminder");
         t2.setTimeSlot("afternoon");
+        t2.setChannelType("sms");
+        List<MessageTemplate.SupplierTemplateMapping> mappings2 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping2_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping2_1.setSupplierId(3L);
+        mapping2_1.setSupplierName("短信供应商A");
+        mapping2_1.setTemplateId("sms_reminder_001");
+        mapping2_1.setPriority(1);
+        mappings2.add(mapping2_1);
+        t2.setSupplierTemplateMappings(mappings2);
         t2.setContent("{客户名}您好，您的{产品名称}（贷款编号：{贷款编号}）逾期已{逾期天数}天，贷款金额{贷款金额}，未还金额{应还金额}（本金{本金}+罚息{罚息}），请今日内完成还款，如有困难请联系我们！");
         t2.setVariables(Arrays.asList("客户名", "产品名称", "贷款编号", "逾期天数", "贷款金额", "应还金额", "本金", "罚息"));
         t2.setIsEnabled(true);
@@ -416,10 +492,20 @@ public class MockMessageTemplateController {
         t3.setTenantId(1L);
         t3.setTemplateName("晚间强度提醒");
         t3.setTemplateType("organization");
+        t3.setTeamIds(Arrays.asList(3L, 4L));
         t3.setAgencyIds(Arrays.asList(1L, 2L));
         t3.setCaseStage("S3+");
         t3.setScene("strong");
         t3.setTimeSlot("evening");
+        t3.setChannelType("waba");
+        List<MessageTemplate.SupplierTemplateMapping> mappings3 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping3_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping3_1.setSupplierId(4L);
+        mapping3_1.setSupplierName("WABA供应商A");
+        mapping3_1.setTemplateId("waba_strong_evening_001");
+        mapping3_1.setPriority(1);
+        mappings3.add(mapping3_1);
+        t3.setSupplierTemplateMappings(mappings3);
         t3.setContent("{客户名}，您在{App名称}的贷款（{贷款编号}）已严重逾期{逾期天数}天，未还金额{应还金额}，如不立即还款我们将采取法律措施！");
         t3.setVariables(Arrays.asList("客户名", "App名称", "贷款编号", "逾期天数", "应还金额"));
         t3.setIsEnabled(true);
@@ -436,10 +522,20 @@ public class MockMessageTemplateController {
         t4.setTenantId(1L);
         t4.setTemplateName("承诺还款确认");
         t4.setTemplateType("organization");
+        t4.setTeamIds(null);
         t4.setAgencyIds(null);
         t4.setCaseStage("C");
         t4.setScene("greeting");
         t4.setTimeSlot("afternoon");
+        t4.setChannelType("email");
+        List<MessageTemplate.SupplierTemplateMapping> mappings4 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping4_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping4_1.setSupplierId(5L);
+        mapping4_1.setSupplierName("邮件供应商A");
+        mapping4_1.setTemplateId("email_greeting_001");
+        mapping4_1.setPriority(1);
+        mappings4.add(mapping4_1);
+        t4.setSupplierTemplateMappings(mappings4);
         t4.setContent("{客户名}您好，感谢您承诺在{到期日期}前还款{应还金额}。我们会持续关注，期待您的履约。");
         t4.setVariables(Arrays.asList("客户名", "到期日期", "应还金额"));
         t4.setIsEnabled(true);
@@ -456,10 +552,20 @@ public class MockMessageTemplateController {
         t5.setTenantId(1L);
         t5.setTemplateName("逾期初期温和提醒");
         t5.setTemplateType("organization");
+        t5.setTeamIds(null);
         t5.setAgencyIds(null);
         t5.setCaseStage("S1-3");
         t5.setScene("reminder");
         t5.setTimeSlot("morning");
+        t5.setChannelType("rcs");
+        List<MessageTemplate.SupplierTemplateMapping> mappings5 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping5_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping5_1.setSupplierId(6L);
+        mapping5_1.setSupplierName("RCS供应商A");
+        mapping5_1.setTemplateId("rcs_reminder_morning_001");
+        mapping5_1.setPriority(1);
+        mappings5.add(mapping5_1);
+        t5.setSupplierTemplateMappings(mappings5);
         t5.setContent("尊敬的{客户名}，您好！您在{App名称}的{产品名称}（贷款编号：{贷款编号}）已逾期{逾期天数}天，应还金额{应还金额}。为避免影响个人信用，请尽快安排还款。");
         t5.setVariables(Arrays.asList("客户名", "App名称", "产品名称", "贷款编号", "逾期天数", "应还金额"));
         t5.setIsEnabled(true);
@@ -476,10 +582,20 @@ public class MockMessageTemplateController {
         t6.setTenantId(1L);
         t6.setTemplateName("贷款金额明细提醒");
         t6.setTemplateType("organization");
+        t6.setTeamIds(Arrays.asList(1L, 2L));
         t6.setAgencyIds(null);
         t6.setCaseStage("S1-3");
         t6.setScene("reminder");
         t6.setTimeSlot("afternoon");
+        t6.setChannelType("whatsapp");
+        List<MessageTemplate.SupplierTemplateMapping> mappings6 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping6_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping6_1.setSupplierId(1L);
+        mapping6_1.setSupplierName("WhatsApp供应商A");
+        mapping6_1.setTemplateId("wa_reminder_detail_001");
+        mapping6_1.setPriority(1);
+        mappings6.add(mapping6_1);
+        t6.setSupplierTemplateMappings(mappings6);
         t6.setContent("{客户名}您好，您的贷款详情：贷款金额{贷款金额}，本金{本金}，罚息{罚息}，应还总额{应还金额}，请在{到期日期}前还款。");
         t6.setVariables(Arrays.asList("客户名", "贷款金额", "本金", "罚息", "应还金额", "到期日期"));
         t6.setIsEnabled(true);
@@ -500,6 +616,15 @@ public class MockMessageTemplateController {
         t7.setCaseStage("S0");
         t7.setScene("greeting");
         t7.setTimeSlot("morning");
+        t7.setChannelType("whatsapp");
+        List<MessageTemplate.SupplierTemplateMapping> mappings7 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping7_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping7_1.setSupplierId(1L);
+        mapping7_1.setSupplierName("WhatsApp供应商A");
+        mapping7_1.setTemplateId("wa_personal_greeting_001");
+        mapping7_1.setPriority(1);
+        mappings7.add(mapping7_1);
+        t7.setSupplierTemplateMappings(mappings7);
         t7.setContent("您好{客户名}，早上好！关于您在{App名称}的{产品名称}还款事宜想跟您沟通一下，现在方便吗？");
         t7.setVariables(Arrays.asList("客户名", "App名称", "产品名称"));
         t7.setIsEnabled(true);
@@ -520,6 +645,15 @@ public class MockMessageTemplateController {
         t8.setCaseStage("C");
         t8.setScene("greeting");
         t8.setTimeSlot("afternoon");
+        t8.setChannelType("sms");
+        List<MessageTemplate.SupplierTemplateMapping> mappings8 = new ArrayList<>();
+        MessageTemplate.SupplierTemplateMapping mapping8_1 = new MessageTemplate.SupplierTemplateMapping();
+        mapping8_1.setSupplierId(3L);
+        mapping8_1.setSupplierName("短信供应商A");
+        mapping8_1.setTemplateId("sms_personal_confirm_001");
+        mapping8_1.setPriority(1);
+        mappings8.add(mapping8_1);
+        t8.setSupplierTemplateMappings(mappings8);
         t8.setContent("{客户名}您好，我们已收到您的还款{应还金额}，感谢您的配合！");
         t8.setVariables(Arrays.asList("客户名", "应还金额"));
         t8.setIsEnabled(true);
@@ -546,10 +680,13 @@ public class MockMessageTemplateController {
         private Long tenantId;
         private String templateName;
         private String templateType;
+        private List<Long> teamIds;
         private List<Long> agencyIds;
         private String caseStage;
         private String scene;
         private String timeSlot;
+        private String channelType;
+        private List<MessageTemplate.SupplierTemplateMapping> supplierTemplateMappings;
         private String content;
         private List<String> variables;
         private Boolean isEnabled;
@@ -564,11 +701,15 @@ public class MockMessageTemplateController {
         private Long tenantId;
         private String templateName;
         private String templateType;
+        private List<Long> teamIds;
+        private String teamNames;
         private List<Long> agencyIds;
         private String agencyNames;
         private String caseStage;
         private String scene;
         private String timeSlot;
+        private String channelType;
+        private List<MessageTemplate.SupplierTemplateMapping> supplierTemplateMappings;
         private String content;
         private List<String> variables;
         private Boolean isEnabled;
@@ -588,6 +729,8 @@ public class MockMessageTemplateController {
         private String stage;
         private String scene;
         private String timeSlot;
+        private String channelType;
+        private List<MessageTemplate.SupplierTemplateMapping> supplierTemplateMappings;
         private String content;
         private List<String> variables;
     }

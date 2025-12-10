@@ -79,10 +79,10 @@
         <el-sub-menu index="channel">
           <template #title>
             <el-icon><Connection /></el-icon>
-            <span>渠道配置</span>
+            <span>触达渠道配置</span>
           </template>
           <el-menu-item index="/channel-config/limits">渠道发送限制配置</el-menu-item>
-          <el-menu-item index="/channel-config/suppliers">甲方渠道管理</el-menu-item>
+          <el-menu-item index="/channel-config/suppliers">甲方触达渠道管理</el-menu-item>
           <el-menu-item index="/channel-config/payment-channels">还款渠道管理</el-menu-item>
         </el-sub-menu>
 

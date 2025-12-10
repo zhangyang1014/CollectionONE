@@ -245,7 +245,7 @@ const routes: RouteRecordRaw[] = [
         path: 'channel-config/suppliers',
         name: 'TenantChannelManagement',
         component: () => import('@/views/channel-config/TenantChannelManagement.vue'),
-        meta: { title: '甲方渠道管理', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'super_admin', 'tenant_admin'] },
+        meta: { title: '甲方触达渠道管理', requiresAuth: true, roles: ['SuperAdmin', 'TenantAdmin', 'super_admin', 'tenant_admin'] },
       },
       {
         path: 'channel-config/payment-channels',

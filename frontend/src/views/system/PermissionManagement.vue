@@ -129,7 +129,7 @@ const permissionModules = [
   { key: 'collector', label: '催员管理' },
   { key: 'case', label: '案件管理' },
   { key: 'field', label: '字段配置' },
-  { key: 'channel', label: '渠道配置' },
+  { key: 'channel', label: '触达渠道配置' },
   { key: 'performance', label: '业绩查看' },
   { key: 'chat', label: '聊天内容查看' },
   { key: 'dashboard', label: '工作台' }

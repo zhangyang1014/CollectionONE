@@ -166,7 +166,7 @@ const permissionData: PermissionModule = {
       }
     },
     {
-      name: '甲方渠道管理',
+      name: '甲方触达渠道管理',
       description: '管理甲方的渠道供应商配置',
       permissions: {
         SUPER_ADMIN: 'yes',
@@ -681,7 +681,7 @@ const permissionData: PermissionModule = {
     }
   ],
 
-  // 渠道配置权限
+  // 触达渠道配置权限
   channel: [
     {
       name: '渠道供应商管理',

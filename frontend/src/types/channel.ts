@@ -2,7 +2,16 @@
  * 渠道相关类型定义
  */
 
-export type ChannelType = 'sms' | 'rcs' | 'whatsapp' | 'call' | 'infinity'
+// 新增 waba 以支持 WABA 渠道
+export type ChannelType =
+  | 'sms'
+  | 'rcs'
+  | 'waba'
+  | 'whatsapp'
+  | 'email'
+  | 'mobile_calendar'
+  | 'call'
+  | 'infinity'
 
 export interface ChannelSupplier {
   id?: number

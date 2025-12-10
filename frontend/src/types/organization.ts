@@ -322,3 +322,13 @@ export interface AgencyWorkingHoursBatchUpdate {
   }>
 }
 
+// ===== 组织架构树节点 =====
+export interface OrgTreeNode {
+  id: string | number
+  label: string
+  type: 'agency' | 'team_group' | 'team' | 'collector'
+  data: CollectionAgency | TeamGroup | CollectionTeam | Collector
+  children?: OrgTreeNode[]
+  disabled?: boolean
+}
+

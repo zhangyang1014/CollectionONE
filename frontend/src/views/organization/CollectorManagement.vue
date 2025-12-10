@@ -4,7 +4,93 @@
       <template #header>
         <div class="card-header">
           <span>催员管理</span>
-          <el-space>
+        </div>
+      </template>
+
+      <el-container class="org-container">
+        <!-- 左侧：树状图 -->
+        <el-aside width="30%" class="tree-aside">
+          <div class="tree-header">
+            <span class="tree-title">组织架构</span>
+            <el-space>
+              <el-button 
+                size="small" 
+                text 
+                @click="showTreeDiagnostic"
+              >
+                诊断
+              </el-button>
+              <el-button 
+                size="small" 
+                text 
+                @click="refreshTree"
+                :loading="treeLoading"
+              >
+                刷新
+              </el-button>
+            </el-space>
+          </div>
+          <div class="tree-container">
+            <!-- 提示信息 -->
+            <el-alert
+              v-if="treeData.length === 0 && !treeLoading"
+              title="暂无组织架构数据"
+              type="info"
+              :closable="false"
+              style="margin-bottom: 12px;"
+            >
+              <template #default>
+                <div style="font-size: 13px;">
+                  请先创建机构、小组群、小组和催员。<br />
+                  如果已创建但未显示，请按F12查看控制台日志。
+                </div>
+              </template>
+            </el-alert>
+
+            <el-tree
+              v-if="treeData.length > 0"
+              ref="treeRef"
+              :data="treeData"
+              :props="treeProps"
+              node-key="id"
+              :expand-on-click-node="false"
+              default-expand-all
+              :highlight-current="true"
+              @node-click="handleTreeNodeClick"
+              class="org-tree"
+            >
+              <template #default="{ node, data }">
+                <div class="custom-tree-node">
+                  <span class="node-label">
+                    <el-icon v-if="data.type === 'agency'"><OfficeBuilding /></el-icon>
+                    <el-icon v-if="data.type === 'team_group'"><Grid /></el-icon>
+                    <el-icon v-if="data.type === 'team'"><User /></el-icon>
+                    <el-icon v-if="data.type === 'collector'"><Avatar /></el-icon>
+                    {{ node.label }}
+                    <el-tag v-if="data.type === 'team' && data.data.collector_count !== undefined" size="small" type="info" style="margin-left: 8px;">
+                      {{ data.data.collector_count }}人
+                    </el-tag>
+                  </span>
+                  <span class="node-actions" v-if="data.type === 'team'">
+                    <el-button 
+                      size="small" 
+                      text 
+                      type="primary"
+                      @click.stop="handleCreateCollectorFromTree(data)"
+                    >
+                      创建催员
+                    </el-button>
+                  </span>
+                </div>
+              </template>
+            </el-tree>
+          </div>
+        </el-aside>
+
+        <!-- 右侧：筛选器和表格 -->
+        <el-main class="table-main">
+          <div class="filter-bar">
+            <el-space>
             <el-input
               v-model="searchKeyword"
               placeholder="搜索催员登录id或催员名"
@@ -44,7 +130,7 @@
             <el-select 
               v-model="currentTeamId" 
               placeholder="全部小组" 
-              @change="loadCollectors"
+              @change="handleTeamChange"
               style="width: 160px"
               clearable
               :disabled="!currentAgencyId"
@@ -72,18 +158,17 @@
             >
               导出催员账号与密码
             </el-button>
-          </el-space>
-        </div>
-      </template>
+            </el-space>
+          </div>
 
-      <!-- 催员统计信息 -->
-      <div class="collector-stats">
-        <el-text type="info">
-          当前筛选条件下，共有 <el-text type="primary" style="font-weight: 600;">{{ filteredCollectors.length }}</el-text> 位催员
-        </el-text>
-      </div>
+          <!-- 催员统计信息 -->
+          <div class="collector-stats">
+            <el-text type="info">
+              当前筛选条件下，共有 <el-text type="primary" style="font-weight: 600;">{{ filteredCollectors.length }}</el-text> 位催员
+            </el-text>
+          </div>
 
-      <el-table :data="filteredCollectors" border style="width: 100%">
+          <el-table :data="filteredCollectors" border style="width: 100%">
         <el-table-column prop="collector_code" label="催员登录id" width="120" />
         <el-table-column prop="collector_name" label="催员名" width="120" />
         <el-table-column prop="last_login_at" label="最近登录时间" width="140">
@@ -131,7 +216,9 @@
             </el-button>
           </template>
         </el-table-column>
-      </el-table>
+          </el-table>
+        </el-main>
+      </el-container>
     </el-card>
 
     <!-- 创建/编辑对话框 -->
@@ -175,7 +262,13 @@
         </el-form-item>
 
         <el-form-item label="所属机构" prop="agency_id">
-          <el-select v-model="form.agency_id" placeholder="选择机构" style="width: 100%" @change="handleFormAgencyChange">
+          <el-select 
+            v-model="form.agency_id" 
+            placeholder="选择机构" 
+            style="width: 100%" 
+            @change="handleFormAgencyChange"
+            :disabled="fromTree"
+          >
             <el-option
               v-for="agency in agencies"
               :key="agency.id"
@@ -183,10 +276,18 @@
               :value="agency.id"
             />
           </el-select>
+          <div v-if="fromTree" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            从树状图创建，机构已自动选择
+          </div>
         </el-form-item>
 
         <el-form-item label="所属小组" prop="team_id">
-          <el-select v-model="form.team_id" placeholder="选择小组" style="width: 100%">
+          <el-select 
+            v-model="form.team_id" 
+            placeholder="选择小组" 
+            style="width: 100%"
+            :disabled="fromTree"
+          >
             <el-option
               v-for="team in formTeams"
               :key="team.id"
@@ -194,6 +295,9 @@
               :value="team.id"
             />
           </el-select>
+          <div v-if="fromTree" style="margin-top: 5px; color: #909399; font-size: 12px;">
+            从树状图创建，小组已自动选择
+          </div>
         </el-form-item>
 
         <el-divider content-position="left">账号信息</el-divider>
@@ -272,10 +376,11 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, OfficeBuilding, Grid, User, Avatar } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
+import type { OrgTreeNode } from '@/types/organization'
 // import { getCollectorLoginFaceRecords } from '@/api/organization' // TODO: 后续替换Mock数据时使用
 
 const route = useRoute()
@@ -303,6 +408,16 @@ const formRef = ref<FormInstance>()
 const passwordFormRef = ref<FormInstance>()
 const isEdit = ref(false)
 const currentCollector = ref<any>(null)
+
+// 树状图相关
+const treeRef = ref()
+const treeData = ref<OrgTreeNode[]>([])
+const treeLoading = ref(false)
+const treeProps = {
+  children: 'children',
+  label: 'label'
+}
+const fromTree = ref(false) // 标记是否从树创建
 
 // 获取当前用户信息
 const currentUser = computed(() => userStore.userInfo)
@@ -377,18 +492,275 @@ watch(
     collectors.value = []
     agencies.value = []
     teams.value = []
+    treeData.value = []
     
     if (newTenantId) {
       await loadAgencies()
+      await buildTreeData() // 构建树状图
       await loadCollectors() // 默认加载所有催员
     }
   }
 )
 
+// 构建树状图数据
+const buildTreeData = async () => {
+  if (!currentTenantId.value) {
+    treeData.value = []
+    return
+  }
+
+  treeLoading.value = true
+  try {
+    const treeNodes: OrgTreeNode[] = []
+    const { getApiUrl } = await import('@/config/api')
+
+    console.log('开始构建树状图，机构数量：', agencies.value.length)
+
+    // 第一层：机构
+    for (const agency of agencies.value) {
+      const agencyNode: OrgTreeNode = {
+        id: `agency-${agency.id}`,
+        label: agency.agency_name,
+        type: 'agency',
+        data: agency,
+        children: []
+      }
+
+      try {
+        // 第二层：小组群（使用正确的API格式）
+        const teamGroupsUrl = `${getApiUrl('team-groups')}?tenant_id=${currentTenantId.value}&agency_id=${agency.id}`
+        console.log('加载小组群：', teamGroupsUrl)
+        const teamGroupsResponse = await fetch(teamGroupsUrl)
+        const teamGroupsResult = await teamGroupsResponse.json()
+        const teamGroups = Array.isArray(teamGroupsResult) ? teamGroupsResult : (teamGroupsResult.data || [])
+        
+        console.log(`机构 ${agency.agency_name} 的小组群数量：`, teamGroups.length)
+
+        if (teamGroups.length > 0) {
+          // 如果有小组群，按小组群分组
+          for (const teamGroup of teamGroups) {
+            const teamGroupNode: OrgTreeNode = {
+              id: `team-group-${teamGroup.id}`,
+              label: teamGroup.group_name,
+              type: 'team_group',
+              data: teamGroup,
+              children: []
+            }
+
+            // 第三层：小组（属于该小组群）
+            const teamsUrl = getApiUrl(`agencies/${agency.id}/teams`)
+            console.log('加载小组：', teamsUrl)
+            const teamsResponse = await fetch(teamsUrl)
+            const teamsResult = await teamsResponse.json()
+            const allTeams = Array.isArray(teamsResult) ? teamsResult : (teamsResult.data || [])
+            const teams = allTeams.filter((t: any) => t.team_group_id === teamGroup.id)
+            
+            console.log(`小组群 ${teamGroup.group_name} 的小组数量：`, teams.length)
+
+            for (const team of teams) {
+              const teamNode: OrgTreeNode = {
+                id: `team-${team.id}`,
+                label: team.team_name,
+                type: 'team',
+                data: team,
+                children: []
+              }
+
+              // 第四层：催员
+              try {
+                const collectorsUrl = getApiUrl(`teams/${team.id}/collectors`)
+                const collectorsResponse = await fetch(collectorsUrl)
+                const collectorsResult = await collectorsResponse.json()
+                const collectors = Array.isArray(collectorsResult) ? collectorsResult : (collectorsResult.data || [])
+
+                console.log(`小组 ${team.team_name} 的催员数量：`, collectors.length)
+
+                for (const collector of collectors) {
+                  teamNode.children!.push({
+                    id: `collector-${collector.id}`,
+                    label: collector.collector_name,
+                    type: 'collector',
+                    data: collector
+                  })
+                }
+              } catch (error) {
+                console.error(`加载小组 ${team.id} 的催员失败：`, error)
+              }
+
+              teamGroupNode.children!.push(teamNode)
+            }
+
+            agencyNode.children!.push(teamGroupNode)
+          }
+        } else {
+          console.log(`机构 ${agency.agency_name} 没有小组群，直接加载小组`)
+        }
+
+        // 处理没有小组群的小组（team_group_id 为空或null）
+        const teamsUrl = getApiUrl(`agencies/${agency.id}/teams`)
+        console.log('加载无小组群的小组：', teamsUrl)
+        const teamsResponse = await fetch(teamsUrl)
+        const teamsResult = await teamsResponse.json()
+        const allTeams = Array.isArray(teamsResult) ? teamsResult : (teamsResult.data || [])
+        const teamsWithoutGroup = allTeams.filter((t: any) => !t.team_group_id)
+
+        console.log(`机构 ${agency.agency_name} 无小组群的小组数量：`, teamsWithoutGroup.length)
+
+        for (const team of teamsWithoutGroup) {
+          const teamNode: OrgTreeNode = {
+            id: `team-${team.id}`,
+            label: team.team_name,
+            type: 'team',
+            data: team,
+            children: []
+          }
+
+          // 第四层：催员
+          try {
+            const collectorsUrl = getApiUrl(`teams/${team.id}/collectors`)
+            const collectorsResponse = await fetch(collectorsUrl)
+            const collectorsResult = await collectorsResponse.json()
+            const collectors = Array.isArray(collectorsResult) ? collectorsResult : (collectorsResult.data || [])
+
+            console.log(`小组 ${team.team_name} 的催员数量：`, collectors.length)
+
+            for (const collector of collectors) {
+              teamNode.children!.push({
+                id: `collector-${collector.id}`,
+                label: collector.collector_name,
+                type: 'collector',
+                data: collector
+              })
+            }
+          } catch (error) {
+            console.error(`加载小组 ${team.id} 的催员失败：`, error)
+          }
+
+          agencyNode.children!.push(teamNode)
+        }
+      } catch (error) {
+        console.error(`加载机构 ${agency.id} 的小组群/小组失败：`, error)
+        ElMessage.error(`加载机构"${agency.agency_name}"的数据失败`)
+      }
+
+      treeNodes.push(agencyNode)
+      console.log(`机构 ${agency.agency_name} 的子节点数量：`, agencyNode.children?.length)
+    }
+
+    treeData.value = treeNodes
+    console.log('树状图构建完成，根节点数量：', treeNodes.length)
+    console.log('树状图数据：', JSON.stringify(treeData.value, null, 2))
+  } catch (error) {
+    console.error('构建树状图失败：', error)
+    ElMessage.error('加载组织架构失败')
+  } finally {
+    treeLoading.value = false
+  }
+}
+
+// 刷新树状图
+const refreshTree = async () => {
+  await loadAgencies()
+  await buildTreeData()
+}
+
+// 树状图诊断
+const showTreeDiagnostic = () => {
+  const diagnostic = {
+    '机构数量': agencies.value.length,
+    '树根节点数': treeData.value.length,
+    '机构详情': agencies.value.map(a => ({
+      机构名称: a.agency_name,
+      机构ID: a.id
+    })),
+    '树数据详情': treeData.value.map(node => ({
+      节点: node.label,
+      类型: node.type,
+      子节点数: node.children?.length || 0,
+      第一个子节点类型: node.children?.[0]?.type || '无',
+      第一个子节点名称: node.children?.[0]?.label || '无'
+    }))
+  }
+  
+  console.log('========== 树状图诊断信息 ==========')
+  console.log(JSON.stringify(diagnostic, null, 2))
+  console.log('完整树数据：', treeData.value)
+  console.log('====================================')
+  
+  ElMessage.info({
+    message: '诊断信息已输出到控制台，请按F12查看',
+    duration: 3000
+  })
+}
+
+// 树节点点击处理
+const handleTreeNodeClick = (data: OrgTreeNode) => {
+  console.log('点击树节点：', data)
+  
+  if (data.type === 'agency') {
+    // 点击机构：筛选该机构的所有催员
+    currentAgencyId.value = (data.data as any).id
+    currentTeamId.value = undefined
+    loadCollectors()
+  } else if (data.type === 'team_group') {
+    // 点击小组群：筛选该小组群下所有小组的催员
+    const teamGroup = data.data as any
+    currentAgencyId.value = teamGroup.agency_id
+    currentTeamId.value = undefined
+    // TODO: 需要根据小组群筛选，这里暂时显示该机构的所有催员
+    loadCollectors()
+  } else if (data.type === 'team') {
+    // 点击小组：筛选该小组的催员
+    const team = data.data as any
+    currentAgencyId.value = team.agency_id
+    currentTeamId.value = team.id
+    loadTeams()
+    loadCollectors()
+  } else if (data.type === 'collector') {
+    // 点击催员：在表格中高亮（滚动到该催员）
+    const collector = data.data as any
+    // 使用搜索关键词来筛选
+    searchKeyword.value = collector.collector_code || collector.collector_name
+  }
+}
+
+// 从树创建催员
+const handleCreateCollectorFromTree = (treeNodeData: OrgTreeNode) => {
+  const team = treeNodeData.data as any
+  
+  isEdit.value = false
+  fromTree.value = true
+  dialogTitle.value = `为小组"${team.team_name}"创建催员`
+  
+  form.value = {
+    id: undefined,
+    collector_code: '',
+    collector_name: '',
+    password: '',
+    agency_id: team.agency_id,
+    team_id: team.id,
+    role: 'collector',
+    email: '',
+    remark: '',
+    is_active: true
+  }
+  
+  // 加载表单中的小组列表
+  loadFormTeams(team.agency_id)
+  
+  // 自动生成密码
+  generatePassword()
+  
+  dialogVisible.value = true
+}
+
 // 初始加载
 onMounted(async () => {
   if (currentTenantId.value) {
     await loadAgencies()
+    
+    // 构建树状图
+    await buildTreeData()
     
     // 检查URL参数中是否有筛选条件
     const urlAgencyId = route.query.agencyId ? Number(route.query.agencyId) : undefined
@@ -491,10 +863,49 @@ const handleAgencyChange = async () => {
     await loadTeams()
     // 加载该机构的所有催员（小组为全选）
     await loadCollectors()
+    
+    // 同步树状图：高亮对应机构节点
+    syncTreeSelection()
   } else {
     // 选择"全部机构"，清空小组列表，加载所有催员
     teams.value = []
     await loadCollectors()
+    
+    // 清除树选择
+    if (treeRef.value) {
+      treeRef.value.setCurrentKey(null)
+    }
+  }
+}
+
+// 小组切换时加载催员
+const handleTeamChange = async () => {
+  await loadCollectors()
+  // 同步树状图：高亮对应小组节点
+  syncTreeSelection()
+}
+
+// 同步树状图选择
+const syncTreeSelection = () => {
+  if (!treeRef.value) return
+  
+  let nodeKey: string | null = null
+  
+  if (currentTeamId.value) {
+    // 选择了小组：高亮小组节点
+    nodeKey = `team-${currentTeamId.value}`
+  } else if (currentAgencyId.value) {
+    // 只选择了机构：高亮机构节点
+    nodeKey = `agency-${currentAgencyId.value}`
+  }
+  
+  if (nodeKey) {
+    treeRef.value.setCurrentKey(nodeKey)
+    // 确保节点展开可见
+    const node = treeRef.value.getNode(nodeKey)
+    if (node && node.parent) {
+      node.parent.expanded = true
+    }
   }
 }
 
@@ -727,6 +1138,7 @@ const generatePassword = () => {
 // 创建催员
 const handleAdd = () => {
   isEdit.value = false
+  fromTree.value = false // 不是从树创建
   dialogTitle.value = '创建催员'
   form.value = {
     id: undefined,
@@ -748,6 +1160,7 @@ const handleAdd = () => {
 // 编辑催员
 const handleEdit = async (row: any) => {
   isEdit.value = true
+  fromTree.value = false // 编辑时不限制
   dialogTitle.value = '编辑催员'
   form.value = {
     id: row.id,
@@ -785,7 +1198,12 @@ const handleSave = async () => {
     // TODO: 调用API保存
     ElMessage.success('保存成功')
     dialogVisible.value = false
-    loadCollectors()
+    
+    // 刷新表格和树状图
+    await loadCollectors()
+    if (fromTree.value) {
+      await buildTreeData()
+    }
   } catch (error) {
     console.error('保存失败：', error)
   } finally {
@@ -921,6 +1339,104 @@ const handleToggleStatus = async (row: any) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 左右布局 */
+.org-container {
+  height: calc(100vh - 280px);
+  min-height: 600px;
+}
+
+.tree-aside {
+  border-right: 1px solid #e4e7ed;
+  padding: 16px;
+  overflow-y: auto;
+  background-color: #fafafa;
+}
+
+.table-main {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* 树状图头部 */
+.tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.tree-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+}
+
+/* 树容器 */
+.tree-container {
+  height: calc(100% - 50px);
+  overflow-y: visible;
+}
+
+/* 树状图样式 */
+.org-tree {
+  background-color: transparent;
+}
+
+.org-tree :deep(.el-tree-node__content) {
+  height: 40px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.org-tree :deep(.el-tree-node__content:hover) {
+  background-color: #f0f2f5;
+}
+
+.org-tree :deep(.el-tree-node.is-current > .el-tree-node__content) {
+  background-color: #e6f7ff;
+  font-weight: 500;
+}
+
+/* 自定义树节点 */
+.custom-tree-node {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  padding-right: 8px;
+}
+
+.node-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-label .el-icon {
+  font-size: 16px;
+  color: #606266;
+}
+
+.node-actions {
+  display: none;
+}
+
+.custom-tree-node:hover .node-actions {
+  display: block;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
 }
 
 /* 催员统计信息 */

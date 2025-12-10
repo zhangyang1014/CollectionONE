@@ -1,5 +1,11 @@
 # 消息模板配置管理 PRD
 
+| 版本 | 日期 | 变更内容 | 变更人 |
+| --- | --- | --- | --- |
+| 1.0.2 | 2025-12-10 | 新增渠道和供应商配置功能：支持多渠道区分、一模板多供应商映射、按优先级自动切换供应商 | 大象 |
+| 1.0.1 | 2025-12-10 | 适用范围下沉到小组（含队列），机构仅用于筛选；前端移除个人模板选项；接口与数据结构新增team_ids/teamNames | 大象 |
+| 1.0.0 | 2025-12-03 | 初始版本 | 大象 |
+
 ## 1. 功能概述
 
 为CCO催收系统提供消息模板配置管理功能，支持管理员在控台端创建和管理催收沟通模板，催员在IM端可快速选择预配置的模板发送WhatsApp消息，通过变量替换实现个性化内容，提升催收效率和话术规范性。
@@ -29,8 +35,10 @@
 | 字段 | 说明 | 宽度 |
 |------|------|------|
 | 模板名称 | 模板的显示名称 | 200px |
-| 模板类型 | 组织模板/个人模板 | 100px |
-| 适用机构 | 显示机构数量，如"3个机构" | 120px |
+| 模板类型 | 仅保留组织模板 | 100px |
+| 渠道 | 渠道类型标签（短信/RCS/WABA/WhatsApp/邮件/手机日历） | 100px |
+| 供应商配置 | 显示配置的供应商数量，悬停展示供应商详情（名称、模板ID、优先级） | 120px |
+| 适用小组 | 显示小组数量，如"3个小组"；悬停展示全量小组（含队列） | 150px |
 | 案件阶段 | C/S0/S1-3/S3+ | 100px |
 | 场景 | 问候/提醒/强度 | 80px |
 | 时间点 | 上午/下午/晚上 | 80px |
@@ -39,10 +47,9 @@
 | 启用状态 | 开关控制 | 80px |
 | 操作 | 编辑/删除按钮 | 120px |
 
-**适用机构显示规则：**
-- 如果选择全部机构：显示"全部机构"
-- 如果选择部分机构：显示"3个机构"（鼠标悬停显示完整机构名称列表）
-- 个人模板：显示"-"（不适用）
+**适用小组显示规则：**
+- 选择全部小组：显示"全部小组"
+- 选择部分小组：显示"X个小组"，悬停展示完整小组名称（含队列）
 
 #### 2.1.2 筛选器配置
 
@@ -51,8 +58,10 @@
 | 筛选项 | 类型 | 选项 |
 |--------|------|------|
 | 案件阶段 | 下拉单选 | **全部阶段**、C（催收前）、S0（首次联系）、S1-3（初期）、S3+（后期） |
-| 模板类型 | 下拉单选 | 全部、组织模板、个人模板 |
-| 适用机构 | 下拉单选 | 全部、具体机构名称列表 |
+| 模板类型 | 下拉单选 | 全部、组织模板（个人模板入口暂时关闭） |
+| 渠道 | 下拉单选 | **全部渠道**、短信、RCS、WABA、WhatsApp、邮件、手机日历 |
+| 适用小组 | 多选下拉 | 全部小组、具体小组（含队列名） |
+| 按机构筛选小组 | 下拉单选 | 全部、具体机构（仅用于过滤小组选项，不直接决定权限） |
 | 场景 | 下拉单选 | **全部场景**、问候、提醒、强度 |
 | 时间点 | 下拉单选 | **全部时间**、上午、下午、晚上 |
 | 启用状态 | 下拉单选 | 全部、已启用、已禁用 |
@@ -60,7 +69,8 @@
 
 **说明：**
 - **案件阶段**：选项来自甲方案件队列管理（case_queues表的queue_code），当前版本使用固定枚举值（C、S0、S1-3、S3+），未来可扩展为动态读取
-- **适用机构**：选项从当前甲方的组织架构管理中读取机构列表
+- **适用小组**：小组含队列属性，从组织架构管理的小组接口获取
+- **按机构筛选小组**：仅用于下拉过滤，权限最终依据小组；机构字段不再单独控制可见范围
 - **"全部"选项**：用于筛选时不限制该维度，value为空字符串
 
 
@@ -110,23 +120,59 @@
 | 字段 | 类型 | 是否必填 | 说明 | 校验规则 |
 |------|------|---------|------|----------|
 | 模板名称 | 文本输入 | 必填 | 便于识别的模板名称 | 长度2-100字符，不可重复 |
-| 模板类型 | 下拉选择 | 必填 | 组织模板/个人模板 | 枚举值：organization/personal |
-| 适用机构 | 多选下拉 | 必填 | 选择可以使用此模板的机构 | 至少选择1个机构 |
+| 模板类型 | 单选 | 必填 | 仅保留组织模板（personal 暂不开放新增） | 固定为 organization |
+| 适用小组 | 多选下拉 | 必填 | 选择可使用此模板的小组（含案件队列） | 至少选择1个小组 |
+| 按机构筛选小组 | 下拉选择 | 选填 | 仅用于筛选小组选项，不直接决定权限 | - |
 
 **模板类型说明：**
-- **组织模板（organization）**：选定机构的催员可见可用，通常用于标准化话术
-- **个人模板（personal）**：仅创建人可见可用，用于个人定制话术
+- **组织模板（organization）**：选定小组的催员可见可用，通常用于标准化话术
+- **个人模板（personal）**：暂不支持新增；已有数据沿用但前端不再提供创建/筛选入口
 
-**适用机构说明：**
-- 下拉选项：从当前甲方的机构列表中选择（通过组织架构管理API获取）
-- 支持多选：可同时选择多个机构
-- 默认值：全部机构（新增时默认勾选所有机构）
-- 快捷操作：提供"全选"、"清空"按钮
-- 权限控制：
-  - 组织模板：仅选定机构的催员可见
-  - 个人模板：无论选择哪些机构，仅创建人可见（机构字段对个人模板无效）
+**适用小组说明：**
+- 下拉选项：从当前甲方的小组列表中选择（含所属机构与队列名）
+- 支持多选：可同时选择多个小组
+- 默认值：为空（需显式选择）
+- 快捷操作：提供"全选"、"清空"按钮（基于当前机构筛选范围）
+- 权限控制：仅选定小组的催员可见；机构字段仅用于筛选小组选项
+- 兼容性：保存时自动反推所属机构ID列表（agency_ids）以兼容旧接口
 
-#### 2.2.3 分类维度（对应IM端筛选器）
+#### 2.2.3 渠道配置
+
+| 字段 | 类型 | 是否必填 | 说明 | 校验规则 |
+|------|------|---------|------|----------|
+| 渠道类型 | 下拉选择 | 必填 | 选择消息发送渠道 | 枚举值：sms/rcs/waba/whatsapp/email/mobile_calendar |
+| 供应商配置 | 动态列表 | 必填 | 配置此渠道下的供应商及其模板ID | 至少配置1个供应商 |
+
+**渠道类型枚举：**
+- **sms（短信）**：传统短信渠道
+- **rcs（RCS）**：富媒体消息渠道
+- **waba（WABA）**：WhatsApp Business API官方渠道
+- **whatsapp（WhatsApp）**：WhatsApp非官方渠道
+- **email（邮件）**：电子邮件渠道
+- **mobile_calendar（手机日历）**：日历提醒渠道
+
+**供应商配置说明：**
+- 数据来源：从"甲方触达渠道管理"读取当前渠道已配置的供应商列表
+- 配置项：
+  - **供应商**：下拉选择，显示供应商名称
+  - **供应商侧模板ID**：文本输入，对应供应商系统中的模板标识（字符串格式）
+  - **优先级**：数字输入（1-99），数值越小优先级越高
+- 操作：
+  - **添加供应商**：支持为同一模板配置多个供应商的模板ID
+  - **删除**：移除某个供应商配置
+- 校验规则：
+  - 至少配置1个供应商
+  - 每个供应商必须选择供应商名称
+  - 每个供应商必须填写模板ID（不能为空）
+  - 每个供应商必须设置优先级（≥1）
+  - 同一模板内优先级不能重复
+
+**供应商优先级说明：**
+- IM端发送时优先使用优先级高（数值小）的供应商
+- 主供应商发送失败后，自动切换到次优先级供应商
+- 示例：优先级1的供应商A失败 → 自动切换到优先级2的供应商B
+
+#### 2.2.4 分类维度（对应IM端筛选器）
 
 | 字段 | 类型 | 是否必填 | 选项 | 说明 |
 |------|------|---------|------|------|
@@ -329,7 +375,12 @@ CREATE TABLE message_templates (
   -- 基础信息
   template_name VARCHAR(200) NOT NULL COMMENT '模板名称',
   template_type ENUM('organization', 'personal') NOT NULL COMMENT '模板类型：organization-组织模板，personal-个人模板',
-  agency_ids JSON COMMENT '适用机构ID列表，如[1,2,3]，NULL表示全部机构',
+  team_ids JSON COMMENT '适用小组ID列表，如[1,2,3]，NULL表示全部小组',
+  agency_ids JSON COMMENT '适用机构ID列表，如[1,2,3]，NULL表示全部机构（兼容字段，保存时按team_ids反推）',
+  
+  -- 渠道配置
+  channel_type VARCHAR(50) NOT NULL COMMENT '渠道类型：sms/rcs/waba/whatsapp/email/mobile_calendar',
+  supplier_template_mappings JSON COMMENT '供应商模板映射，如[{"supplierId":1,"templateId":"wa_001","priority":1}]',
   
   -- 分类维度（对应IM端筛选器）
   case_stage VARCHAR(20) NOT NULL COMMENT '案件阶段：C/S0/S1-3/S3+',
@@ -353,6 +404,7 @@ CREATE TABLE message_templates (
   
   -- 索引
   INDEX idx_tenant_type (tenant_id, template_type),
+  INDEX idx_channel (channel_type),
   INDEX idx_stage_scene (case_stage, scene),
   INDEX idx_enabled (is_enabled),
   INDEX idx_sort (sort_order, created_at),
@@ -367,8 +419,11 @@ CREATE TABLE message_templates (
 | id | BIGINT | 主键ID | 自增 |
 | tenant_id | BIGINT | 甲方ID | 数据隔离，必填 |
 | template_name | VARCHAR(200) | 模板名称 | 同一甲方内不可重复 |
-| template_type | ENUM | 模板类型 | organization/personal |
-| agency_ids | JSON | 适用机构ID列表 | 数组格式，如[1,2,3]，NULL表示全部机构 |
+| template_type | ENUM | 模板类型 | organization/personal（当前仅开放organization） |
+| team_ids | JSON | 适用小组ID列表 | 数组格式，如[1,2,3]，NULL表示全部小组 |
+| agency_ids | JSON | 适用机构ID列表 | 兼容旧字段，按team_ids自动反推；NULL表示全部机构 |
+| channel_type | VARCHAR(50) | 渠道类型 | sms/rcs/waba/whatsapp/email/mobile_calendar，必填 |
+| supplier_template_mappings | JSON | 供应商模板映射 | 数组格式，如[{"supplierId":1,"supplierName":"供应商A","templateId":"wa_001","priority":1}]，至少1个 |
 | case_stage | VARCHAR(20) | 案件阶段 | C/S0/S1-3/S3+ |
 | scene | VARCHAR(50) | 场景 | greeting/reminder/strong |
 | time_slot | VARCHAR(20) | 时间点 | morning/afternoon/evening |
@@ -379,11 +434,14 @@ CREATE TABLE message_templates (
 | usage_count | INT | 使用次数 | 每次催员选择模板时+1 |
 | created_by | BIGINT | 创建人ID | 个人模板权限控制依据 |
 
-**agency_ids字段说明：**
-- **NULL**：表示适用于全部机构（不限制）
-- **[1,2,3]**：仅适用于机构ID为1、2、3的机构
-- **[]**（空数组）：不适用于任何机构（理论上不应出现）
-- **个人模板**：该字段无效，仅依据created_by控制可见性
+**team_ids字段说明：**
+- **NULL**：表示适用于全部小组
+- **[1,2,3]**：仅适用于小组ID为1、2、3
+- **[]**（空数组）：不适用于任何小组（不推荐）
+
+**agency_ids字段说明（兼容）**
+- 由后端/前端根据team_ids自动反推去重后的机构ID集合
+- 查询与授权以team_ids为准；agency_ids仅供兼容旧逻辑或统计展示
 
 #### 2.4.2 索引说明
 
@@ -399,19 +457,17 @@ CREATE TABLE message_templates (
 #### 2.4.3 初始化数据（Mock数据示例）
 
 ```sql
--- 组织模板示例
-INSERT INTO message_templates (tenant_id, template_name, template_type, agency_ids, case_stage, scene, time_slot, content, variables, is_enabled, sort_order, created_by) VALUES
-(1, '早安问候 + 还款提醒', 'organization', NULL, 'S0', 'greeting', 'morning', '您好{客户名}，早上好！这是早晨BTSK，您在我们的贷款{贷款编号}已逾期{逾期天数}天，应还金额{应还金额}，请尽快安排还款。谢谢您的配合！', '["客户名","贷款编号","逾期天数","应还金额"]', 1, 10, 1),
+-- 组织模板示例（基于小组）
+INSERT INTO message_templates (tenant_id, template_name, template_type, team_ids, agency_ids, case_stage, scene, time_slot, content, variables, is_enabled, sort_order, created_by) VALUES
+(1, '早安问候 + 还款提醒', 'organization', NULL, NULL, 'S0', 'greeting', 'morning', '您好{客户名}，早上好！这是早晨BTSK，您在我们的贷款{贷款编号}已逾期{逾期天数}天，应还金额{应还金额}，请尽快安排还款。谢谢您的配合！', '["客户名","贷款编号","逾期天数","应还金额"]', 1, 10, 1),
 
-(1, '下午催款提醒', 'organization', '[1,2,3]', 'S1-3', 'reminder', 'afternoon', '{客户名}您好，您的贷款{贷款编号}逾期已{逾期天数}天，未还金额{应还金额}，请今日内完成还款，如有困难请联系我们！', '["客户名","贷款编号","逾期天数","应还金额"]', 1, 20, 1),
+(1, '下午催款提醒', 'organization', '[3,4,5]', '[1,2,3]', 'S1-3', 'reminder', 'afternoon', '{客户名}您好，您的贷款{贷款编号}逾期已{逾期天数}天，未还金额{应还金额}，请今日内完成还款，如有困难请联系我们！', '["客户名","贷款编号","逾期天数","应还金额"]', 1, 20, 1),
 
-(1, '晚间强度提醒', 'organization', '[1,2]', 'S3+', 'strong', 'evening', '{客户名}，您已严重逾期{逾期天数}天，如不立即还款{应还金额}，我们将采取法律措施。请立即联系我们：{联系电话}', '["客户名","逾期天数","应还金额","联系电话"]', 1, 30, 1);
+(1, '晚间强度提醒', 'organization', '[3,4]', '[1,2]', 'S3+', 'strong', 'evening', '{客户名}，您已严重逾期{逾期天数}天，如不立即还款{应还金额}，我们将采取法律措施。请立即联系我们：{联系电话}', '["客户名","逾期天数","应还金额","联系电话"]', 1, 30, 1);
 
--- 个人模板示例（agency_ids对个人模板无效）
-INSERT INTO message_templates (tenant_id, template_name, template_type, agency_ids, case_stage, scene, time_slot, content, variables, is_enabled, sort_order, created_by) VALUES
-(1, '个人问候（上午）', 'personal', NULL, 'S0', 'greeting', 'morning', '您好，早上好！我是催款官小王，关于您的还款事宜想跟您沟通一下，现在方便吗？', '["催员姓名"]', 1, 100, 1001),
-
-(1, '还款确认', 'personal', NULL, 'C', 'greeting', 'afternoon', '{客户名}您好，我们已收到您的还款{应还金额}，感谢您的配合！', '["客户名","应还金额"]', 1, 110, 1001);
+-- 个人模板示例（保留兼容，前端不提供新建入口）
+INSERT INTO message_templates (tenant_id, template_name, template_type, team_ids, agency_ids, case_stage, scene, time_slot, content, variables, is_enabled, sort_order, created_by) VALUES
+(1, '个人问候（上午）', 'personal', NULL, NULL, 'S0', 'greeting', 'morning', '您好，早上好！我是催款官小王，关于您的还款事宜想跟您沟通一下，现在方便吗？', '["催员姓名"]', 1, 100, 1001);
 ```
 
 ### 2.5 接口设计
@@ -430,8 +486,10 @@ GET /api/v1/console/message-templates
   "page": 1,
   "pageSize": 20,
   "tenantId": 1,
-  "templateType": "organization",  // 可选：organization/personal
-  "agencyId": 1,                   // 可选：按机构ID筛选
+  "templateType": "organization",  // 可选：当前仅支持organization
+  "channelType": "whatsapp",       // 可选：sms/rcs/waba/whatsapp/email/mobile_calendar
+  "teamId": 11,                    // 可选：按小组ID筛选
+  "agencyId": 1,                   // 可选：按机构筛选小组（兼容）
   "caseStage": "S0",              // 可选：C/S0/S1-3/S3+
   "scene": "greeting",             // 可选：greeting/reminder/strong
   "timeSlot": "morning",           // 可选：morning/afternoon/evening
@@ -455,8 +513,25 @@ GET /api/v1/console/message-templates
         "tenantId": 1,
         "templateName": "早安问候 + 还款提醒",
         "templateType": "organization",
-        "agencyIds": null,               // null表示全部机构
-        "agencyNames": "全部机构",        // 用于列表显示
+        "channelType": "whatsapp",
+        "supplierTemplateMappings": [
+          {
+            "supplierId": 1,
+            "supplierName": "WhatsApp供应商A",
+            "templateId": "wa_greeting_morning_001",
+            "priority": 1
+          },
+          {
+            "supplierId": 2,
+            "supplierName": "WhatsApp供应商B",
+            "templateId": "wa_greeting_morning_002",
+            "priority": 2
+          }
+        ],
+        "teamIds": null,                 // null表示全部小组
+        "teamNames": "全部小组",          // 用于列表显示
+        "agencyIds": null,               // 兼容字段，按teamIds反推
+        "agencyNames": "全部机构",        // 兼容显示
         "caseStage": "S0",
         "scene": "greeting",
         "timeSlot": "morning",
@@ -487,7 +562,23 @@ POST /api/v1/console/message-templates
   "tenantId": 1,
   "templateName": "早安问候 + 还款提醒",
   "templateType": "organization",
-  "agencyIds": null,                  // null-全部机构，[1,2,3]-指定机构
+  "channelType": "whatsapp",
+  "supplierTemplateMappings": [
+    {
+      "supplierId": 1,
+      "supplierName": "WhatsApp供应商A",
+      "templateId": "wa_greeting_morning_001",
+      "priority": 1
+    },
+    {
+      "supplierId": 2,
+      "supplierName": "WhatsApp供应商B",
+      "templateId": "wa_greeting_morning_002",
+      "priority": 2
+    }
+  ],
+  "teamIds": [11,12],                // null-全部小组，[11,12]-指定小组
+  "agencyIds": null,                 // 可选兼容字段，后端可自动按teamIds推导
   "caseStage": "S0",
   "scene": "greeting",
   "timeSlot": "morning",
@@ -593,8 +684,9 @@ GET /api/v1/message-templates
   "tenantId": 1,
   "collectorId": 1001,
   "agencyId": 1,                  // 催员所属机构ID（必填，用于过滤）
+  "teamId": 11,                   // 催员所属小组ID（可选，优先按小组过滤）
   "caseStage": "S0",              // 可选
-  "templateType": "organization", // 可选
+  "templateType": "organization", // 可选，当前仅organization
   "scene": "greeting",            // 可选
   "timeSlot": "morning"           // 可选
 }
@@ -613,6 +705,21 @@ GET /api/v1/message-templates
       "stage": "S0",
       "scene": "greeting",
       "timeSlot": "morning",
+      "channelType": "whatsapp",
+      "supplierTemplateMappings": [
+        {
+          "supplierId": 1,
+          "supplierName": "WhatsApp供应商A",
+          "templateId": "wa_greeting_morning_001",
+          "priority": 1
+        },
+        {
+          "supplierId": 2,
+          "supplierName": "WhatsApp供应商B",
+          "templateId": "wa_greeting_morning_002",
+          "priority": 2
+        }
+      ],
       "content": "您好{客户名}，早上好！这是早晨BTSK，您在我们的贷款{贷款编号}已逾期{逾期天数}天，应还金额{应还金额}，请尽快安排还款。谢谢您的配合！",
       "variables": ["客户名", "贷款编号", "逾期天数", "应还金额"]
     }
@@ -623,9 +730,10 @@ GET /api/v1/message-templates
 **业务规则：**
 - 仅返回 `is_enabled = 1` 的模板
 - **组织模板（organization）**：
-  - 如果 `agency_ids = NULL`：全员可见
-  - 如果 `agency_ids = [1,2,3]`：仅机构ID在列表中的催员可见
-  - 查询条件：`(agency_ids IS NULL OR JSON_CONTAINS(agency_ids, '[催员所属机构ID]'))`
+  - 如果 `team_ids = NULL`：全员可见
+  - 如果 `team_ids = [1,2,3]`：仅小组ID在列表中的催员可见
+  - 查询条件：`(team_ids IS NULL OR JSON_CONTAINS(team_ids, '[催员所属小组ID]'))`
+  - agency_ids 仅用于兼容旧逻辑，不作为主过滤字段
 - **个人模板（personal）**：仅创建人（created_by = collectorId）可见
 - 按 `sort_order` 升序 + `created_at` 降序排序
 
@@ -716,22 +824,35 @@ POST /api/v1/message-templates/{id}/usage
 
 **模板类型规则：**
 - **组织模板（organization）**：
-  - 可见范围由"适用机构"控制
-  - 如果选择全部机构（agency_ids = NULL）：全甲方催员可见
-  - 如果选择部分机构（agency_ids = [1,2,3]）：仅指定机构的催员可见
+  - 可见范围由"适用小组"控制
+  - 如果选择全部小组（team_ids = NULL）：全甲方催员可见
+  - 如果选择部分小组（team_ids = [1,2,3]）：仅指定小组的催员可见
   - 通常用于标准化话术
   - 需要管理员权限创建
 - **个人模板（personal）**：
-  - 仅创建人可见，不受"适用机构"限制
-  - 用于个人定制话术
-  - 催员自己可创建（如果开放权限）
+  - 暂不开放创建入口；兼容历史数据仅在后端保留
+  - 可见范围：仅创建人可见（若存在旧数据）
 
-**机构范围控制规则：**
-- **适用对象**：仅对组织模板生效，个人模板不受限制
-- **权限判断**：催员在IM端查询模板时，系统根据其所属机构ID过滤可见模板
-- **全部机构**：agency_ids = NULL 或 空数组时，表示全部机构可见
-- **部分机构**：agency_ids = [1,2,3] 时，仅机构ID在列表中的催员可见
-- **跨机构**：一个模板可以同时适用于多个机构
+**小组范围控制规则：**
+- **适用对象**：组织模板
+- **权限判断**：IM端按催员所属小组ID过滤，team_ids 为主判定字段
+- **全部小组**：team_ids = NULL 或 空数组时，表示全部小组可见
+- **部分小组**：team_ids = [1,2,3] 时，仅小组ID在列表中的催员可见
+- **机构字段**：agency_ids 为兼容字段，由 team_ids 自动反推
+
+**渠道和供应商配置规则：**
+- **渠道必选**：每个模板必须指定一个渠道类型（channel_type）
+- **供应商多配置**：一个模板可以配置多个供应商的模板ID（一对多关系）
+- **供应商来源**：从"甲方触达渠道管理"中读取当前渠道已配置的供应商列表
+- **优先级设置**：
+  - 每个供应商配置必须设置优先级（1-99，数值越小优先级越高）
+  - 同一模板内优先级不能重复
+  - 至少配置1个供应商
+- **发送逻辑**：
+  - IM端发送时，优先使用优先级最高（数值最小）的供应商
+  - 主供应商发送失败后，自动切换到次优先级供应商
+  - 按优先级顺序依次尝试，直到成功或全部失败
+- **模板ID格式**：供应商侧模板ID为字符串类型，由各供应商系统定义
 
 **内容限制规则：**
 - 模板内容最大长度：1000字符（WhatsApp限制）
@@ -758,25 +879,27 @@ POST /api/v1/message-templates/{id}/usage
 
 **本次需求范围内：**
 - ✅ 控台端模板配置管理（CRUD操作）
+- ✅ 多渠道支持（短信/RCS/WABA/WhatsApp/邮件/手机日历）
+- ✅ 供应商模板映射（一模板多供应商，按优先级自动切换）
+- ✅ 小组范围控制（选择适用小组，精确到案件队列）
 - ✅ 四维度分类（案件阶段、类型、场景、时间点）
-- ✅ 机构范围控制（选择适用机构，支持多选）
-- ✅ 变量系统（预置8个常用变量）
+- ✅ 变量系统（预置10个常用变量）
 - ✅ 启用/禁用控制
 - ✅ 使用次数统计
-- ✅ 权限隔离（按甲方、按机构、按创建人）
+- ✅ 权限隔离（按甲方、按小组、按创建人）
 - ✅ IM端模板选择（前端已实现）
 - ✅ 变量替换（前端实现）
 
 **本次需求范围外（待实现）：**
 - ⏳ 模板审核流程（管理员审核通过后启用）
 - ⏳ 模板版本管理（保留历史版本）
-- ⏳ 模板效果分析（发送量、回复率、还款率）
+- ⏳ 模板效果分析（发送量、回复率、还款率、按供应商统计）
 - ⏳ 模板导入/导出（批量管理）
 - ⏳ 多语言支持（中文、英文、西班牙语等）
 - ⏳ 富文本内容（图片、链接、按钮）
 - ⏳ 动态变量（计算型变量，如 `{剩余天数}` = 还款日期 - 今天）
+- ⏳ 供应商智能切换策略（根据成功率、响应时间动态调整优先级）
 - ❌ WhatsApp官方模板审核（WhatsApp Business API）
-- ❌ SMS、RCS渠道模板（当前仅支持WhatsApp）
 
 ## 4. 配置项与运营开关
 
@@ -955,18 +1078,22 @@ POST /api/v1/message-templates/{id}/usage
 
 **功能测试：**
 - 创建组织模板：成功创建，列表显示
-- 创建个人模板：仅创建人可见
-- 编辑模板：更新成功，内容变更
+- 渠道选择：选择渠道后自动加载对应供应商列表
+- 供应商配置：可添加/删除多个供应商，配置模板ID和优先级
+- 编辑模板：更新成功，内容变更，供应商配置正确回填
 - 删除模板：二次确认，删除成功
 - 启用/禁用模板：状态切换，IM端可见性变化
-- 筛选功能：按各维度筛选，结果正确
+- 筛选功能：按各维度（含渠道）筛选，结果正确
 - 搜索功能：关键词匹配，结果正确
 - 变量替换：替换成功，格式正确
+- 适用小组：按小组选中/全选/清空符合预期
 
 **边界测试：**
 - 模板内容长度：超过1000字符，提示错误
 - 模板名称重复：同甲方内重复，提示错误
-- 个人模板数量：超过限额，提示错误
+- 供应商配置不完整：未选择供应商/未填写模板ID，提示错误
+- 供应商优先级重复：多个供应商使用相同优先级，提示错误
+- 未配置供应商：至少需要1个供应商，提示错误
 - 空变量值：替换失败，保留占位符
 
 **性能测试：**
@@ -977,13 +1104,16 @@ POST /api/v1/message-templates/{id}/usage
 
 **核心验收标准：**
 1. ✅ 控台端可创建、编辑、删除模板
-2. ✅ 支持四维度分类和筛选
-3. ✅ 支持变量系统和内容预览
-4. ✅ IM端可获取启用的模板列表
-5. ✅ 变量替换功能正常
-6. ✅ 权限隔离正常（按甲方、按创建人）
-7. ✅ 接口响应时间符合要求
-8. ✅ 数据持久化正常
+2. ✅ 支持渠道选择和供应商模板ID配置
+3. ✅ 一个模板可配置多个供应商（一对多）
+4. ✅ 供应商优先级配置正常，不允许重复
+5. ✅ 支持五维度分类和筛选（案件阶段、类型、渠道、场景、时间点）
+6. ✅ 支持变量系统和内容预览
+7. ✅ IM端可获取启用的模板列表（含供应商配置）
+8. ✅ 变量替换功能正常
+9. ✅ 权限隔离正常（按甲方、按小组）
+10. ✅ 接口响应时间符合要求
+11. ✅ 数据持久化正常
 
 ## 9. 发布计划与回滚预案（Release Plan & Rollback）
 
@@ -1022,7 +1152,7 @@ POST /api/v1/message-templates/{id}/usage
 
 ---
 
-**文档版本**：1.0.0  
-**最后更新**：2025-12-03  
+**文档版本**：1.0.2  
+**最后更新**：2025-12-10  
 **文档作者**：CCO产品团队
 

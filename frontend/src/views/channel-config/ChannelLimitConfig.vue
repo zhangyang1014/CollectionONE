@@ -9,12 +9,14 @@
       <div class="filters-section">
         <el-form :inline="true" :model="filters" class="filter-form">
           <el-form-item label="渠道">
-            <el-select v-model="filters.channel" placeholder="全部" clearable style="width: 150px;">
+            <el-select v-model="filters.channel" placeholder="全部" clearable style="width: 180px;">
               <el-option label="全部" value="" />
-              <el-option label="短信" value="sms" />
-              <el-option label="RCS" value="rcs" />
-              <el-option label="WhatsApp" value="whatsapp" />
-              <el-option label="电话外呼" value="call" />
+              <el-option
+                v-for="channel in primaryChannels"
+                :key="channel.value"
+                :label="channel.label"
+                :value="channel.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="队列">
@@ -161,6 +163,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useTenantStore } from '@/stores/tenant'
 import request from '@/utils/request'
+import type { ChannelType } from '@/types/channel'
 
 const tenantStore = useTenantStore()
 
@@ -169,12 +172,68 @@ const loading = ref(false)
 
 // 筛选器
 const filters = ref({
-  channel: '',
+  channel: '' as ChannelType | '',
   queue: ''
 })
 
+// 甲方一级触达渠道（与“甲方触达渠道管理”一级标签保持一致顺序）
+const primaryChannels: Array<{ value: ChannelType; label: string; tagType: string }> = [
+  { value: 'sms', label: '短信', tagType: 'primary' },
+  { value: 'call', label: '电话外呼', tagType: 'warning' },
+  { value: 'rcs', label: 'RCS', tagType: 'success' },
+  { value: 'waba', label: 'WABA', tagType: 'success' },
+  { value: 'whatsapp', label: 'WhatsApp', tagType: 'success' },
+  { value: 'email', label: '邮件', tagType: 'info' },
+  { value: 'mobile_calendar', label: '手机日历', tagType: 'info' }
+]
+
+const channelOrderMap = new Map(primaryChannels.map((item, index) => [item.value, index]))
+
+const sortConfigsByChannel = (items: any[]) => {
+  return [...items].sort((a, b) => {
+    const orderA = channelOrderMap.get(a.channel) ?? Number.MAX_SAFE_INTEGER
+    const orderB = channelOrderMap.get(b.channel) ?? Number.MAX_SAFE_INTEGER
+    if (orderA !== orderB) {
+      return orderA - orderB
+    }
+    return (a.queue_name || '').localeCompare(b.queue_name || '')
+  })
+}
+
 // 队列列表
 const queues = ref<any[]>([])
+
+// 确保所有一级渠道与队列组合都有配置（若后端缺失则补齐）
+const ensureAllChannelQueueConfigs = (items: any[]) => {
+  const result = [...items]
+  let nextId = Math.max(0, ...result.map(cfg => (typeof cfg.id === 'number' ? cfg.id : 0))) + 1
+
+  primaryChannels.forEach(({ value: channel }) => {
+    queues.value.forEach(queue => {
+      const exists = result.find(
+        cfg => cfg.channel === channel && cfg.queue_code === queue.queue_code
+      )
+      if (!exists) {
+        result.push({
+          id: nextId++,
+          channel,
+          queue_id: queue.id,
+          queue_code: queue.queue_code,
+          queue_name: queue.queue_name,
+          daily_limit_per_case: null,
+          daily_limit_per_case_unlimited: true,
+          daily_limit_per_contact: null,
+          daily_limit_per_contact_unlimited: true,
+          send_interval: null,
+          send_interval_unlimited: true,
+          enabled: true
+        })
+      }
+    })
+  })
+
+  return sortConfigsByChannel(result)
+}
 
 // 可用的队列选项（用于筛选器）
 const availableQueues = computed(() => {
@@ -188,33 +247,51 @@ const originalConfigs = ref<any[]>([])
 
 // 筛选后的配置
 const filteredConfigs = computed(() => {
-  return configs.value.filter(config => {
+  const filtered = configs.value.filter(config => {
     if (filters.value.channel && config.channel !== filters.value.channel) return false
     if (filters.value.queue && config.queue_code !== filters.value.queue) return false
     return true
   })
+  return sortConfigsByChannel(filtered)
 })
+
+// 监听队列变化，自动补齐缺失渠道-队列组合
+watch(queues, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    configs.value = ensureAllChannelQueueConfigs(configs.value)
+    originalConfigs.value = JSON.parse(JSON.stringify(configs.value))
+  }
+})
+
+// 监听配置与队列同时变化，确保渠道列完整（避免仅显示部分渠道）
+watch(
+  () => [configs.value, queues.value],
+  ([newConfigs]) => {
+    const ensured = ensureAllChannelQueueConfigs(newConfigs)
+    // 通过长度与核心键比对，避免无意义的重复赋值触发
+    const changed =
+      ensured.length !== newConfigs.length ||
+      ensured.some((cfg: any, idx: number) => {
+        const orig = newConfigs[idx]
+        return !orig || cfg.channel !== orig.channel || cfg.queue_code !== orig.queue_code
+      })
+    if (changed) {
+      configs.value = ensured
+      originalConfigs.value = JSON.parse(JSON.stringify(configs.value))
+    }
+  }
+)
 
 // 获取渠道标签
 const getChannelLabel = (channel: string) => {
-  const labels: Record<string, string> = {
-    'sms': '短信',
-    'rcs': 'RCS',
-    'whatsapp': 'WhatsApp',
-    'call': '电话外呼'
-  }
-  return labels[channel] || channel
+  const found = primaryChannels.find(item => item.value === channel)
+  return found?.label || channel
 }
 
 // 获取渠道标签类型
 const getChannelTagType = (channel: string) => {
-  const types: Record<string, string> = {
-    'sms': 'primary',
-    'rcs': 'success',
-    'whatsapp': 'success',
-    'call': 'warning'
-  }
-  return types[channel] || 'info'
+  const found = primaryChannels.find(item => item.value === channel)
+  return found?.tagType || 'info'
 }
 
 // 重置筛选器
@@ -305,8 +382,8 @@ const loadConfigs = async () => {
     const configData = Array.isArray(response) ? response : (response.data || [])
     
     if (configData.length > 0) {
-      // 如果后端有数据，使用后端数据
-      configs.value = configData.map((config: any) => ({
+      // 如果后端有数据，使用后端数据并补齐缺失渠道
+      const normalized = configData.map((config: any) => ({
         ...config,
         // 确保所有字段都存在
         daily_limit_per_case: config.daily_limit_per_case ?? null,
@@ -317,10 +394,13 @@ const loadConfigs = async () => {
         send_interval_unlimited: config.send_interval_unlimited ?? (config.send_interval == null),
         enabled: config.enabled ?? true
       }))
+      configs.value = ensureAllChannelQueueConfigs(normalized)
     } else {
       // 如果后端没有数据，根据队列生成默认配置
       generateConfigs()
     }
+    // 统一补齐渠道-队列组合并排序（防止后端返回缺失项）
+    configs.value = ensureAllChannelQueueConfigs(configs.value)
     
     // 保存原始配置用于比较
     originalConfigs.value = JSON.parse(JSON.stringify(configs.value))
@@ -335,46 +415,11 @@ const loadConfigs = async () => {
 
 // 生成配置数据（每个渠道下的队列不重复）
 const generateConfigs = () => {
-  const channels = ['sms', 'rcs', 'whatsapp', 'call']
-  const newConfigs: any[] = []
-  let configId = 1
+  const newConfigs: any[] = ensureAllChannelQueueConfigs([])
 
-  channels.forEach(channel => {
-    queues.value.forEach(queue => {
-      // 查找是否已存在该渠道和队列的配置
-      const existing = configs.value.find(
-        c => c.channel === channel && c.queue_code === queue.queue_code
-      )
-
-      if (existing) {
-        // 保留现有配置
-        newConfigs.push({
-          ...existing,
-          queue_name: queue.queue_name
-        })
-      } else {
-        // 创建新配置
-        newConfigs.push({
-          id: configId++,
-          channel: channel,
-          queue_id: queue.id,
-          queue_code: queue.queue_code,
-          queue_name: queue.queue_name,
-          daily_limit_per_case: null,
-          daily_limit_per_case_unlimited: true,
-          daily_limit_per_contact: null,
-          daily_limit_per_contact_unlimited: true,
-          send_interval: null,
-          send_interval_unlimited: true,
-          enabled: true
-        })
-      }
-    })
-  })
-
-  configs.value = newConfigs
+  configs.value = sortConfigsByChannel(newConfigs)
   // 保存原始配置用于比较
-  originalConfigs.value = JSON.parse(JSON.stringify(newConfigs))
+  originalConfigs.value = JSON.parse(JSON.stringify(configs.value))
 }
 
 // 检查单行是否有修改

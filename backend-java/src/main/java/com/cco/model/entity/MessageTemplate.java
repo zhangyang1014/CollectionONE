@@ -38,6 +38,13 @@ public class MessageTemplate {
     private String templateType;
     
     /**
+     * 适用小组ID列表（JSON格式）
+     * NULL表示全部小组，[1,2,3]表示指定小组
+     */
+    @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
+    private List<Long> teamIds;
+    
+    /**
      * 适用机构ID列表（JSON格式）
      * NULL表示全部机构，[1,2,3]表示指定机构
      */
@@ -58,6 +65,19 @@ public class MessageTemplate {
      * 时间点：morning/afternoon/evening
      */
     private String timeSlot;
+    
+    /**
+     * 渠道类型：sms/rcs/waba/whatsapp/email/mobile_calendar
+     */
+    private String channelType;
+    
+    /**
+     * 供应商模板映射配置（JSON格式）
+     * 格式：[{"supplierId": 1, "templateId": "template_001", "priority": 1}, ...]
+     * priority越小优先级越高
+     */
+    @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
+    private List<SupplierTemplateMapping> supplierTemplateMappings;
     
     /**
      * 模板内容，支持变量占位符
@@ -106,5 +126,31 @@ public class MessageTemplate {
      * 更新人ID
      */
     private Long updatedBy;
+    
+    /**
+     * 供应商模板映射内部类
+     */
+    @Data
+    public static class SupplierTemplateMapping {
+        /**
+         * 供应商ID
+         */
+        private Long supplierId;
+        
+        /**
+         * 供应商名称（用于显示）
+         */
+        private String supplierName;
+        
+        /**
+         * 供应商侧模板ID
+         */
+        private String templateId;
+        
+        /**
+         * 优先级，越小越优先
+         */
+        private Integer priority;
+    }
 }
 
