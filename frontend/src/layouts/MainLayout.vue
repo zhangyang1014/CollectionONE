@@ -58,6 +58,7 @@
           </template>
           <el-menu-item index="/field-config/detail/groups">分组管理</el-menu-item>
           <el-menu-item index="/field-config/detail/standard">标准字段管理</el-menu-item>
+          <el-menu-item index="/field-config/detail/standard-csv">标准字段查看（CSV）</el-menu-item>
           <el-menu-item index="/field-config/detail/tenant-fields-view">甲方字段查看</el-menu-item>
           <el-menu-item index="/field-config/detail/custom">字段映射配置</el-menu-item>
           <el-menu-item index="/field-config/detail">字段展示配置</el-menu-item>

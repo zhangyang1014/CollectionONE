@@ -30,3 +30,4 @@ public interface TenantFieldUploadMapper extends BaseMapper<TenantFieldUpload> {
             "WHERE tenant_id = #{tenantId} AND scene = #{scene}")
     int deactivateAllVersions(@Param("tenantId") String tenantId, @Param("scene") String scene);
 }
+

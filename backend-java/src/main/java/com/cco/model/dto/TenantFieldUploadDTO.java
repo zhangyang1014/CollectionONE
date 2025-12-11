@@ -85,3 +85,4 @@ public class TenantFieldUploadDTO {
      */
     private List<Map<String, Object>> fields;
 }
+

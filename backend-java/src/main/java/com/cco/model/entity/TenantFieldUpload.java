@@ -99,3 +99,4 @@ public class TenantFieldUpload {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 }
+

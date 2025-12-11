@@ -9,7 +9,7 @@
 
       <el-container class="org-container">
         <!-- 左侧：树状图 -->
-        <el-aside width="30%" class="tree-aside">
+        <el-aside :width="asideWidth" class="tree-aside">
           <div class="tree-header">
             <span class="tree-title">组织架构</span>
             <el-space>
@@ -86,6 +86,12 @@
             </el-tree>
           </div>
         </el-aside>
+
+        <!-- 拖动分隔条 -->
+        <div 
+          class="resize-handle"
+          @mousedown="startResize"
+        ></div>
 
         <!-- 右侧：筛选器和表格 -->
         <el-main class="table-main">
@@ -169,7 +175,7 @@
           </div>
 
           <el-table :data="filteredCollectors" border style="width: 100%">
-        <el-table-column prop="collector_code" label="催员登录id" width="120" />
+        <el-table-column prop="collector_code" label="催员登录id" width="120" fixed="left" />
         <el-table-column prop="collector_name" label="催员名" width="120" />
         <el-table-column prop="last_login_at" label="最近登录时间" width="140">
           <template #default="{ row }">
@@ -192,7 +198,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="460" fixed="right">
+        <el-table-column label="操作" width="460">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleEdit(row)" size="small">
               编辑
@@ -418,6 +424,12 @@ const treeProps = {
   label: 'label'
 }
 const fromTree = ref(false) // 标记是否从树创建
+
+// 可调整宽度
+const asideWidth = ref('22%')
+const isResizing = ref(false)
+const startX = ref(0)
+const startWidth = ref(0)
 
 // 获取当前用户信息
 const currentUser = computed(() => userStore.userInfo)
@@ -693,6 +705,49 @@ const showTreeDiagnostic = () => {
   })
 }
 
+// 拖动调整宽度
+const startResize = (e: MouseEvent) => {
+  isResizing.value = true
+  startX.value = e.clientX
+  
+  // 获取当前宽度（百分比转像素）
+  const containerWidth = (e.target as HTMLElement).parentElement?.offsetWidth || 1000
+  const currentPercent = parseFloat(asideWidth.value)
+  startWidth.value = (containerWidth * currentPercent) / 100
+  
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+  
+  // 防止选中文本
+  e.preventDefault()
+}
+
+const handleResize = (e: MouseEvent) => {
+  if (!isResizing.value) return
+  
+  const deltaX = e.clientX - startX.value
+  const containerWidth = document.querySelector('.org-container')?.clientWidth || 1000
+  const newWidth = startWidth.value + deltaX
+  
+  // 限制宽度范围：15% - 40%
+  const minWidth = containerWidth * 0.15
+  const maxWidth = containerWidth * 0.40
+  
+  if (newWidth >= minWidth && newWidth <= maxWidth) {
+    const newPercent = (newWidth / containerWidth) * 100
+    asideWidth.value = `${newPercent.toFixed(2)}%`
+  }
+}
+
+const stopResize = () => {
+  isResizing.value = false
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+  
+  // 保存到localStorage
+  localStorage.setItem('collectorManagement_asideWidth', asideWidth.value)
+}
+
 // 树节点点击处理
 const handleTreeNodeClick = (data: OrgTreeNode) => {
   console.log('点击树节点：', data)
@@ -756,6 +811,12 @@ const handleCreateCollectorFromTree = (treeNodeData: OrgTreeNode) => {
 
 // 初始加载
 onMounted(async () => {
+  // 恢复保存的宽度
+  const savedWidth = localStorage.getItem('collectorManagement_asideWidth')
+  if (savedWidth) {
+    asideWidth.value = savedWidth
+  }
+  
   if (currentTenantId.value) {
     await loadAgencies()
     
@@ -1348,10 +1409,41 @@ const handleToggleStatus = async (row: any) => {
 }
 
 .tree-aside {
-  border-right: 1px solid #e4e7ed;
   padding: 16px;
   overflow-y: auto;
   background-color: #fafafa;
+  position: relative;
+}
+
+/* 拖动分隔条 */
+.resize-handle {
+  width: 8px;
+  cursor: col-resize;
+  background-color: #e4e7ed;
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color 0.3s;
+}
+
+.resize-handle:hover {
+  background-color: #409eff;
+}
+
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 40px;
+  background-color: #909399;
+  border-radius: 1px;
+  transition: background-color 0.3s;
+}
+
+.resize-handle:hover::before {
+  background-color: #fff;
 }
 
 .table-main {

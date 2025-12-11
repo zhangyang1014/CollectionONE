@@ -1,0 +1,20 @@
+字段名称,英文名,类型,示例,说明,拓展字段
+案件编号,case_code,String,CASE001,系统唯一案件编号,否
+用户id,user_id,String,5983,系统内部唯一用户标识,否
+客户,user_name,String,Juan Dela Cruz,客户姓名,否
+手机号,mobile_number,String,+63 9123456789,客户手机号,否
+首复借类型,collection_type,Enum,首催 / 复催,标记案件是否为首次或再次催收,否
+贷款金额,loan_amount,Decimal,1000,放款金额,否
+未还金额,outstanding_amount,Decimal,485,当前未还金额,否
+减免金额,waived_amount,Decimal,50,费用减免金额,否
+逾期天数,overdue_days,Integer,3,当前逾期天数,否
+案件状态,case_status,Enum,未结清 / 逾期 / 结清,案件状态,否
+到期日期,due_date,Date,2025/3/10,应还款日期,否
+期数,total_installments,Integer,3,总期数,否
+当期天数,term_days,Integer,14,当前期数天数,否
+所属系统,system_name,String,CollectionSystemV2,来源系统,否
+产品,product_name,String,Cash Loan,产品名称,否
+APP,app_name,String,MegaPeso,应用名称,否
+商户,merchant_name,String,EasyLoan Partner,合作商户,否
+结清时间,settlement_time,Datetime,2025/3/15 09:33:00,最后一次结清操作时间,否
+结清方式,settlement_method,Enum,自动扣款 / 手动转账 / 第三方收款,最终还款方式,否

@@ -151,6 +151,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '案件详情标准字段管理', requiresAuth: true },
       },
       {
+        path: 'field-config/detail/standard-csv',
+        name: 'StandardFieldsFromCSV',
+        component: () => import('@/views/field-config/StandardFieldsFromCSV.vue'),
+        meta: { title: '标准字段查看（CSV）', requiresAuth: true },
+      },
+      {
         path: 'field-config/detail/tenant-fields-view',
         name: 'DetailTenantFieldsView',
         component: () => import('@/views/field-config/DetailTenantFieldsView.vue'),

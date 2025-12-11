@@ -124,3 +124,4 @@ INSERT INTO tenant_field_uploads (
   true,
   '新增借款人姓名和借款人手机字段，案件状态新增已关闭选项'
 );
+
