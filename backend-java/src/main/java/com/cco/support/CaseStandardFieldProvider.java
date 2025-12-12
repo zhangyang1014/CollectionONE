@@ -109,26 +109,27 @@ public class CaseStandardFieldProvider {
                 .required(true).searchable(false).filterable(false).rangeSearchable(false)
                 .colorType("normal").description("案件状态")
                 .build());
+        // 新增：逾期期数（必填，放在案件状态后面）
         list.add(CaseStandardFieldVO.builder()
                 .id(11L).sceneType("admin_case_list").sceneName("控台案件管理列表")
-                .fieldKey("due_date").fieldName("到期日期").fieldDataType("Date")
-                .fieldSource("standard").sortOrder(11).displayWidth(120)
+                .fieldKey("overdue_installments").fieldName("逾期期数").fieldDataType("Integer")
+                .fieldSource("standard").sortOrder(11).displayWidth(100)
                 .required(true).searchable(false).filterable(false).rangeSearchable(false)
-                .colorType("normal").description("应还款日期")
+                .colorType("normal").description("当前逾期期数")
                 .build());
         list.add(CaseStandardFieldVO.builder()
                 .id(12L).sceneType("admin_case_list").sceneName("控台案件管理列表")
-                .fieldKey("total_installments").fieldName("期数").fieldDataType("Integer")
-                .fieldSource("standard").sortOrder(12).displayWidth(100)
+                .fieldKey("expected_start_date").fieldName("预期开始日期").fieldDataType("Date")
+                .fieldSource("standard").sortOrder(12).displayWidth(120)
                 .required(true).searchable(false).filterable(false).rangeSearchable(false)
-                .colorType("normal").description("总期数")
+                .colorType("normal").description("预期开始还款日期")
                 .build());
         list.add(CaseStandardFieldVO.builder()
                 .id(13L).sceneType("admin_case_list").sceneName("控台案件管理列表")
-                .fieldKey("term_days").fieldName("当期天数").fieldDataType("Integer")
-                .fieldSource("standard").sortOrder(13).displayWidth(110)
+                .fieldKey("total_installments").fieldName("总期数").fieldDataType("Integer")
+                .fieldSource("standard").sortOrder(13).displayWidth(100)
                 .required(true).searchable(false).filterable(false).rangeSearchable(false)
-                .colorType("normal").description("当前期数天数")
+                .colorType("normal").description("贷款总期数")
                 .build());
         list.add(CaseStandardFieldVO.builder()
                 .id(14L).sceneType("admin_case_list").sceneName("控台案件管理列表")
@@ -158,21 +159,48 @@ public class CaseStandardFieldProvider {
                 .required(true).searchable(false).filterable(false).rangeSearchable(false)
                 .colorType("normal").description("合作商户")
                 .build());
-        // 新增：结清时间（选填，在最后）
         list.add(CaseStandardFieldVO.builder()
                 .id(18L).sceneType("admin_case_list").sceneName("控台案件管理列表")
-                .fieldKey("settlement_time").fieldName("结清时间").fieldDataType("Datetime")
-                .fieldSource("standard").sortOrder(18).displayWidth(160)
-                .required(false).searchable(false).filterable(false).rangeSearchable(false)
-                .colorType("normal").description("最后一次结清操作时间")
+                .fieldKey("loan_id").fieldName("关联借款ID").fieldDataType("String")
+                .fieldSource("standard").sortOrder(18).displayWidth(150)
+                .required(true).searchable(false).filterable(false).rangeSearchable(false)
+                .colorType("normal").description("用于与借款主数据关联")
                 .build());
-        // 新增：结清方式（选填，放在结清时间后面）
+        // 新增：案件类型1-5（枚举类型，选填）
         list.add(CaseStandardFieldVO.builder()
                 .id(19L).sceneType("admin_case_list").sceneName("控台案件管理列表")
-                .fieldKey("settlement_method").fieldName("结清方式").fieldDataType("Enum")
-                .fieldSource("standard").sortOrder(19).displayWidth(140)
+                .fieldKey("case_type_1").fieldName("案件类型1").fieldDataType("Enum")
+                .fieldSource("standard").sortOrder(19).displayWidth(120)
                 .required(false).searchable(false).filterable(false).rangeSearchable(false)
-                .colorType("normal").description("最终还款方式")
+                .colorType("normal").description("案件分类类型1")
+                .build());
+        list.add(CaseStandardFieldVO.builder()
+                .id(20L).sceneType("admin_case_list").sceneName("控台案件管理列表")
+                .fieldKey("case_type_2").fieldName("案件类型2").fieldDataType("Enum")
+                .fieldSource("standard").sortOrder(20).displayWidth(120)
+                .required(false).searchable(false).filterable(false).rangeSearchable(false)
+                .colorType("normal").description("案件分类类型2")
+                .build());
+        list.add(CaseStandardFieldVO.builder()
+                .id(21L).sceneType("admin_case_list").sceneName("控台案件管理列表")
+                .fieldKey("case_type_3").fieldName("案件类型3").fieldDataType("Enum")
+                .fieldSource("standard").sortOrder(21).displayWidth(120)
+                .required(false).searchable(false).filterable(false).rangeSearchable(false)
+                .colorType("normal").description("案件分类类型3")
+                .build());
+        list.add(CaseStandardFieldVO.builder()
+                .id(22L).sceneType("admin_case_list").sceneName("控台案件管理列表")
+                .fieldKey("case_type_4").fieldName("案件类型4").fieldDataType("Enum")
+                .fieldSource("standard").sortOrder(22).displayWidth(120)
+                .required(false).searchable(false).filterable(false).rangeSearchable(false)
+                .colorType("normal").description("案件分类类型4")
+                .build());
+        list.add(CaseStandardFieldVO.builder()
+                .id(23L).sceneType("admin_case_list").sceneName("控台案件管理列表")
+                .fieldKey("case_type_5").fieldName("案件类型5").fieldDataType("Enum")
+                .fieldSource("standard").sortOrder(23).displayWidth(120)
+                .required(false).searchable(false).filterable(false).rangeSearchable(false)
+                .colorType("normal").description("案件分类类型5")
                 .build());
         return list;
     }
@@ -182,21 +210,24 @@ public class CaseStandardFieldProvider {
         // 详情页也同步展示案件列表的全量标准字段，字段Key前加 detail_ 前缀，全部必填只读
         String[] keys = {
                 "case_code", "user_id", "user_name", "mobile_number", "collection_type", 
-                "loan_amount", "outstanding_amount", "waived_amount", "overdue_days", "case_status", 
-                "due_date", "total_installments", "term_days", "system_name", "product_name", 
-                "app_name", "merchant_name", "settlement_time", "settlement_method"
+                "loan_amount", "outstanding_amount", "waived_amount", "overdue_days", 
+                "overdue_installments", "case_status", "expected_start_date", "total_installments", 
+                "system_name", "product_name", "app_name", "merchant_name", "loan_id",
+                "case_type_1", "case_type_2", "case_type_3", "case_type_4", "case_type_5"
         };
         String[] names = {
                 "案件编号", "用户id", "客户", "手机号", "首复借类型",
-                "贷款金额", "未还金额", "减免金额", "逾期天数", "案件状态",
-                "到期日期", "期数", "当期天数", "所属系统", "产品",
-                "APP", "商户", "结清时间", "结清方式"
+                "贷款金额", "未还金额", "减免金额", "逾期天数", "逾期期数",
+                "案件状态", "预期开始日期", "总期数", "所属系统", "产品",
+                "APP", "商户", "关联借款ID", "案件类型1", "案件类型2",
+                "案件类型3", "案件类型4", "案件类型5"
         };
         String[] types = {
                 "String", "String", "String", "String", "Enum",
-                "Decimal", "Decimal", "Decimal", "Integer", "Enum",
-                "Date", "Integer", "Integer", "String", "String",
-                "String", "String", "Datetime", "Enum"
+                "Decimal", "Decimal", "Decimal", "Integer", "Integer",
+                "Enum", "Date", "Integer", "String", "String",
+                "String", "String", "String", "Enum", "Enum",
+                "Enum", "Enum", "Enum"
         };
 
         for (int i = 0; i < keys.length; i++) {
