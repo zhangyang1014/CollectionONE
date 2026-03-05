@@ -30,7 +30,13 @@
         </el-form-item>
 
         <el-form-item label="渠道">
-          <el-select v-model="filters.channelType" placeholder="全部渠道" clearable style="width: 120px;">
+          <el-select 
+            v-model="filters.channelType" 
+            placeholder="全部渠道" 
+            clearable 
+            style="width: 120px;"
+            @change="handleChannelFilterChange"
+          >
             <el-option label="全部渠道" value="" />
             <el-option label="短信" value="sms" />
             <el-option label="RCS" value="rcs" />
@@ -82,6 +88,23 @@
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
+    </el-card>
+
+    <!-- 渠道Tab -->
+    <el-card class="channel-tabs-card" shadow="never">
+      <el-tabs 
+        v-model="activeChannelTab" 
+        @tab-change="handleChannelTabChange"
+        class="channel-tabs"
+      >
+        <el-tab-pane label="全部渠道" name="" />
+        <el-tab-pane label="短信" name="sms" />
+        <el-tab-pane label="RCS" name="rcs" />
+        <el-tab-pane label="WABA" name="waba" />
+        <el-tab-pane label="WhatsApp" name="whatsapp" />
+        <el-tab-pane label="邮件" name="email" />
+        <el-tab-pane label="手机日历" name="mobile_calendar" />
+      </el-tabs>
     </el-card>
 
     <!-- 列表表格 -->
@@ -334,7 +357,7 @@
                   :min="1"
                   :max="99"
                   placeholder="优先级"
-                  style="width: 120px; margin-left: 10px"
+                  style="width: 150px; margin-left: 10px"
                 />
                 <span style="margin-left: 5px; color: #909399; font-size: 12px;">优先级</span>
                 
@@ -536,6 +559,9 @@ const filters = reactive({
   keyword: ''
 })
 
+// 渠道Tab状态
+const activeChannelTab = ref<string>('')
+
 // 分页
 const pagination = reactive({
   page: 1,
@@ -728,7 +754,9 @@ const loadTemplates = async () => {
 
     if (filters.caseStage) params.caseStage = filters.caseStage
     if (filters.templateType) params.templateType = filters.templateType
-    if (filters.channelType) params.channelType = filters.channelType
+    // 优先使用Tab选择的渠道，如果没有则使用筛选器中的渠道
+    const channelType = activeChannelTab.value || filters.channelType
+    if (channelType) params.channelType = channelType
     if (filters.scene) params.scene = filters.scene
     if (filters.timeSlot) params.timeSlot = filters.timeSlot
     if (filters.isEnabled !== null) params.isEnabled = filters.isEnabled
@@ -786,6 +814,18 @@ const handleReset = () => {
   filters.timeSlot = ''
   filters.isEnabled = null
   filters.keyword = ''
+  activeChannelTab.value = ''
+  pagination.page = 1
+  loadTemplates()
+}
+
+/**
+ * 渠道Tab切换处理
+ */
+const handleChannelTabChange = (tabName: string) => {
+  activeChannelTab.value = tabName
+  // 同步更新筛选器中的渠道选择
+  filters.channelType = tabName
   pagination.page = 1
   loadTemplates()
 }
@@ -1216,6 +1256,15 @@ const getTeamTooltip = (teamIds: number[]): string => {
 const handleAgencyFilterChange = () => {}
 
 /**
+ * 筛选器中渠道选择变化处理（同步Tab）
+ */
+const handleChannelFilterChange = (value: string) => {
+  activeChannelTab.value = value || ''
+  pagination.page = 1
+  loadTemplates()
+}
+
+/**
  * 格式化小组显示名称
  */
 const formatTeamLabel = (team: TeamOption) => {
@@ -1243,6 +1292,29 @@ const formatTeamLabel = (team: TeamOption) => {
   
   .filter-card {
     margin-bottom: 16px;
+  }
+  
+  .channel-tabs-card {
+    margin-bottom: 16px;
+    
+    .channel-tabs {
+      :deep(.el-tabs__header) {
+        margin: 0;
+      }
+      
+      :deep(.el-tabs__nav-wrap) {
+        &::after {
+          display: none;
+        }
+      }
+      
+      :deep(.el-tabs__item) {
+        font-size: 14px;
+        padding: 0 20px;
+        height: 40px;
+        line-height: 40px;
+      }
+    }
   }
   
   .table-card {

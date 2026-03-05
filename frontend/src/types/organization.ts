@@ -159,6 +159,8 @@ export interface Collector {
   user_id: number
   collector_code: string
   collector_name: string
+  login_id?: string  // 登录ID（用于IM端登录）
+  loginId?: string   // 驼峰命名（兼容）
   mobile_number?: string
   email?: string
   employee_no?: string

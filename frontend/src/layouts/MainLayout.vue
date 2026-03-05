@@ -58,7 +58,7 @@
           </template>
           <el-menu-item index="/field-config/detail/groups">分组管理</el-menu-item>
           <el-menu-item index="/field-config/detail/standard">标准字段管理</el-menu-item>
-          <el-menu-item index="/field-config/detail/standard-csv">标准字段查看（CSV）</el-menu-item>
+          <!-- <el-menu-item index="/field-config/detail/standard-csv">标准字段查看（CSV）</el-menu-item> -->
           <el-menu-item index="/field-config/detail/tenant-fields-view">甲方字段查看</el-menu-item>
           <el-menu-item index="/field-config/detail/custom">字段映射配置</el-menu-item>
           <el-menu-item index="/field-config/detail">字段展示配置</el-menu-item>
@@ -111,6 +111,17 @@
             <span>日志记录</span>
           </template>
           <el-menu-item index="/logs/case-update">案件更新日志</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="wa-mgmt">
+          <template #title>
+            <el-icon><ChatDotRound /></el-icon>
+            <span>WA管理</span>
+          </template>
+          <el-menu-item index="/wa-management/phones">PHONE管理</el-menu-item>
+          <el-menu-item index="/wa-management/ips">IP管理</el-menu-item>
+          <el-menu-item index="/wa-management/purchase-channels">PHONE购买渠道管理</el-menu-item>
+          <el-menu-item index="/wa-management/config">配置</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="ai-quality">

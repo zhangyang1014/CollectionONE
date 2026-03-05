@@ -468,7 +468,28 @@ public class CaseDetailFieldConfigController {
             config.put("color_type", colorTypes[i]);
             config.put("color_rule", null);
             config.put("hide_rule", null);
-            config.put("hide_for_queues", new ArrayList<>());
+            
+            // 为部分敏感字段添加mock隐藏规则数据（仅用于演示）
+            List<String> hideForQueues = new ArrayList<>();
+            // 身份证号对队列1和队列2隐藏
+            if ("id_card".equals(fieldKeys[i])) {
+                hideForQueues.add("1");
+                hideForQueues.add("2");
+            }
+            // 手机号码对队列1隐藏
+            else if ("mobile".equals(fieldKeys[i])) {
+                hideForQueues.add("1");
+            }
+            // 贷款金额对队列3隐藏
+            else if ("loan_amount".equals(fieldKeys[i])) {
+                hideForQueues.add("3");
+            }
+            // 未还金额对队列2和队列3隐藏
+            else if ("outstanding_amount".equals(fieldKeys[i])) {
+                hideForQueues.add("2");
+                hideForQueues.add("3");
+            }
+            config.put("hide_for_queues", hideForQueues);
             config.put("hide_for_agencies", new ArrayList<>());
             config.put("hide_for_teams", new ArrayList<>());
             

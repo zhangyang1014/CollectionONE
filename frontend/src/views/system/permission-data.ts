@@ -622,6 +622,19 @@ const permissionData: PermissionModule = {
         DATA_SOURCE: 'no',
         COLLECTOR: 'limited'
       }
+    },
+    {
+      name: 'IM端协催',
+      description: '在案件列表中进入IM端以催员身份进行协催',
+      permissions: {
+        SUPER_ADMIN: 'yes',
+        TENANT_ADMIN: 'yes',
+        AGENCY_ADMIN: 'yes',
+        TEAM_LEADER: 'yes',
+        QUALITY_INSPECTOR: 'no',
+        DATA_SOURCE: 'no',
+        COLLECTOR: 'no'
+      }
     }
   ],
 

@@ -126,22 +126,6 @@
             >
               队列: {{ row.hide_for_queues.length }}
             </el-tag>
-            <el-tag
-              v-if="row.hide_for_agencies && row.hide_for_agencies.length > 0"
-              type="warning"
-              size="small"
-              style="margin-left: 5px;"
-            >
-              机构: {{ row.hide_for_agencies.length }}
-            </el-tag>
-            <el-tag
-              v-if="row.hide_for_teams && row.hide_for_teams.length > 0"
-              type="warning"
-              size="small"
-              style="margin-left: 5px;"
-            >
-              小组: {{ row.hide_for_teams.length }}
-            </el-tag>
           </template>
         </el-table-column>
         
@@ -252,10 +236,9 @@
           <el-tab-pane
             label="隐藏规则"
             name="hide"
-            v-if="isCollectorScene"
           >
             <el-alert
-              title="提示：隐藏规则仅对催员端生效，可以根据案件所属队列、机构、小组来控制字段显示"
+              title="提示：隐藏规则基于案件所属队列生效，可按队列隐藏字段"
               type="info"
               :closable="false"
               style="margin-bottom: 20px;"
@@ -273,38 +256,6 @@
                   :key="queue.id"
                   :label="queue.queue_name"
                   :value="queue.id.toString()"
-                />
-              </el-select>
-            </el-form-item>
-            
-            <el-form-item label="对机构隐藏">
-              <el-select
-                v-model="form.hide_for_agencies"
-                multiple
-                placeholder="选择要隐藏的机构"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="agency in agencies"
-                  :key="agency.id"
-                  :label="agency.agency_name"
-                  :value="agency.id.toString()"
-                />
-              </el-select>
-            </el-form-item>
-            
-            <el-form-item label="对小组隐藏">
-              <el-select
-                v-model="form.hide_for_teams"
-                multiple
-                placeholder="选择要隐藏的小组"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="team in teams"
-                  :key="team.id"
-                  :label="team.team_name"
-                  :value="team.id.toString()"
                 />
               </el-select>
             </el-form-item>
@@ -387,6 +338,7 @@ import {
   getAvailableFieldsForDetail
 } from '@/api/caseDetailFieldConfig'
 import { getDetailFieldGroups } from '@/api/detailFieldGroup'
+import { getTenantQueues } from '@/api/queue'
 import type {
   FieldDisplayConfig,
   FieldDisplayConfigCreate,
@@ -450,9 +402,6 @@ const form = ref<FieldDisplayConfigCreate>({
   hide_for_agencies: [],
   hide_for_teams: []
 })
-
-// 是否是催员端场景（统一场景后始终为 false）
-const isCollectorScene = computed(() => false)
 
 // 字段来源标签
 const getFieldSourceLabel = (source?: string) => {
@@ -587,6 +536,22 @@ const loadAvailableFields = async () => {
     availableFields.value = Array.isArray(data) ? data : (data?.data ?? [])
   } catch (error: any) {
     ElMessage.error('加载可用字段失败：' + error.message)
+  }
+}
+
+// 加载队列数据（用于隐藏规则）
+const loadQueues = async () => {
+  if (!currentTenantId.value) {
+    queues.value = []
+    return
+  }
+
+  try {
+    const data = await getTenantQueues(Number(currentTenantId.value))
+    queues.value = Array.isArray(data) ? data : (data?.data ?? data?.items ?? [])
+  } catch (error: any) {
+    queues.value = []
+    ElMessage.error('加载队列失败：' + error.message)
   }
 }
 
@@ -853,6 +818,7 @@ watch(currentTenantId, (newTenantId, oldTenantId) => {
     console.log('甲方切换：', oldTenantId, '->', newTenantId)
     loadGroups()
     loadAvailableFields()
+    loadQueues()
     loadConfigs()
   }
 })
@@ -860,6 +826,7 @@ watch(currentTenantId, (newTenantId, oldTenantId) => {
 onMounted(() => {
   loadGroups()
   loadAvailableFields()
+  loadQueues()
   loadConfigs()
 })
 </script>

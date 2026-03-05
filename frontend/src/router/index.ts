@@ -301,6 +301,31 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/logs/CaseUpdateLog.vue'),
         meta: { title: '案件更新日志', requiresAuth: true },
       },
+      // WA管理模块
+      {
+        path: 'wa-management/phones',
+        name: 'WaPhoneManagement',
+        component: () => import('@/views/wa-management/PhoneManagement.vue'),
+        meta: { title: 'WA-PHONE管理', requiresAuth: true },
+      },
+      {
+        path: 'wa-management/ips',
+        name: 'WaIpManagement',
+        component: () => import('@/views/wa-management/IpManagement.vue'),
+        meta: { title: 'WA-IP管理', requiresAuth: true },
+      },
+      {
+        path: 'wa-management/config',
+        name: 'WaConfig',
+        component: () => import('@/views/wa-management/WaConfig.vue'),
+        meta: { title: 'WA配置', requiresAuth: true },
+      },
+      {
+        path: 'wa-management/purchase-channels',
+        name: 'WaPhonePurchaseChannels',
+        component: () => import('@/views/wa-management/PhonePurchaseChannelManagement.vue'),
+        meta: { title: 'PHONE购买渠道管理', requiresAuth: true },
+      },
     ],
   },
 
@@ -349,6 +374,21 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 })
+
+// 开发模式：自动注入 Mock 管理员身份，绕过后端登录
+const injectMockAuth = () => {
+  if (!localStorage.getItem('token')) {
+    localStorage.setItem('token', 'mock-dev-token-superadmin')
+    localStorage.setItem('userInfo', JSON.stringify({
+      id: 1,
+      username: 'admin',
+      name: '大象（Dev）',
+      role: 'SuperAdmin',
+      email: 'admin@dev.local',
+    }))
+  }
+}
+injectMockAuth()
 
 // 路由守卫 - 权限验证和IM端鉴权
 router.beforeEach((to, _from, next) => {

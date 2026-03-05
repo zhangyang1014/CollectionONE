@@ -286,9 +286,63 @@
 
       <!-- 操作按钮（放在所有筛选器下方） -->
       <el-row :gutter="16">
-        <el-col :span="24" style="text-align: right;">
-          <el-button type="primary" @click="handleQuery">查询</el-button>
-          <el-button @click="resetFilters">重置</el-button>
+        <el-col :span="24" class="filter-actions">
+          <div class="sort-controls">
+            <span class="sort-label">排序：</span>
+            <div class="sort-rules-list">
+              <!-- 排序规则列表 -->
+              <div 
+                v-for="(rule, index) in sortRules" 
+                :key="rule.id" 
+                class="sort-rule-item"
+              >
+                <el-select
+                  v-model="rule.prop"
+                  placeholder="选择排序字段"
+                  style="width: 140px; margin-right: 8px;"
+                  @change="handleSortFieldChange(rule, index)"
+                >
+                  <el-option 
+                    v-for="field in sortFieldOptions" 
+                    :key="field.value"
+                    :label="field.label" 
+                    :value="field.value"
+                    :disabled="isFieldDisabled(field.value, index)"
+                  />
+                </el-select>
+                <el-radio-group
+                  v-if="rule.prop && rule.prop !== 'collection_value'"
+                  v-model="rule.order"
+                  size="small"
+                  style="margin-right: 8px;"
+                >
+                  <el-radio-button label="ascending">升序</el-radio-button>
+                  <el-radio-button label="descending">降序</el-radio-button>
+                </el-radio-group>
+                <el-button
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="removeSortRule(index)"
+                >
+                  删除
+                </el-button>
+              </div>
+              <!-- 添加按钮 -->
+              <el-button
+                type="primary"
+                link
+                :icon="Plus"
+                @click="addSortRule"
+              >
+                添加排序
+              </el-button>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <el-button type="primary" @click="handleQuery">查询</el-button>
+            <el-button @click="resetFilters">重置</el-button>
+          </div>
         </el-col>
       </el-row>
       </el-form>
@@ -400,6 +454,14 @@
         <template #actions="{ row }">
           <el-button link type="primary" @click="handleView(row)">查看详情</el-button>
           <el-button link type="primary" @click="handleViewNotes(row)">查看催记</el-button>
+          <el-button 
+            v-if="hasImAssistPermission && isCaseAssigned(row)"
+            link 
+            type="primary" 
+            @click="handleImAssist(row)"
+          >
+            IM端协催
+          </el-button>
         </template>
       </DynamicCaseTable>
 
@@ -617,11 +679,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Search, Operation, Lock } from '@element-plus/icons-vue'
+import { Search, Operation, Lock, Plus, Delete } from '@element-plus/icons-vue'
 import { getCases, batchStayCases } from '@/api/case'
 import { getFieldGroups } from '@/api/field'
 import { getTenantQueues } from '@/api/queue'
-import { getTenantAgencies, getAgencyTeamGroups, getAgencyTeams, getTeamGroupTeams, getTeamCollectors } from '@/api/organization'
+import { getTenantAgencies, getAgencyTeamGroups, getAgencyTeams, getTeamGroupTeams, getTeamCollectors, getCollectorById } from '@/api/organization'
 import { useTenantStore } from '@/stores/tenant'
 import { useUserStore } from '@/stores/user'
 import { useCaseListFieldConfig } from '@/composables/useCaseListFieldConfig'
@@ -768,7 +830,41 @@ const teamGroups = ref<any[]>([])
 const teams = ref<any[]>([])
 const collectors = ref<any[]>([])
 const searchKeyword = ref('')
-const sortConfig = ref({ prop: 'overdue_days', order: 'descending' })
+
+// 排序规则接口
+interface SortRule {
+  id: string // 唯一标识，用于删除
+  prop: string // 排序字段
+  order: 'ascending' | 'descending' // 排序方向
+}
+
+// 多级排序规则数组：支持添加多个排序规则，按添加顺序确定优先级
+const sortRules = ref<SortRule[]>([])
+
+// 生成唯一ID的辅助函数
+const generateSortRuleId = () => {
+  return `sort_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
+// 排序字段选项
+const sortFieldOptions = [
+  { label: '逾期天数', value: 'overdue_days' },
+  { label: '到期日期', value: 'due_date' },
+  { label: '未还金额', value: 'outstanding_amount' },
+  { label: '催回价值', value: 'collection_value' }
+]
+
+// 判断字段是否被禁用（已被其他规则选中）
+const isFieldDisabled = (fieldValue: string, currentIndex: number): boolean => {
+  // 如果字段值为空，不禁用
+  if (!fieldValue) return false
+  
+  // 检查该字段是否被其他规则选中
+  return sortRules.value.some((rule, index) => 
+    index !== currentIndex && rule.prop === fieldValue
+  )
+}
+
 const selectedCases = ref<any[]>([])
 const showBatchAssignDialog = ref(false)
 const tableRef = ref()
@@ -896,29 +992,108 @@ const searchedCases = computed(() => {
   return cases.value
 })
 
-// 排序后的数据
+// 辅助函数：根据单个规则比较两个案件
+const compareByRule = (a: any, b: any, rule: SortRule): number => {
+  const prop = rule.prop
+  
+  // 催回价值特殊排序规则
+  if (prop === 'collection_value') {
+    // 1. 未还案件优先（case_status 不是已结清）
+    const aIsSettled = a.case_status === 'normal_settlement' || 
+                      a.case_status === 'extension_settlement' ||
+                      a.caseStatus === 'normal_settlement' ||
+                      a.caseStatus === 'extension_settlement'
+    const bIsSettled = b.case_status === 'normal_settlement' || 
+                      b.case_status === 'extension_settlement' ||
+                      b.caseStatus === 'normal_settlement' ||
+                      b.caseStatus === 'extension_settlement'
+    
+    if (aIsSettled !== bIsSettled) {
+      return aIsSettled ? 1 : -1 // 未还案件在前
+    }
+
+    // 2. 逾期天数升序（少的在前）
+    const aOverdueDays = parseFloat(a.overdue_days ?? a.overdueDays ?? 0) || 0
+    const bOverdueDays = parseFloat(b.overdue_days ?? b.overdueDays ?? 0) || 0
+    if (aOverdueDays !== bOverdueDays) {
+      return aOverdueDays > bOverdueDays ? 1 : -1
+    }
+
+    // 3. 未还金额降序（大的在前）
+    const aAmount = parseFloat(a.outstanding_amount ?? a.outstandingAmount ?? 0) || 0
+    const bAmount = parseFloat(b.outstanding_amount ?? b.outstandingAmount ?? 0) || 0
+    return aAmount < bAmount ? 1 : -1
+  }
+
+  // 普通字段排序
+  // 支持下划线和驼峰两种字段名格式
+  const camelProp = prop.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+  let aVal: any = a[prop] ?? a[camelProp] ?? null
+  let bVal: any = b[prop] ?? b[camelProp] ?? null
+
+  // 处理空值：空值放在最后
+  if (aVal === null || aVal === undefined || aVal === '') {
+    return 1
+  }
+  if (bVal === null || bVal === undefined || bVal === '') {
+    return -1
+  }
+
+  // 数字类型转换
+  if (['overdue_days', 'outstanding_amount', 'total_due_amount', 'contact_channels', 'loan_amount'].includes(prop)) {
+    aVal = parseFloat(aVal) || 0
+    bVal = parseFloat(bVal) || 0
+  }
+
+  // 日期类型转换
+  if (prop === 'due_date' || prop === 'dueDate') {
+    try {
+      aVal = aVal ? new Date(aVal).getTime() : 0
+      bVal = bVal ? new Date(bVal).getTime() : 0
+      // 如果日期无效，设为0（会排到最后）
+      if (isNaN(aVal)) aVal = 0
+      if (isNaN(bVal)) bVal = 0
+    } catch (e) {
+      aVal = 0
+      bVal = 0
+    }
+  }
+
+  // 字符串类型
+  if (typeof aVal === 'string' && typeof bVal === 'string') {
+    aVal = aVal.toLowerCase()
+    bVal = bVal.toLowerCase()
+  }
+
+  // 排序比较
+  if (rule.order === 'ascending') {
+    return aVal > bVal ? 1 : (aVal < bVal ? -1 : 0)
+  } else {
+    return aVal < bVal ? 1 : (aVal > bVal ? -1 : 0)
+  }
+}
+
+// 排序后的数据（支持多级排序）
 const sortedCases = computed(() => {
   const data = [...searchedCases.value]
-  if (!sortConfig.value.prop) {
+  
+  // 如果没有排序规则，返回原数据
+  if (sortRules.value.length === 0) {
     return data
   }
 
   return data.sort((a: any, b: any) => {
-    const prop = sortConfig.value.prop
-    let aVal = a[prop] ?? 0
-    let bVal = b[prop] ?? 0
-
-    // 数字类型转换
-    if (['overdue_days', 'outstanding_amount', 'total_due_amount', 'contact_channels'].includes(prop)) {
-      aVal = parseFloat(aVal) || 0
-      bVal = parseFloat(bVal) || 0
+    // 按顺序应用每个排序规则
+    for (const rule of sortRules.value) {
+      if (!rule.prop) continue // 跳过空字段的规则
+      
+      const result = compareByRule(a, b, rule)
+      if (result !== 0) {
+        return result // 如果当前规则能区分，直接返回
+      }
+      // 如果当前规则值相同，继续下一个规则
     }
-
-    if (sortConfig.value.order === 'ascending') {
-      return aVal > bVal ? 1 : -1
-    } else {
-      return aVal < bVal ? 1 : -1
-    }
+    return 0 // 所有规则都相同
   })
 })
 
@@ -1181,6 +1356,8 @@ const resetFilters = () => {
     product_name: undefined,
   }
   searchKeyword.value = ''
+  // 重置排序规则
+  sortRules.value = []
   pagination.value.page = 1
   teamGroups.value = []
   teams.value = []
@@ -1188,8 +1365,44 @@ const resetFilters = () => {
   loadCases()
 }
 
+// 处理表格列排序变化（保留原有功能，但优先使用表单排序）
 const handleSortChange = ({ prop, order }: any) => {
-  sortConfig.value = { prop, order }
+  // 如果表单中有排序规则，优先使用表单排序
+  // 否则，将表格列排序转换为表单排序规则
+  if (sortRules.value.length === 0 && prop) {
+    sortRules.value.push({
+      id: generateSortRuleId(),
+      prop,
+      order: order || 'descending'
+    })
+  }
+}
+
+// 添加排序规则
+const addSortRule = () => {
+  sortRules.value.push({
+    id: generateSortRuleId(),
+    prop: '',
+    order: 'descending'
+  })
+}
+
+// 删除排序规则
+const removeSortRule = (index: number) => {
+  sortRules.value.splice(index, 1)
+}
+
+// 处理表单排序字段变化
+const handleSortFieldChange = (rule: SortRule, index: number) => {
+  // 根据字段类型设置默认排序方向
+  if (rule.prop === 'overdue_days') {
+    rule.order = 'descending' // 逾期天数默认降序（逾期多的在前）
+  } else if (rule.prop === 'due_date') {
+    rule.order = 'ascending' // 到期日期默认升序（早到期的在前）
+  } else if (rule.prop === 'outstanding_amount') {
+    rule.order = 'descending' // 未还金额默认降序（金额大的在前）
+  }
+  // 催回价值不需要方向选择，使用固定规则
 }
 
 // 批量分案相关方法
@@ -1401,6 +1614,68 @@ const getCaseStatusType = (status: string) => {
 
 const handleView = (row: any) => {
   router.push(`/cases/${String(row.id)}`)
+}
+
+// IM端协催相关
+// 检查是否有IM端协催权限
+const hasImAssistPermission = computed(() => {
+  // TODO: 从权限系统获取权限配置
+  // 暂时返回true，后续接入权限系统
+  // 权限点名称: 'IM端协催'
+  return true
+})
+
+// 判断案件是否已分配催员
+const isCaseAssigned = (row: any): boolean => {
+  return !!(row.collectorId || row.collector_id)
+}
+
+// 处理IM端协催
+const handleImAssist = async (row: any) => {
+  const collectorId = row.collectorId || row.collector_id
+  
+  if (!collectorId) {
+    ElMessage.warning('该案件未分配给任何催员，无法进行协催')
+    return
+  }
+  
+  // 获取催员的登录ID（loginId）
+  // 优先从案件数据中获取，如果没有则调用API查询
+  let loginId = row.loginId || row.login_id || row.collectorCode || row.collector_code
+  
+  // 如果没有登录ID，需要根据collectorId查询催员信息
+  if (!loginId) {
+    try {
+      const collectorInfo = await getCollectorById(collectorId)
+      // 从催员信息中获取loginId，优先使用loginId，其次使用collector_code
+      loginId = collectorInfo.loginId || collectorInfo.login_id || collectorInfo.collector_code || collectorInfo.collectorCode
+      
+      if (!loginId) {
+        ElMessage.warning('无法获取催员登录信息，请稍后重试')
+        return
+      }
+    } catch (error) {
+      console.error('获取催员信息失败:', error)
+      ElMessage.error('获取催员信息失败，请稍后重试')
+      return
+    }
+  }
+  
+  // 跳转到IM端登录页，使用模拟登录参数
+  // 在新标签页中打开，避免影响当前页面
+  const route = router.resolve({
+    path: '/im/login',
+    query: {
+      simulate: 'true',
+      collectorId: loginId
+    }
+  })
+  
+  // 构建完整URL（包括当前域名和端口）
+  const baseUrl = window.location.origin
+  const fullUrl = `${baseUrl}${route.path}?simulate=true&collectorId=${encodeURIComponent(loginId)}`
+  
+  window.open(fullUrl, '_blank')
 }
 
 // 历史催记相关
@@ -1929,6 +2204,73 @@ onMounted(async () => {
 .third-filter-row :deep(.el-select),
 .third-filter-row :deep(.el-input) {
   width: 100%;
+}
+
+/* 多级排序样式 */
+.sort-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.sort-rule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.sort-rule-item:hover {
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 0 -8px;
+}
+
+/* 筛选操作区域样式 */
+.filter-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 768px) {
+  .filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .sort-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .action-buttons {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
 }
 </style>
 

@@ -313,6 +313,16 @@ export function getCollectorDetail(id: number) {
   })
 }
 
+/**
+ * 根据催员ID获取催员基本信息（用于IM端协催）
+ */
+export function getCollectorById(id: number) {
+  return request<Collector>({
+    url: `/api/v1/collectors/${id}`,
+    method: 'get'
+  })
+}
+
 // ===== 案件分配 API =====
 
 /**
